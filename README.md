@@ -15,6 +15,7 @@ pause at stops, answer questions about what is on screen – and can be rebuilt 
 - **Rebuild a slide** – describe the change in plain words; Claude Code edits the slide code, the type check runs,
   the presentation reloads. Every rebuild can be undone. A suggestion from “ask” can be handed over with one click.
 - **Create a presentation** – give a folder and a prompt; Claude Code writes the scenes, texts and stops from a template.
+- **Reorder slides** – drag slides into a new order in the slide list; click to jump to one.
 - **Edit texts and timing** – captions, titles, lists, durations and stops are edited live in the side panel.
 - **Export to PDF** – one page per stop, exactly as the presenter pauses there (button „⤓ PDF“ or `npm run pdf`);
   handy as a handout.

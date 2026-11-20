@@ -36,6 +36,10 @@ den anderen zuerst beenden. Ist noch keine Präsentation gewählt, zeigt die Sei
 
 Tasten: Leertaste / → / Enter / Klick = weiter · ← = zurück · `S` = Haltepunkt ein/aus · `F` = Vollbild · `?` = Frage ans LLM.
 
+**Folien umsortieren:** Rechts oben unter „Folien“ stehen alle Folien in ihrer Reihenfolge. Eine Zeile ziehen
+verschiebt die Folie (ein gelber Strich zeigt, wo sie landet), ein Klick springt zu ihr. Gespeichert wird sofort in
+`content.json` (`order`); die Folien selbst bleiben unverändert.
+
 ## Sprache (Deutsch / Englisch)
 
 - Die Oberfläche lässt sich oben in der Leiste zwischen **DE** und **EN** umschalten. Voreinstellung ist die Sprache

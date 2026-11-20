@@ -35,6 +35,10 @@ stop the other one first. If no presentation has been chosen yet, the page only 
 
 Keys: space / → / Enter / click = next · ← = back · `S` = stop on/off · `F` = fullscreen · `?` = ask the LLM.
 
+**Reordering slides:** at the top right under “Slides” all slides are listed in order. Drag a row to move the slide
+(a yellow line shows where it will land); click a row to jump to it. The new order is saved right away in
+`content.json` (`order`); the slides themselves are not changed.
+
 ## Language (German / English)
 
 - The user interface can be switched between **DE** and **EN** in the top bar. The default is the browser's language;

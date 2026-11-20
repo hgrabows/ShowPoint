@@ -7,6 +7,7 @@ import {Ask, askCss} from './Ask';
 import {Rebuild, RebuildState, rebuildCss} from './Rebuild';
 import {floatCss} from './float';
 import {Create, createCss} from './Create';
+import {Slides, slidesCss} from './Slides';
 
 const css = `
 *{box-sizing:border-box}
@@ -571,7 +572,7 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
-      <style>{css + askCss + rebuildCss + floatCss + createCss + langCss}</style>
+      <style>{css + askCss + rebuildCss + floatCss + createCss + langCss + slidesCss}</style>
       {createBox}
       {jobBadge}
       <div className="stage">
@@ -704,6 +705,21 @@ const App: React.FC = () => {
 
       <div className="panel">
         {chooser}
+        <Slides
+          order={content.order}
+          current={id}
+          nameOf={nameOf}
+          durOf={(sid) => content.scenes[sid].dur}
+          onJump={(sid) => goto(starts[content.order.indexOf(sid)])}
+          onReorder={(next) => {
+            // keep showing the same slide at the same point after the move
+            const start = next.slice(0, next.indexOf(id)).reduce((a, sid) => a + content.scenes[sid].dur, 0);
+            edit((c) => {
+              c.order = next;
+            });
+            goto(start + local);
+          }}
+        />
         <h2>
           {idx + 1} · {nameOf(id)}
         </h2>

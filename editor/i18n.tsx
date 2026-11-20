@@ -110,6 +110,11 @@ const de = {
   durLabel: 'Dauer der Szene in Bildern (30 pro Sekunde)',
   stopsLabel: 'Haltepunkte (Bildnummern in dieser Szene, mit Komma getrennt)',
 
+  // Slides.tsx
+  slides: 'Folien',
+  slidesHint: 'ziehen = umsortieren · Klick = hinspringen',
+  slideRowTitle: 'Ziehen, um die Folie zu verschieben · Klick springt zur Folie',
+
   // float.tsx
   dragMove: 'Ziehen = verschieben · Doppelklick = zurücksetzen',
   dragSize: 'Ziehen = Größe ändern',
@@ -252,6 +257,10 @@ const en: typeof de = {
   timing: 'Timing',
   durLabel: 'Scene duration in frames (30 per second)',
   stopsLabel: 'Stops (frame numbers within this scene, comma-separated)',
+
+  slides: 'Slides',
+  slidesHint: 'drag = reorder · click = jump',
+  slideRowTitle: 'Drag to move the slide · click to jump to it',
 
   dragMove: 'Drag = move · double-click = reset',
   dragSize: 'Drag = resize',
