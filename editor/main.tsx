@@ -165,6 +165,12 @@ const App: React.FC = () => {
   }, []);
 
   // Rebuild by Claude Code: poll the state; if one is running (also after a reload), show its window.
+  // The slide being shown (scene id + frame within it). Kept in sessionStorage so a page reload – e.g. when Claude
+  // changed slide code during a rebuild – returns to the same slide; restored after content refreshes as well.
+  const pos = useRef<{id: string; local: number} | null>(null);
+  const restorePending = useRef(false);
+  const posKey = () => `showpoint-pos:${pres?.current ?? ''}`;
+
   const pollRebuild = useCallback(async () => {
     try {
       const st: RebuildState = await fetch('/api/rebuild').then((r) => r.json());
@@ -177,6 +183,7 @@ const App: React.FC = () => {
       if (rbWas.current && !st.running && st.kind !== 'create') {
         // done: reload the texts from the server so the editor does not write stale content back
         dirty.current = false;
+        restorePending.current = true;
         fetch('/api/content')
           .then((r) => r.json())
           .then(setContent);
@@ -238,6 +245,56 @@ const App: React.FC = () => {
   });
 
   const ready = content !== null && Video !== null;
+
+  /** Shows the remembered slide again (same frame within it); does nothing if that slide no longer exists. */
+  const restorePos = useCallback(() => {
+    const p = pos.current;
+    const pl = player.current;
+    if (!p || !content || !pl) return;
+    const i = content.order.indexOf(p.id);
+    if (i < 0) return;
+    const f = sceneStarts(content)[i] + Math.min(p.local, content.scenes[p.id].dur - 1);
+    pl.pause();
+    pl.seekTo(f);
+    last.current = f;
+    setFrame(f);
+  }, [content]);
+
+  // remember the current slide (only once the remembered one has been restored after loading)
+  const restoredOnLoad = useRef(false);
+  useEffect(() => {
+    if (!content || !ready || !restoredOnLoad.current || restorePending.current) return;
+    const id = content.order[idx];
+    if (!id) return;
+    pos.current = {id, local: frame - (starts[idx] ?? 0)};
+    try {
+      sessionStorage.setItem(posKey(), JSON.stringify(pos.current));
+    } catch {
+      // not remembered – only this page
+    }
+  }, [frame, idx, content, ready]);
+
+  // after loading the page: back to the remembered slide
+  useEffect(() => {
+    if (!ready || restoredOnLoad.current) return;
+    restoredOnLoad.current = true;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(posKey()) ?? 'null');
+      if (saved?.id) {
+        pos.current = saved;
+        restorePos();
+      }
+    } catch {
+      // nothing remembered
+    }
+  }, [ready, restorePos]);
+
+  // after a rebuild or undo refreshed the texts: stay on the same slide even if durations changed
+  useEffect(() => {
+    if (!restorePending.current || !content) return;
+    restorePending.current = false;
+    restorePos();
+  }, [content, restorePos]);
   useEffect(() => {
     const p = player.current;
     if (!p) return;
@@ -630,6 +687,7 @@ const App: React.FC = () => {
               }}
               onUndo={() => rebuildPost({undo: true}).then(() => {
                 dirty.current = false;
+                restorePending.current = true;
                 fetch('/api/content')
                   .then((r) => r.json())
                   .then(setContent);
