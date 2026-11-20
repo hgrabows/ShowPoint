@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {T} from './i18n';
 
-/** Lage eines Fensters als Anteil der Folienfläche (0…1); h = null heißt: so hoch wie der Inhalt. */
+/** Position of a window as a fraction of the slide area (0…1); h = null means: as tall as its content. */
 type Box = {l: number; t: number; w: number; h: number | null};
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
@@ -13,8 +14,8 @@ export const floatCss = `
 `;
 
 /**
- * Macht ein Fenster über der Folie verschiebbar (an der Kopfzeile ziehen) und in der Größe änderbar
- * (Griff unten rechts). Die Lage wird im Browser gemerkt; Doppelklick auf die Kopfzeile setzt sie zurück.
+ * Makes a window above the slide movable (drag the header) and resizable (grip bottom right).
+ * The position is remembered in the browser; double-clicking the header resets it.
  */
 export function useFloat(key: string, def: {l: number; t: number; w: number}) {
   const ref = useRef<HTMLDivElement>(null);
@@ -24,7 +25,7 @@ export function useFloat(key: string, def: {l: number; t: number; w: number}) {
       const b = JSON.parse(localStorage.getItem(key) ?? 'null');
       if (b && [b.l, b.t, b.w].every((n: unknown) => typeof n === 'number')) return b;
     } catch {
-      // ohne Speicher gilt die Voreinstellung
+      // without storage the default applies
     }
     return initial;
   });
@@ -32,7 +33,7 @@ export function useFloat(key: string, def: {l: number; t: number; w: number}) {
     try {
       localStorage.setItem(key, JSON.stringify(box));
     } catch {
-      // nicht merkbar – kein Problem
+      // not remembered – no problem
     }
   }, [key, box]);
 
@@ -80,7 +81,7 @@ export function useFloat(key: string, def: {l: number; t: number; w: number}) {
   return {
     ref,
     style,
-    head: {className: 'ask-head fl-head', onPointerDown: start('move'), onDoubleClick: () => setBox(initial), title: 'Ziehen = verschieben · Doppelklick = zurücksetzen'},
-    grip: <div className="fl-grip" title="Ziehen = Größe ändern" onPointerDown={start('size')} />,
+    head: {className: 'ask-head fl-head', onPointerDown: start('move'), onDoubleClick: () => setBox(initial), title: T.dragMove},
+    grip: <div className="fl-grip" title={T.dragSize} onPointerDown={start('size')} />,
   };
 }

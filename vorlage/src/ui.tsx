@@ -42,7 +42,7 @@ export type SceneContent = {
   lists: Record<string, string[]>;
 };
 
-/** all = die Texte aller Szenen; nötig für Bausteine, die auf mehreren Folien gleich aussehen. */
+/** all = the texts of all scenes; needed for building blocks that look the same on several slides. */
 export type SceneProps = {dur: number; c: SceneContent; all?: Record<string, SceneContent>};
 
 export const useAppear = (at: number) => {
@@ -294,7 +294,7 @@ export const Arrow: React.FC<{
   );
 };
 
-/** Ein Embedding-Vektor als Streifen farbiger Zellen. */
+/** An embedding vector as a strip of colored cells. */
 export const Vec: React.FC<{
   seed: string;
   n?: number;
@@ -323,7 +323,7 @@ export const Vec: React.FC<{
 
 export const memHue = (i: number) => 215 + ((i * 47) % 130);
 
-/** Ein Memory-Token / Slot. sat 0 = noch "leer", 1 = gefüllt. */
+/** A memory token / slot. sat 0 = still "empty", 1 = filled. */
 export const Token: React.FC<{
   i: number;
   size?: number;

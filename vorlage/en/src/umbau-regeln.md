@@ -1,0 +1,3 @@
+- The slides are drawn in src/scenes*.tsx, shared building blocks are in src/ui.tsx.
+- Stage 1920×1080. The title occupies the top down to about y=170, the caption box starts at y=922.
+- Every scene receives {dur, c, all}; visible texts come from c.t / c.lists, not hard-coded.

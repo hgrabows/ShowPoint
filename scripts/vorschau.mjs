@@ -1,7 +1,7 @@
-// Vorschau für Claude Code beim Umbauen und Erzeugen von Folien: prüft content.json und die Typen und rendert
-// die Szenen an jedem Haltepunkt (plus Schlussbild) als Bilder, die Claude ansehen kann.
-// Aufruf: node <ShowPoint>/scripts/vorschau.mjs <Ordner der Präsentation> [Szenen-ID …]
-//   ohne Szenen-ID: alle Szenen. Bilder landen in <Ordner der Präsentation>/.vorschau/.
+// Preview for Claude Code when rebuilding and creating slides: checks content.json and the types and renders
+// the scenes at every stop (plus the final frame) as images that Claude can look at.
+// Usage: node <ShowPoint>/scripts/vorschau.mjs <presentation folder> [scene ID …]
+//   without scene IDs: all scenes. Images go to <presentation folder>/.vorschau/.
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,28 +13,28 @@ const fail = (msg) => {
   console.log(msg);
   process.exit(1);
 };
-if (!dirArg) fail('Aufruf: node scripts/vorschau.mjs <Ordner der Präsentation> [Szenen-ID …]');
+if (!dirArg) fail('Usage: node scripts/vorschau.mjs <presentation folder> [scene ID …]');
 const dir = fs.realpathSync(path.resolve(dirArg));
 const entry = path.join(dir, 'src', 'index.ts');
-if (!fs.existsSync(entry)) fail(`${entry} fehlt – ist ${dir} der Ordner einer Präsentation?`);
+if (!fs.existsSync(entry)) fail(`${entry} is missing – is ${dir} a presentation folder?`);
 
 // 1. content.json
 let content;
 try {
   content = JSON.parse(fs.readFileSync(path.join(dir, 'src', 'content.json'), 'utf8'));
-  if (!Array.isArray(content.order) || !content.scenes) throw new Error('order oder scenes fehlen');
+  if (!Array.isArray(content.order) || !content.scenes) throw new Error('order or scenes missing');
   for (const id of content.order) {
     const sc = content.scenes[id];
-    if (!sc) throw new Error(`Szene „${id}“ steht in order, fehlt aber in scenes`);
-    if (typeof sc.dur !== 'number' || !Array.isArray(sc.stops) || !sc.t || !sc.lists) throw new Error(`Szene „${id}“: dur, stops, t oder lists fehlen`);
+    if (!sc) throw new Error(`Scene "${id}" is in order but missing from scenes`);
+    if (typeof sc.dur !== 'number' || !Array.isArray(sc.stops) || !sc.t || !sc.lists) throw new Error(`Scene "${id}": dur, stops, t or lists missing`);
   }
 } catch (e) {
-  fail(`content.json ist fehlerhaft: ${e.message}`);
+  fail(`content.json is invalid: ${e.message}`);
 }
 const unknown = wanted.filter((id) => !content.order.includes(id));
-if (unknown.length) fail(`Unbekannte Szenen-ID: ${unknown.join(', ')}. Vorhanden: ${content.order.join(', ')}`);
+if (unknown.length) fail(`Unknown scene ID: ${unknown.join(', ')}. Available: ${content.order.join(', ')}`);
 
-// 2. Typprüfung (das ganze Projekt, gemeldet werden nur Fehler in dieser Präsentation)
+// 2. Type check (the whole project; only errors in this presentation are reported)
 const inhalte = path.join(root, 'inhalte');
 const link = fs.existsSync(inhalte)
   ? fs.readdirSync(inhalte).find((n) => {
@@ -63,10 +63,10 @@ if (link && tsc) {
     .replaceAll(`inhalte/${link}/`, `${dir}/`);
 }
 tsc = tsc.trim();
-if (tsc) fail(`Typprüfung meldet Fehler (erst beheben, dann erneut aufrufen):\n${tsc.slice(0, 6000)}`);
-console.log(`Typprüfung ohne Fehler${link ? '' : ' (Hinweis: Präsentation ist nicht unter inhalte/ eingehängt, geprüft wurde nur der Präsentator)'}.`);
+if (tsc) fail(`Type check reports errors (fix them first, then call again):\n${tsc.slice(0, 6000)}`);
+console.log(`Type check passed${link ? '' : ' (note: the presentation is not linked under inhalte/, only the presenter was checked)'}.`);
 
-// 3. Bilder an jedem Haltepunkt
+// 3. Images at every stop
 const {bundle} = await import('@remotion/bundler');
 const {openBrowser, renderStill, getCompositions} = await import('@remotion/renderer');
 const shots = [];
@@ -80,7 +80,7 @@ for (const id of content.order) {
   start += sc.dur;
 }
 const MAX = 40;
-if (shots.length > MAX) fail(`Das wären ${shots.length} Bilder. Bitte Szenen-IDs angeben (höchstens ${MAX} Bilder je Aufruf). Szenen: ${content.order.join(', ')}`);
+if (shots.length > MAX) fail(`That would be ${shots.length} images. Please give scene IDs (at most ${MAX} images per call). Scenes: ${content.order.join(', ')}`);
 
 const out = path.join(dir, '.vorschau');
 fs.rmSync(out, {recursive: true, force: true});
@@ -97,13 +97,13 @@ try {
     const file = path.join(out, `${s.id}-${String(s.local).padStart(4, '0')}.jpg`);
     try {
       await renderStill({composition, serveUrl, frame: s.frame, output: file, imageFormat: 'jpeg', jpegQuality: 80, scale: 0.5, puppeteerInstance: browser});
-      console.log(`Szene ${s.id}, Bild ${s.local}${s.last ? ' (Schlussbild)' : ' (Haltepunkt)'}: ${file}`);
+      console.log(`Scene ${s.id}, frame ${s.local}${s.last ? ' (final frame)' : ' (stop)'}: ${file}`);
     } catch (e) {
-      errors.push(`Szene ${s.id}, Bild ${s.local}: ${String(e.message).split('\n')[0]}`);
+      errors.push(`Scene ${s.id}, frame ${s.local}: ${String(e.message).split('\n')[0]}`);
     }
   }
 } finally {
   await browser.close({silent: true});
 }
-if (errors.length) fail(`Rendern fehlgeschlagen:\n${errors.join('\n')}`);
-console.log(`\n${shots.length} Bilder (960×540, halbe Größe der Bühne 1920×1080). Sieh sie dir mit Read an und prüfe: nichts überlappt, nichts ragt aus dem Bild oder in den Untertitel-Kasten, Text gut lesbar.`);
+if (errors.length) fail(`Rendering failed:\n${errors.join('\n')}`);
+console.log(`\n${shots.length} images (960×540, half the size of the 1920×1080 stage). Look at them and check: nothing overlaps, nothing sticks out of the frame or into the caption box, text easy to read.`);

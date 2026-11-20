@@ -1,7 +1,10 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {useFloat} from './float';
+import {T} from './i18n';
 
-type Line = {kind: 'text' | 'tool' | 'error' | 'check'; text: string};
+type Line = {kind: 'text' | 'tool' | 'error' | 'check' | 'checkfail' | 'checkretry'; text: string};
+/** Log lines shown in red: errors, failed checks and type errors Claude is asked to fix again. */
+export const isBad = (l: Line) => l.kind === 'error' || l.kind === 'checkfail' || l.kind === 'checkretry';
 export type RebuildState = {running: boolean; kind?: 'rebuild' | 'create'; created: string; createdPath: string; startedAt?: number; id: number; instruction: string; log: Line[]; canUndo: boolean; seconds: number};
 
 export const rebuildCss = `
@@ -12,7 +15,7 @@ export const rebuildCss = `
 .rb .ask-in{flex-wrap:wrap}
 `;
 
-/** Auftrag an Claude Code, die Folien umzubauen. Der Auftrag läuft auf dem Server weiter, auch wenn die Seite neu lädt. */
+/** Instruction for Claude Code to rebuild slides. The job keeps running on the server even if the page reloads. */
 export const Rebuild: React.FC<{
   sceneId: string;
   sceneName: string;
@@ -20,7 +23,7 @@ export const Rebuild: React.FC<{
   onStart: (instruction: string) => void;
   onUndo: () => void;
   onClose: () => void;
-  /** Vorgefüllter Auftrag, z. B. aus „Frage zur Folie“; n wechselt bei jeder neuen Übergabe. */
+  /** Prefilled instruction, e.g. from “Ask about slide”; n changes with every new handover. */
   draft?: {text: string; n: number} | null;
 }> = ({sceneName, state, onStart, onUndo, onClose, draft}) => {
   const fl = useFloat('rebuild-box', {l: 0.025, t: 0.06, w: 0.46});
@@ -51,17 +54,15 @@ export const Rebuild: React.FC<{
   return (
     <div className="ask rb" ref={fl.ref} style={fl.style} onClick={(e) => e.stopPropagation()}>
       <div {...fl.head}>
-        Folie umbauen <span>{sceneName} · Claude Code</span>
-        <button title="Schließen (Esc) – ein laufender Umbau läuft weiter" onClick={onClose}>
+        {T.rebuildHead} <span>{sceneName} · Claude Code</span>
+        <button title={T.rebuildClose} onClick={onClose}>
           ✕
         </button>
       </div>
       <div className="ask-log" ref={log}>
         {!state?.instruction ? (
           <div className="ask-dim">
-            Beschreibe, was an den Folien anders werden soll – Grafik, Aufbau oder Text. Claude Code ändert
-            die Dateien in src/, danach lädt die Präsentation neu. Vor jedem Umbau wird der Stand gesichert;
-            „Rückgängig“ stellt ihn wieder her. Das dauert meist einige Minuten.
+            {T.rebuildIntro}
           </div>
         ) : (
           <>
@@ -74,13 +75,13 @@ export const Rebuild: React.FC<{
               ) : (
                 <div
                   key={i}
-                  className={l.kind === 'error' ? 'ask-err ask-a' : l.kind === 'check' ? (/meldet Fehler/.test(l.text) ? 'ask-err ask-a' : 'rb-ok ask-a') : 'ask-a'}
+                  className={isBad(l) ? 'ask-err ask-a' : l.kind === 'check' ? 'rb-ok ask-a' : 'ask-a'}
                 >
                   {l.text}
                 </div>
               ),
             )}
-            {running ? <div className="ask-dim">arbeitet … {state.seconds} s</div> : null}
+            {running ? <div className="ask-dim">{T.working(state.seconds)}</div> : null}
           </>
         )}
       </div>
@@ -89,7 +90,7 @@ export const Rebuild: React.FC<{
           ref={area}
           value={text}
           disabled={running}
-          placeholder={running ? 'Umbau läuft …' : 'Auftrag eingeben, ⌘/Strg + Enter startet'}
+          placeholder={running ? T.rebuildBusy : T.rebuildPlaceholder}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) start();
@@ -97,9 +98,9 @@ export const Rebuild: React.FC<{
           }}
         />
         <button className="primary" onClick={start} disabled={running}>
-          Umbauen
+          {T.rebuildStart}
         </button>
-        {state?.canUndo ? <button onClick={onUndo}>Rückgängig</button> : null}
+        {state?.canUndo ? <button onClick={onUndo}>{T.undo}</button> : null}
       </div>
       {fl.grip}
     </div>

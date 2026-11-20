@@ -1,0 +1,25 @@
+Create a presentation on the following topic.
+
+Topic:
+<What is it about? One to three sentences.>
+
+Audience and prior knowledge:
+<e.g. Master's students in computer science; familiar with embeddings, but not with the details of the topic>
+
+Scope:
+<e.g. 10 to 12 slides, about 4 minutes running time>
+
+Sources (papers, own notes, links) – one per line:
+<path to a file, e.g. ~/Downloads/paper.pdf>
+<or a link, e.g. https://arxiv.org/abs/1234.56789>
+
+Focus:
+- <What must be explained in any case?>
+- <What can be left out?>
+
+Structure:
+Title, problem, core idea, the steps of the method one by one, results with numbers from the sources, limitations, conclusion.
+
+Style:
+Vivid and step by step, with graphics instead of walls of text. One idea per slide. Language: English.
+Technical details and numbers only from the sources; invent nothing.

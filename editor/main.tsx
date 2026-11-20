@@ -1,3 +1,4 @@
+import {T, LangSwitch, langCss} from './i18n';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Player, PlayerRef} from '@remotion/player';
@@ -78,7 +79,7 @@ const Area: React.FC<{value: string; onChange: (v: string) => void; rows?: numbe
 
 const App: React.FC = () => {
   const [content, setContent] = useState<Content | null>(null);
-  // Die Folien (Video.tsx) kommen aus dem gewählten Inhaltsordner und werden erst zur Laufzeit geladen.
+  // The slides (Video.tsx) come from the chosen content folder and are loaded at runtime.
   const [pres, setPres] = useState<Presentation | null>(null);
   const [Video, setVideo] = useState<React.FC<{content: Content}> | null>(null);
   const [presError, setPresError] = useState('');
@@ -87,9 +88,9 @@ const App: React.FC = () => {
       .then((r) => r.json())
       .then(async (p: Presentation) => {
         setPres(p);
-        if (!p.videoUrl) return; // noch keine Präsentation gewählt
+        if (!p.videoUrl) return; // no presentation chosen yet
         const mod = await import(/* @vite-ignore */ p.videoUrl);
-        if (typeof mod.Video !== 'function') throw new Error('src/Video.tsx exportiert keine Komponente „Video“.');
+        if (typeof mod.Video !== 'function') throw new Error(T.noVideoExport);
         setVideo(() => mod.Video);
       })
       .catch((e) => setPresError(String(e?.message ?? e)));
@@ -104,7 +105,7 @@ const App: React.FC = () => {
   }, [pres]);
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [saved, setSaved] = useState('geladen');
+  const [saved, setSaved] = useState(T.loaded);
   const [asking, setAsking] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [rbDraft, setRbDraft] = useState<{text: string; n: number} | null>(null);
@@ -118,14 +119,14 @@ const App: React.FC = () => {
       st = await fetch('/api/pdf').then((r) => r.json());
       setPdf(st);
     }
-    if (st.error) window.alert(`PDF-Export fehlgeschlagen:\n${st.error}`);
+    if (st.error) window.alert(T.pdfFailed(st.error));
     else if (st.file) window.open('/api/pdf/file', '_blank');
   }, [pdf?.running]);
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
   creatingRef.current = creating;
   const [rb, setRb] = useState<RebuildState | null>(null);
-  // Welchen fertigen Erzeugen-Auftrag man schon zur Kenntnis genommen hat (Startzeit als Kennung).
+  // Which finished create job has already been acknowledged (start time as id).
   const [seen, setSeen] = useState(() => {
     try {
       return localStorage.getItem('create-seen') ?? '';
@@ -139,7 +140,7 @@ const App: React.FC = () => {
     try {
       localStorage.setItem('create-seen', v);
     } catch {
-      // nicht merkbar
+      // not remembered
     }
   }, [rb]);
   const createDone = rb?.kind === 'create' && !rb.running && !!rb.instruction && String(rb.startedAt) !== seen;
@@ -162,16 +163,16 @@ const App: React.FC = () => {
       .then(setContent);
   }, []);
 
-  // Umbau durch Claude Code: Stand abfragen; läuft einer (auch nach dem Neuladen), Fenster zeigen.
+  // Rebuild by Claude Code: poll the state; if one is running (also after a reload), show its window.
   const pollRebuild = useCallback(async () => {
     try {
       const st: RebuildState = await fetch('/api/rebuild').then((r) => r.json());
       setRb(st);
       if (st.running && st.kind !== 'create') setRebuilding(true);
-      // Eine neue Präsentation entsteht im Hintergrund; ihr Fenster geht nur beim Fertigwerden von selbst auf.
+      // A new presentation is created in the background; its window only opens by itself once it is done.
       if (rbWas.current && !st.running && st.kind === 'create') setCreating(true);
       if (rbWas.current && !st.running && st.kind !== 'create') {
-        // fertig: Texte neu vom Server holen, damit der Editor nichts Altes zurückschreibt
+        // done: reload the texts from the server so the editor does not write stale content back
         dirty.current = false;
         fetch('/api/content')
           .then((r) => r.json())
@@ -179,7 +180,7 @@ const App: React.FC = () => {
       }
       rbWas.current = st.running;
     } catch {
-      // Server startet gerade neu
+      // server is restarting
     }
   }, []);
   useEffect(() => {
@@ -199,14 +200,14 @@ const App: React.FC = () => {
     [pollRebuild],
   );
 
-  // Speichern (verzögert), sobald etwas geändert wurde
+  // Save (debounced) as soon as something changed
   useEffect(() => {
     if (!content || !dirty.current) return;
-    setSaved('speichert …');
+    setSaved(T.saving);
     const id = setTimeout(() => {
       fetch('/api/content', {method: 'POST', body: JSON.stringify(content)})
-        .then((r) => setSaved(r.ok ? 'gespeichert' : 'Fehler beim Speichern'))
-        .catch(() => setSaved('Fehler beim Speichern'));
+        .then((r) => setSaved(r.ok ? T.saved : T.saveError))
+        .catch(() => setSaved(T.saveError));
     }, 400);
     return () => clearTimeout(id);
   }, [content]);
@@ -279,7 +280,7 @@ const App: React.FC = () => {
     setFrame(f);
   }, []);
 
-  /** Weiter: läuft bis zum nächsten Haltepunkt. Während es läuft: dorthin springen. */
+  /** Next: plays to the next stop. While playing: jump there. */
   const advance = useCallback(() => {
     const p = player.current;
     if (!p) return;
@@ -335,7 +336,7 @@ const App: React.FC = () => {
     setAsking(true);
   }, []);
 
-  /** Markierter Text innerhalb der Folie (oder einer Antwort), sonst leer. */
+  /** Marked text inside the slide (or an answer), otherwise null. */
   const selectedText = useCallback(() => {
     const s = window.getSelection();
     const root = screen.current;
@@ -346,7 +347,7 @@ const App: React.FC = () => {
     if (!text) return null;
     const r = range.getBoundingClientRect();
     const box = root.getBoundingClientRect();
-    // Knopf unter die Markierung; ist dort kein Platz mehr, darüber.
+    // Button below the selection; if there is no room, above it.
     const above = r.bottom - box.top + 60 > box.height;
     return {
       text,
@@ -356,7 +357,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Nach dem Markieren erscheint ein Knopf „Dazu fragen“ an der Markierung.
+  // After marking text, an “ask about this” button appears at the selection.
   useEffect(() => {
     const update = () => setTimeout(() => setSel(selectedText()), 0);
     const clear = () => {
@@ -380,7 +381,7 @@ const App: React.FC = () => {
     [openAsk],
   );
 
-  // Im Vollbild verschwindet der Mauszeiger erst, wenn die Maus ruht.
+  // In fullscreen the cursor only disappears once the mouse rests.
   useEffect(() => {
     let id: ReturnType<typeof setTimeout>;
     const move = () => {
@@ -446,7 +447,10 @@ const App: React.FC = () => {
 
   const chooser = pres ? (
     <div className="pres">
-      <label>Präsentation</label>
+      <div className="pres-top">
+        <label>{T.presentation}</label>
+        <LangSwitch />
+      </div>
       <select
         value={pres.current}
         onChange={(e) => {
@@ -454,62 +458,62 @@ const App: React.FC = () => {
           if (v === '') return;
           if (v === '#pick') switchTo({pick: true});
           else if (v === '#path') {
-            const p = window.prompt('Pfad zum Ordner der Präsentation (er enthält src/ mit Video.tsx und content.json):');
+            const p = window.prompt(T.pathPrompt);
             if (p) switchTo({path: p});
           } else switchTo({dir: v});
         }}
       >
-        {pres.current === '' ? <option value="">– bitte wählen –</option> : null}
+        {pres.current === '' ? <option value="">{T.pleaseChoose}</option> : null}
         {pres.list.map((q) => (
           <option key={q.dir} value={q.dir} title={q.path}>
             {q.title} — {q.path}
           </option>
         ))}
-        <option value="#pick">Anderen Ordner wählen …</option>
-        <option value="#path">Pfad eintippen …</option>
+        <option value="#pick">{T.pickFolder}</option>
+        <option value="#path">{T.typePath}</option>
       </select>
       {pres.list.find((q) => q.dir === pres.current)?.linked ? (
         <button
           className="pres-rm"
-          title="Nimmt diese Präsentation aus der Liste. Ihre Dateien bleiben unverändert an ihrem Ort."
+          title={T.removeTitle}
           onClick={() => {
-            if (window.confirm(`„${pres.title}“ aus der Liste entfernen?\n\nDie Dateien in ${pres.path} bleiben erhalten. Danach wird wieder der Projektordner gezeigt.`))
+            if (window.confirm(T.removeConfirm(pres.title, pres.path)))
               switchTo({remove: pres.current});
           }}
         >
-          Aus Liste entfernen
+          {T.removeFromList}
         </button>
       ) : null}
       <button
         className="pres-rm"
-        title="Lässt Claude Code eine komplette Präsentation in einem neuen Ordner erzeugen"
+        title={T.createTitle}
         onClick={() => {
           player.current?.pause();
           setCreating(true);
         }}
       >
-        {rb?.running && rb.kind === 'create' ? '＋ Präsentation entsteht …' : '＋ Neue Präsentation erzeugen …'}
+        {rb?.running && rb.kind === 'create' ? T.createRunning : T.createNew}
       </button>
       {presError ? <div className="pres-err">{presError}</div> : null}
     </div>
   ) : null;
 
-  // Dauerhafte Anzeige unten links, solange ein Auftrag läuft oder eine neue Präsentation auf das Öffnen wartet.
+  // Persistent badge bottom left while a job runs or a new presentation waits to be opened.
   const lastStep = rb?.log.filter((l) => l.kind === 'tool').pop()?.text ?? '';
   const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
   const jobBadge =
     rb?.running && !(rb.kind === 'create' ? creating : rebuilding) ? (
-      <button className="job" onClick={() => (rb.kind === 'create' ? setCreating(true) : setRebuilding(true))} title="Klick zeigt das Protokoll">
+      <button className="job" onClick={() => (rb.kind === 'create' ? setCreating(true) : setRebuilding(true))} title={T.badgeLogTitle}>
         <span className="job-spin" />
-        <b>{rb.kind === 'create' ? 'Neue Präsentation entsteht' : 'Umbau läuft'}</b> · {mmss(rb.seconds)}
+        <b>{rb.kind === 'create' ? T.badgeCreating : T.badgeRebuilding}</b> · {mmss(rb.seconds)}
         {lastStep ? <span className="job-step">{lastStep}</span> : null}
       </button>
     ) : createDone && !creating ? (
-      <button className="job job-done" onClick={() => setCreating(true)} title="Klick zeigt das Ergebnis und öffnet die Präsentation">
-        <b>✓ Neue Präsentation fertig</b> · ansehen
+      <button className="job job-done" onClick={() => setCreating(true)} title={T.badgeDoneTitle}>
+        <b>{T.badgeDone}</b> · {T.badgeView}
         <span
           className="job-x"
-          title="Ausblenden"
+          title={T.hide}
           onClick={(e) => {
             e.stopPropagation();
             markSeen();
@@ -541,21 +545,18 @@ const App: React.FC = () => {
   if (!content || !Video)
     return (
       <div style={{padding: 30, maxWidth: 640}}>
-        <style>{css + askCss + rebuildCss + createCss}</style>
+        <style>{css + askCss + rebuildCss + createCss + langCss}</style>
         {createBox}
         {jobBadge}
         {pres && !pres.videoUrl ? (
           <>
-            <h2>Präsentator</h2>
-            <p className="hint">
-              Noch keine Präsentation gewählt. Wähle unten den Ordner einer Präsentation – er enthält
-              <code> src/Video.tsx</code> und <code>src/content.json</code> – oder lass eine neue erzeugen.
-            </p>
+            <h2>ShowPoint</h2>
+            <p className="hint">{T.noPresentation}</p>
           </>
         ) : presError ? (
-          <p className="pres-err">Die Präsentation ließ sich nicht laden: {presError}</p>
+          <p className="pres-err">{T.loadFailed(presError)}</p>
         ) : (
-          'Lädt …'
+          T.loading
         )}
         {chooser}
       </div>
@@ -570,7 +571,7 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
-      <style>{css + askCss + rebuildCss + floatCss + createCss}</style>
+      <style>{css + askCss + rebuildCss + floatCss + createCss + langCss}</style>
       {createBox}
       {jobBadge}
       <div className="stage">
@@ -581,7 +582,7 @@ const App: React.FC = () => {
             hadSel.current = !window.getSelection()?.isCollapsed;
           }}
           onClick={() => {
-            // Markieren oder Markierung aufheben blättert nicht weiter.
+            // Marking text or clearing a selection does not advance.
             if (asking || rebuilding || hadSel.current || !window.getSelection()?.isCollapsed) return;
             advance();
           }}
@@ -621,7 +622,7 @@ const App: React.FC = () => {
               state={rb?.kind === 'create' ? null : rb}
               draft={rbDraft}
               onStart={(instruction) => {
-                if (rb?.running) return window.alert('Gerade entsteht eine neue Präsentation. Ein Umbau geht erst, wenn sie fertig ist.');
+                if (rb?.running) return window.alert(T.createBusy);
                 rebuildPost({instruction, sceneId: id});
               }}
               onUndo={() => rebuildPost({undo: true}).then(() => {
@@ -643,7 +644,7 @@ const App: React.FC = () => {
                 askAbout(sel.text);
               }}
             >
-              ? Dazu fragen
+              {T.askAbout}
             </button>
           ) : null}
         </div>
@@ -669,22 +670,22 @@ const App: React.FC = () => {
           <div className="head" style={{left: `${(frame / total) * 100}%`}} />
         </div>
         <div className="bar">
-          <button onClick={back}>◀ Zurück</button>
-          <button className="primary" title="Läuft bis zum nächsten Haltepunkt; während es läuft: direkt dorthin springen" onClick={advance}>
-            {playing ? 'Springen ▶▶' : 'Weiter ▶'}
+          <button onClick={back}>{T.back}</button>
+          <button className="primary" title={T.nextTitle} onClick={advance}>
+            {playing ? T.jump : T.next}
           </button>
-          <button className="fix-stop" title="Haltepunkt an dieser Stelle einfügen oder entfernen (S)" onClick={toggleStop}>
-            {onStop ? '− Haltepunkt' : '+ Haltepunkt'}
+          <button className="fix-stop" title={T.stopTitle} onClick={toggleStop}>
+            {onStop ? T.stopRemove : T.stopAdd}
           </button>
-          <button onClick={fullscreen}>Vollbild</button>
+          <button onClick={fullscreen}>{T.fullscreen}</button>
           <button
             onClick={pdfExport}
             disabled={pdf?.running}
-            title="Eine PDF-Seite je Haltepunkt, so wie der Präsentator dort anhält. Gespeichert unter out/ im Ordner der Präsentation."
+            title={T.pdfTitle}
           >
             {pdf?.running ? `PDF … ${pdf.progress} %` : '⤓ PDF'}
           </button>
-          <button onClick={openAsk}>? Frage zur Folie</button>
+          <button onClick={openAsk}>{T.askSlide}</button>
           <button
             className="fix-rb"
             onClick={() => {
@@ -692,17 +693,13 @@ const App: React.FC = () => {
               setRebuilding(true);
             }}
           >
-            {rb?.running && rb.kind !== 'create' ? '✎ Umbau läuft …' : '✎ Folie umbauen'}
+            {rb?.running && rb.kind !== 'create' ? T.rebuildRunning : T.rebuildSlide}
           </button>
           <span className="info">
-            Szene {idx + 1}/{content.order.length} · Bild {local}/{sc.dur} · {saved}
+            {T.info(idx + 1, content.order.length, local, sc.dur, saved)}
           </span>
         </div>
-        <div className="hint">
-          Weiter: <kbd>Leertaste</kbd> <kbd>→</kbd> <kbd>Enter</kbd> oder Klick ins Bild ·
-          Zurück: <kbd>←</kbd> · Haltepunkt ein/aus: <kbd>S</kbd> · Vollbild: <kbd>F</kbd> · Frage ans LLM: <kbd>?</kbd> (Text vorher markieren = gezielt dazu fragen) · Folie umbauen lassen: <kbd>U</kbd> ·
-          gelbe Striche = Haltepunkte · Klick in die Leiste springt dorthin
-        </div>
+        <div className="hint">{T.keys}</div>
       </div>
 
       <div className="panel">
@@ -710,24 +707,24 @@ const App: React.FC = () => {
         <h2>
           {idx + 1} · {nameOf(id)}
         </h2>
-        <div className="hint">Änderungen erscheinen sofort und werden automatisch gespeichert.</div>
+        <div className="hint">{T.liveEdit}</div>
 
-        <label>Kurzname in der Leiste</label>
+        <label>{T.shortName}</label>
         <input value={sc.name ?? ''} onChange={(e) => scene((s) => (s.name = e.target.value))} />
 
         {sc.title !== undefined ? (
           <>
-            <h3>Überschrift</h3>
-            <label>Dachzeile</label>
+            <h3>{T.heading}</h3>
+            <label>{T.kicker}</label>
             <Area value={sc.kicker ?? ''} onChange={(v) => scene((s) => (s.kicker = v))} />
-            <label>Titel</label>
+            <label>{T.title}</label>
             <Area value={sc.title} onChange={(v) => scene((s) => (s.title = v))} />
           </>
         ) : null}
 
         {sc.captions?.length ? (
           <>
-            <h3>Untertitel (ab Bild · Text)</h3>
+            <h3>{T.captions}</h3>
             {sc.captions.map((cap, i) => (
               <div className="cap" key={i}>
                 <input
@@ -741,7 +738,7 @@ const App: React.FC = () => {
           </>
         ) : null}
 
-        {Object.keys(sc.t).length ? <h3>Texte im Bild</h3> : null}
+        {Object.keys(sc.t).length ? <h3>{T.texts}</h3> : null}
         {Object.entries(sc.t).map(([k, v]) => (
           <div key={k} style={{marginBottom: 8}}>
             <Area value={v} onChange={(nv) => scene((s) => (s.t[k] = nv))} />
@@ -750,7 +747,7 @@ const App: React.FC = () => {
 
         {Object.entries(sc.lists).map(([k, list]) => (
           <div key={k}>
-            <h3>Liste „{k}“ (eine Zeile pro Eintrag)</h3>
+            <h3>{T.listHead(k)}</h3>
             <Area
               rows={list.length + 1}
               value={list.join('\n')}
@@ -759,14 +756,14 @@ const App: React.FC = () => {
           </div>
         ))}
 
-        <h3>Ablauf</h3>
-        <label>Dauer der Szene in Bildern (30 pro Sekunde)</label>
+        <h3>{T.timing}</h3>
+        <label>{T.durLabel}</label>
         <input
           type="number"
           value={sc.dur}
           onChange={(e) => scene((s) => (s.dur = Math.max(30, Number(e.target.value) || 30)))}
         />
-        <label>Haltepunkte (Bildnummern in dieser Szene, mit Komma getrennt)</label>
+        <label>{T.stopsLabel}</label>
         <StopsInput
           key={id + sc.stops.join(',')}
           stops={sc.stops}

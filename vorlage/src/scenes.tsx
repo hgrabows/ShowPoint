@@ -2,7 +2,7 @@ import React from 'react';
 import {AbsoluteFill} from 'remotion';
 import {Appear, Arrow, Box, C, Label, Scene, SceneProps, Sub, Svg} from './ui';
 
-/* 1 ─ Titel */
+/* 1 ─ Title */
 export const Title: React.FC<SceneProps> = ({dur, c}) => (
   <Scene dur={dur}>
     <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', textAlign: 'center'}}>
@@ -16,7 +16,7 @@ export const Title: React.FC<SceneProps> = ({dur, c}) => (
   </Scene>
 );
 
-/* 2 ─ Beispiel: zwei Kästen, ein Pfeil, eine Beschriftung. Zeigt, wie die Bausteine aus ui.tsx benutzt werden. */
+/* 2 ─ Example: two boxes, an arrow, a label. Shows how to use the building blocks from ui.tsx. */
 export const Beispiel: React.FC<SceneProps> = ({dur, c}) => (
   <Scene dur={dur} kicker={c.kicker} title={c.title} captions={c.captions}>
     <Box x={260} y={380} w={520} h={220} at={20} color={C.doc}>

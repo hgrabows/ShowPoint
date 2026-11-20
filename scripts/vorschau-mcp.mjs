@@ -1,6 +1,6 @@
-// Minimaler MCP-Server (stdio, JSON-RPC) mit genau einem Werkzeug „vorschau“ für Claude Code.
-// Der Ordner der Präsentation wird beim Start festgelegt (Argument), Claude wählt nur die Szenen.
-// So braucht Claude kein Bash und kann nichts anderes ausführen.
+// Minimal MCP server (stdio, JSON-RPC) with exactly one tool "vorschau" (preview) for Claude Code.
+// The presentation folder is fixed at startup (argument); Claude only chooses the scenes.
+// That way Claude needs no Bash and cannot run anything else.
 import {execFile} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,27 +14,27 @@ const send = (msg) => process.stdout.write(JSON.stringify({jsonrpc: '2.0', ...ms
 const tool = {
   name: 'vorschau',
   description:
-    'Prüft content.json und die Typen der Präsentation und rendert die genannten Szenen an jedem Haltepunkt (plus Schlussbild) als Bild (960×540, halbe Größe der Bühne 1920×1080). Gibt Meldungen und die Bilder zurück. Dauert einige Sekunden je Szene; höchstens 40 Bilder je Aufruf.',
+    'Checks content.json and the types of the presentation and renders the given scenes at every stop (plus the final frame) as images (960×540, half the size of the 1920×1080 stage). Returns messages and the images. Takes a few seconds per scene; at most 40 images per call.',
   inputSchema: {
     type: 'object',
-    properties: {szenen: {type: 'array', items: {type: 'string'}, description: 'Szenen-IDs aus content.json (order). Leer = alle Szenen.'}},
-    required: ['szenen'],
+    properties: {scenes: {type: 'array', items: {type: 'string'}, description: 'Scene IDs from content.json (order). Empty = all scenes.'}},
+    required: ['scenes'],
   },
 };
 
-function vorschau(szenen) {
+function vorschau(scenes) {
   return new Promise((resolve) => {
-    const ids = (Array.isArray(szenen) ? szenen : []).map(String).filter((s) => /^[\w-]+$/.test(s));
+    const ids = (Array.isArray(scenes) ? scenes : []).map(String).filter((s) => /^[\w-]+$/.test(s));
     execFile(process.execPath, [path.join(here, 'vorschau.mjs'), dir, ...ids], {cwd: path.join(here, '..'), maxBuffer: 8_000_000, timeout: 300_000}, (err, stdout, stderr) => {
       const text = (String(stdout) + (err && stderr ? `\n${String(stderr).slice(-2000)}` : '')).trim();
-      const content = [{type: 'text', text: text || 'keine Ausgabe'}];
+      const content = [{type: 'text', text: text || 'no output'}];
       if (!err) {
         for (const m of text.matchAll(/: (\/\S+\.jpg)$/gm)) {
           try {
             content.push({type: 'text', text: path.basename(m[1])});
             content.push({type: 'image', mimeType: 'image/jpeg', data: fs.readFileSync(m[1]).toString('base64')});
           } catch {
-            // Bild fehlt – steht dann in der Textausgabe
+            // image missing – then it is mentioned in the text output
           }
         }
       }
@@ -50,15 +50,15 @@ readline.createInterface({input: process.stdin}).on('line', async (line) => {
   } catch {
     return;
   }
-  if (msg.id === undefined) return; // Benachrichtigung
+  if (msg.id === undefined) return; // notification
   if (msg.method === 'initialize') {
     return send({id: msg.id, result: {protocolVersion: msg.params?.protocolVersion ?? '2025-06-18', capabilities: {tools: {}}, serverInfo: {name: 'showpoint', version: '1.0.0'}}});
   }
   if (msg.method === 'tools/list') return send({id: msg.id, result: {tools: [tool]}});
   if (msg.method === 'tools/call') {
-    if (msg.params?.name !== 'vorschau') return send({id: msg.id, error: {code: -32602, message: 'Unbekanntes Werkzeug'}});
-    return send({id: msg.id, result: await vorschau(msg.params?.arguments?.szenen)});
+    if (msg.params?.name !== 'vorschau') return send({id: msg.id, error: {code: -32602, message: 'Unknown tool'}});
+    return send({id: msg.id, result: await vorschau(msg.params?.arguments?.scenes)});
   }
   if (msg.method === 'ping') return send({id: msg.id, result: {}});
-  send({id: msg.id, error: {code: -32601, message: `Unbekannte Methode ${msg.method}`}});
+  send({id: msg.id, error: {code: -32601, message: `Unknown method ${msg.method}`}});
 });

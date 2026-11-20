@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {RebuildState} from './Rebuild';
+import {RebuildState, isBad} from './Rebuild';
+import {T, lang} from './i18n';
 
 export const createCss = `
 .cr-back{position:fixed;inset:0;z-index:50;background:rgba(5,8,18,.72);display:flex;align-items:center;justify-content:center}
@@ -23,7 +24,8 @@ export const createCss = `
 .cr,.cr *{user-select:text;-webkit-user-select:text}
 `;
 
-const DRAFT = 'create-draft';
+// Drafts are kept per UI language, so the English window starts from the English template.
+const DRAFT = lang === 'de' ? 'create-draft' : `create-draft-${lang}`;
 const load = (key: string) => {
   try {
     return localStorage.getItem(key);
@@ -35,13 +37,13 @@ const store = (key: string, value: string) => {
   try {
     localStorage.setItem(key, value);
   } catch {
-    // nicht merkbar – kein Problem
+    // not remembered – no problem
   }
 };
 
 /**
- * Neue Präsentation erzeugen: Ordner und Prompt angeben, dann füllt Claude Code auf dem Server ein Gerüst.
- * Der Auftrag läuft weiter, auch wenn dieses Fenster geschlossen oder die Seite neu geladen wird.
+ * Create a new presentation: give a folder and a prompt, then Claude Code fills a skeleton on the server.
+ * The job keeps running even if this window is closed or the page reloads.
  */
 export const Create: React.FC<{
   state: RebuildState | null;
@@ -67,12 +69,12 @@ export const Create: React.FC<{
         try {
           draft = JSON.parse(load(DRAFT) ?? '{}');
         } catch {
-          // kein Entwurf
+          // no draft
         }
         setDir(draft.dir || `${d.parent}/`);
         setPrompt(draft.prompt || d.template);
       })
-      .catch(() => setError('Die Vorlage ließ sich nicht laden.'));
+      .catch(() => setError(T.templateFailed));
   }, []);
   useEffect(() => {
     if (prompt || dir) store(DRAFT, JSON.stringify({dir, prompt}));
@@ -84,7 +86,7 @@ export const Create: React.FC<{
   const mine = state?.kind === 'create' && !!state.instruction;
   const showLog = mine && (state!.running || String(state!.startedAt) !== seen);
   const running = mine && state!.running;
-  const failed = mine && state!.log.some((l) => l.kind === 'error' || (l.kind === 'check' && /^Typprüfung meldet Fehler:/.test(l.text)));
+  const failed = mine && state!.log.some((l) => l.kind === 'error' || l.kind === 'checkfail');
 
   const pick = async () => {
     setError('');
@@ -95,8 +97,8 @@ export const Create: React.FC<{
   const start = async () => {
     if (busy) return;
     setError('');
-    if (!dir.trim() || dir.trim().endsWith('/')) return setError('Bitte den Ordner der neuen Präsentation angeben, z. B. …/Mein-Thema.');
-    if (/<[^<>\n]{3,}>/.test(prompt) && !window.confirm('Im Prompt stehen noch Platzhalter in spitzen Klammern (<…>). Trotzdem starten?')) return;
+    if (!dir.trim() || dir.trim().endsWith('/')) return setError(T.needFolder);
+    if (/<[^<>\n]{3,}>/.test(prompt) && !window.confirm(T.placeholdersLeft)) return;
     setBusy(true);
     try {
       const r = await fetch('/api/create', {method: 'POST', body: JSON.stringify({path: dir.trim(), prompt})}).then((x) => x.json());
@@ -106,7 +108,7 @@ export const Create: React.FC<{
         onStarted(r);
       }
     } catch {
-      setError('Der Server ist nicht erreichbar.');
+      setError(T.serverDown);
     }
     setBusy(false);
   };
@@ -120,15 +122,15 @@ export const Create: React.FC<{
     <div className="cr-back" onClick={(e) => e.stopPropagation()}>
       <div className="cr">
         <div className="cr-head">
-          Neue Präsentation erzeugen <span>Claude Code</span>
-          <button title="Schließen (Esc) – ein laufender Auftrag läuft weiter" onClick={onClose}>
+          {T.createHead} <span>Claude Code</span>
+          <button title={T.createClose} onClick={onClose}>
             ✕
           </button>
         </div>
         {showLog ? (
           <>
             <div className="cr-body cr-log" ref={log}>
-              <div className="hint">Ordner: {state!.createdPath}</div>
+              <div className="hint">{T.folder(state!.createdPath)}</div>
               <div className="cr-q">{state!.instruction}</div>
               {state!.log.map((l, i) =>
                 l.kind === 'tool' ? (
@@ -136,31 +138,28 @@ export const Create: React.FC<{
                     ▸ {l.text}
                   </div>
                 ) : (
-                  <div key={i} className={`cr-a ${l.kind === 'error' || (l.kind === 'check' && /meldet Fehler/.test(l.text)) ? 'ask-err' : l.kind === 'check' ? 'rb-ok' : ''}`}>
+                  <div key={i} className={`cr-a ${isBad(l) ? 'ask-err' : l.kind === 'check' ? 'rb-ok' : ''}`}>
                     {l.text}
                   </div>
                 ),
               )}
               {running ? (
-                <div className="ask-dim">
-                  arbeitet … {Math.floor(state!.seconds / 60)} min {state!.seconds % 60} s. Eine ganze Präsentation dauert oft 10 bis 20 Minuten.
-                  Das Fenster kann zu; der Auftrag läuft weiter, und die bisherige Präsentation bleibt benutzbar.
-                </div>
+                <div className="ask-dim">{T.createWorking(Math.floor(state!.seconds / 60), state!.seconds % 60)}</div>
               ) : (
                 <div className="cr-note">
-                  {failed ? 'Fertig, aber mit Meldungen (siehe oben). ' : 'Fertig. '}
-                  Die Folien wurden nicht gerendert oder angesehen – bitte einmal durchklicken; Korrekturen gehen mit „Folie umbauen“.
+                  {failed ? T.doneWithNotes : T.done}
+                  {T.doneCheck}
                   <br />
-                  Soll der Präsentator bei Fragen (Taste ?) in den Papers nachlesen, kopiere sie nach <code>{quellen(state!.createdPath)}</code> (.pdf, .md, .txt).
+                  {T.copyPapers} <code>{quellen(state!.createdPath)}</code> (.pdf, .md, .txt).
                 </div>
               )}
             </div>
             <div className="cr-foot">
-              <span className="hint">{running ? 'läuft …' : ''}</span>
-              {!running ? <button onClick={again}>Weitere erzeugen …</button> : null}
+              <span className="hint">{running ? T.running : ''}</span>
+              {!running ? <button onClick={again}>{T.createAnother}</button> : null}
               {!running ? (
                 <button className="primary" onClick={() => onOpen(state!.created)}>
-                  Präsentation öffnen
+                  {T.openPresentation}
                 </button>
               ) : null}
             </div>
@@ -168,31 +167,31 @@ export const Create: React.FC<{
         ) : (
           <>
             <div className="cr-body">
-              <label>Ordner der neuen Präsentation (neu oder leer; darf irgendwo liegen)</label>
+              <label>{T.folderLabel}</label>
               <div className="cr-row">
-                <input value={dir} placeholder="/Pfad/zu/Mein-Thema" onChange={(e) => setDir(e.target.value)} />
-                <button onClick={pick}>Ordner wählen …</button>
+                <input value={dir} placeholder={T.folderPlaceholder} onChange={(e) => setDir(e.target.value)} />
+                <button onClick={pick}>{T.chooseFolder}</button>
               </div>
-              <label>Prompt (Vorlage aus prompt.txt im Präsentator-Ordner)</label>
+              <label>{T.promptLabel}</label>
               <textarea className="cr-prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) start();
               }} />
               <div className="cr-note">
-                Der Prompt darf auf Papers verweisen: als Dateipfad (<code>~/Downloads/paper.pdf</code>) oder als Link. Claude liest sie beim Erzeugen.
+                {T.papersNote1} (<code>~/Downloads/paper.pdf</code>) {T.papersNote2}
                 <br />
-                Soll der Präsentator auch <b>während des Vortrags</b> bei Fragen (Taste ?) darin nachlesen, kopiere die Papers zusätzlich nach{' '}
-                <code>{dir.trim() && !dir.trim().endsWith('/') ? quellen(dir.trim()) : '<Ordner der Präsentation>/quellen'}</code> (.pdf, .md, .txt).
-                Der Ordner wird beim Erzeugen angelegt; Claude legt dort nur eigene Notizen ab.
+                {T.papersNote3a} <b>{T.papersNote3b}</b> {T.papersNote3c}{' '}
+                <code>{dir.trim() && !dir.trim().endsWith('/') ? quellen(dir.trim()) : T.papersFolderFallback}</code> (.pdf, .md, .txt).
+                {' '}{T.papersNote4}
               </div>
               {error ? <div className="pres-err">{error}</div> : null}
             </div>
             <div className="cr-foot">
-              <span className="hint">⌘/Strg + Enter startet · dauert oft 10 bis 20 Minuten</span>
-              <button title="Setzt den Prompt auf den Inhalt von prompt.txt zurück" onClick={() => setPrompt(template)}>
-                Vorlage neu laden
+              <span className="hint">{T.createHint}</span>
+              <button title={T.reloadTemplateTitle} onClick={() => setPrompt(template)}>
+                {T.reloadTemplate}
               </button>
               <button className="primary" onClick={start} disabled={busy || !!state?.running}>
-                {state?.running ? 'Es läuft schon ein Auftrag' : 'Erzeugen'}
+                {state?.running ? T.jobRunning : T.create}
               </button>
             </div>
           </>

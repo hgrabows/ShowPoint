@@ -1,0 +1,32 @@
+{
+  "title": "New presentation",
+  "order": ["title", "beispiel"],
+  "scenes": {
+    "title": {
+      "name": "Title",
+      "dur": 150,
+      "stops": [135],
+      "t": {"t01": "New presentation", "t02": "Subtitle"},
+      "lists": {}
+    },
+    "beispiel": {
+      "name": "Example",
+      "dur": 300,
+      "kicker": "Kicker",
+      "title": "Slide heading",
+      "captions": [
+        {"at": 10, "text": "The narration appears at the bottom as a caption."},
+        {"at": 150, "text": "From frame 150 on, the next sentence follows."}
+      ],
+      "stops": [140, 287],
+      "t": {
+        "t01": "First box",
+        "t02": "small line below",
+        "t03": "Second box",
+        "t04": "small line below",
+        "t05": "All visible texts live in content.json."
+      },
+      "lists": {}
+    }
+  }
+}

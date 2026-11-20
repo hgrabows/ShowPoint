@@ -1,6 +1,7 @@
-// Erzeugt aus der im Präsentator gewählten Präsentation ein PDF: eine Seite je Haltepunkt
-// (genau das Bild, bei dem der Präsentator anhält) plus das Schlussbild.
-// Aufruf: npm run pdf   → <Ordner der Präsentation>/out/<titel>.pdf
+// Creates a PDF from the presentation chosen in the presenter: one page per stop
+// (exactly the frame at which the presenter pauses) plus the final frame.
+// Usage: npm run pdf   → <presentation folder>/out/<title>.pdf
+// Machine-readable lines for vite.config.mts: "PROGRESS <percent>" and "DONE <path>".
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,11 +12,11 @@ import {gewaehltePraesentation} from './inhalt.mjs';
 
 const {root, dir, entry, content, title, name} = gewaehltePraesentation();
 if (!content?.order?.length) {
-  console.error('content.json fehlt oder enthält keine Szenen.');
+  console.error('content.json is missing or contains no scenes.');
   process.exit(1);
 }
 
-// Dieselbe Rechnung wie im Präsentator (editor/main.tsx): Haltepunkte aller Szenen auf die Gesamtzeit umgerechnet.
+// Same calculation as in the presenter (editor/main.tsx): stops of all scenes converted to the overall timeline.
 const total = content.order.reduce((a, id) => a + content.scenes[id].dur, 0);
 const pages = [];
 let start = 0;
@@ -26,12 +27,12 @@ for (const id of content.order) {
 const frames = [...new Set([...pages.filter((f) => f > 0 && f < total), total - 1])].sort((a, b) => a - b);
 
 const out = path.join(dir, 'out', `${name}.pdf`);
-console.log(`PDF „${title}“: ${frames.length} Seiten → ${out}`);
+console.log(`PDF "${title}": ${frames.length} pages → ${out}`);
 console.log('PROGRESS 0');
 
 const serveUrl = await bundle({
   entryPoint: entry,
-  // wie remotion.config.ts: Folien außerhalb dieses Ordners finden die hier installierten Pakete
+  // like remotion.config.ts: slides outside this folder find the packages installed here
   webpackOverride: (config) => ({
     ...config,
     resolve: {...config.resolve, modules: [path.join(root, 'node_modules'), 'node_modules']},
@@ -45,7 +46,7 @@ const browser = await openBrowser('chrome');
 const pdf = await PDFDocument.create();
 pdf.setTitle(title);
 pdf.setCreator('ShowPoint');
-// 16:9-Seite in Punkt (1920 × 1080 Pixel → 960 × 540 pt, also 2 Pixel je Punkt)
+// 16:9 page in points (1920 × 1080 pixels → 960 × 540 pt, i.e. 2 pixels per point)
 const W = composition.width / 2;
 const H = composition.height / 2;
 try {
@@ -62,4 +63,4 @@ try {
 }
 fs.mkdirSync(path.dirname(out), {recursive: true});
 fs.writeFileSync(out, await pdf.save());
-console.log(`FERTIG ${out}`);
+console.log(`DONE ${out}`);

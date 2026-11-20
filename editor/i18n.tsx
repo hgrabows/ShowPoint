@@ -1,0 +1,345 @@
+import React from 'react';
+
+/**
+ * UI language (German/English). The choice is remembered in the browser; without one, the browser language decides.
+ * Switching reloads the page. Every /api request carries the language in the X-Lang header, so the server
+ * answers (errors, job logs, Claude's replies) in the same language.
+ */
+export type Lang = 'de' | 'en';
+const KEY = 'showpoint-lang';
+
+export const lang: Lang = (() => {
+  try {
+    const v = localStorage.getItem(KEY);
+    if (v === 'de' || v === 'en') return v;
+  } catch {
+    // no storage – fall back to the browser language
+  }
+  return navigator.language?.toLowerCase().startsWith('de') ? 'de' : 'en';
+})();
+
+export const setLang = (l: Lang) => {
+  try {
+    localStorage.setItem(KEY, l);
+  } catch {
+    // not remembered – applies to this page only
+  }
+  location.reload();
+};
+
+document.documentElement.lang = lang;
+
+const nativeFetch = window.fetch.bind(window);
+window.fetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  if (url.startsWith('/api') || url.startsWith(`${location.origin}/api`)) {
+    const headers = new Headers(init.headers ?? (input instanceof Request ? input.headers : undefined));
+    headers.set('X-Lang', lang);
+    init = {...init, headers};
+  }
+  return nativeFetch(input, init);
+};
+
+const de = {
+  // main.tsx
+  noVideoExport: 'src/Video.tsx exportiert keine Komponente „Video“.',
+  loaded: 'geladen',
+  saving: 'speichert …',
+  saved: 'gespeichert',
+  saveError: 'Fehler beim Speichern',
+  pdfFailed: (e: string) => `PDF-Export fehlgeschlagen:\n${e}`,
+  presentation: 'Präsentation',
+  pathPrompt: 'Pfad zum Ordner der Präsentation (er enthält src/ mit Video.tsx und content.json):',
+  pleaseChoose: '– bitte wählen –',
+  pickFolder: 'Anderen Ordner wählen …',
+  typePath: 'Pfad eintippen …',
+  removeTitle: 'Nimmt diese Präsentation aus der Liste. Ihre Dateien bleiben unverändert an ihrem Ort.',
+  removeConfirm: (title: string, path: string) =>
+    `„${title}“ aus der Liste entfernen?\n\nDie Dateien in ${path} bleiben erhalten. Danach wird wieder der Projektordner gezeigt.`,
+  removeFromList: 'Aus Liste entfernen',
+  createTitle: 'Lässt Claude Code eine komplette Präsentation in einem neuen Ordner erzeugen',
+  createRunning: '＋ Präsentation entsteht …',
+  createNew: '＋ Neue Präsentation erzeugen …',
+  language: 'Sprache',
+  badgeLogTitle: 'Klick zeigt das Protokoll',
+  badgeCreating: 'Neue Präsentation entsteht',
+  badgeRebuilding: 'Umbau läuft',
+  badgeDoneTitle: 'Klick zeigt das Ergebnis und öffnet die Präsentation',
+  badgeDone: '✓ Neue Präsentation fertig',
+  badgeView: 'ansehen',
+  hide: 'Ausblenden',
+  noPresentation: (
+    <>
+      Noch keine Präsentation gewählt. Wähle unten den Ordner einer Präsentation – er enthält <code>src/Video.tsx</code> und{' '}
+      <code>src/content.json</code> – oder lass eine neue erzeugen.
+    </>
+  ),
+  loadFailed: (e: string) => `Die Präsentation ließ sich nicht laden: ${e}`,
+  loading: 'Lädt …',
+  createBusy: 'Gerade entsteht eine neue Präsentation. Ein Umbau geht erst, wenn sie fertig ist.',
+  askAbout: '? Dazu fragen',
+  back: '◀ Zurück',
+  nextTitle: 'Läuft bis zum nächsten Haltepunkt; während es läuft: direkt dorthin springen',
+  jump: 'Springen ▶▶',
+  next: 'Weiter ▶',
+  stopTitle: 'Haltepunkt an dieser Stelle einfügen oder entfernen (S)',
+  stopRemove: '− Haltepunkt',
+  stopAdd: '+ Haltepunkt',
+  fullscreen: 'Vollbild',
+  pdfTitle: 'Eine PDF-Seite je Haltepunkt, so wie der Präsentator dort anhält. Gespeichert unter out/ im Ordner der Präsentation.',
+  askSlide: '? Frage zur Folie',
+  rebuildRunning: '✎ Umbau läuft …',
+  rebuildSlide: '✎ Folie umbauen',
+  info: (scene: number, scenes: number, frame: number, dur: number, saved: string) => `Szene ${scene}/${scenes} · Bild ${frame}/${dur} · ${saved}`,
+  keys: (
+    <>
+      Weiter: <kbd>Leertaste</kbd> <kbd>→</kbd> <kbd>Enter</kbd> oder Klick ins Bild · Zurück: <kbd>←</kbd> · Haltepunkt ein/aus: <kbd>S</kbd> ·
+      Vollbild: <kbd>F</kbd> · Frage ans LLM: <kbd>?</kbd> (Text vorher markieren = gezielt dazu fragen) · Folie umbauen lassen: <kbd>U</kbd> ·
+      gelbe Striche = Haltepunkte · Klick in die Leiste springt dorthin
+    </>
+  ),
+  liveEdit: 'Änderungen erscheinen sofort und werden automatisch gespeichert.',
+  shortName: 'Kurzname in der Leiste',
+  heading: 'Überschrift',
+  kicker: 'Dachzeile',
+  title: 'Titel',
+  captions: 'Untertitel (ab Bild · Text)',
+  texts: 'Texte im Bild',
+  listHead: (k: string) => `Liste „${k}“ (eine Zeile pro Eintrag)`,
+  timing: 'Ablauf',
+  durLabel: 'Dauer der Szene in Bildern (30 pro Sekunde)',
+  stopsLabel: 'Haltepunkte (Bildnummern in dieser Szene, mit Komma getrennt)',
+
+  // float.tsx
+  dragMove: 'Ziehen = verschieben · Doppelklick = zurücksetzen',
+  dragSize: 'Ziehen = Größe ändern',
+
+  // Ask.tsx
+  quoted: (quote: string, q: string) => `(zur Stelle „${quote}“) ${q}`,
+  explainQuote: 'Erkläre mir die markierte Stelle.',
+  errorStatus: (s: number) => `Fehler ${s}`,
+  noAnswer: 'Keine Antwort erhalten.',
+  askHead: 'Frage zur Folie',
+  whoAnswers: 'Wer antwortet',
+  llmEnv: 'LLM aus .env',
+  close: 'Schließen (Esc)',
+  askIntro:
+    'Stell eine Frage zu dem, was gerade zu sehen ist. Das Modell kennt die Texte dieser Folie und die Quellen im Ordner „quellen“. Du kannst Text in der Folie oder in einer Antwort markieren und dann gezielt dazu fragen.',
+  sources: 'Quellen: ',
+  noSources: 'Keine Quellen im Ordner „quellen“.',
+  kChars: (n: number) => `${n} Tsd. Zeichen`,
+  thinking: 'denkt nach …',
+  handoverTitle: 'Öffnet „Folie umbauen“ mit diesem Vorschlag als Auftrag – du kannst ihn vor dem Start noch ändern',
+  handover: '→ Als Umbau-Auftrag übernehmen',
+  handoverText: (question: string, answer: string) =>
+    `Setze diesen Vorschlag aus „Frage zur Folie“ um.\n\nMeine Frage: ${question}\n\nVorschlag:\n${answer}`,
+  dropQuote: 'Markierung verwerfen',
+  askPlaceholderQuote: 'Frage zur Markierung (leer = erklären)',
+  askPlaceholder: 'Frage eingeben (⇧↵ neue Zeile)',
+  askInputTitle: 'Enter sendet · Shift+Enter fügt eine neue Zeile ein',
+  askSend: 'Fragen',
+
+  // Rebuild.tsx
+  rebuildHead: 'Folie umbauen',
+  rebuildClose: 'Schließen (Esc) – ein laufender Umbau läuft weiter',
+  rebuildIntro:
+    'Beschreibe, was an den Folien anders werden soll – Grafik, Aufbau oder Text. Claude Code ändert die Dateien in src/, prüft das Ergebnis mit einer Vorschau, danach lädt die Präsentation neu. Vor jedem Umbau wird der Stand gesichert; „Rückgängig“ stellt ihn wieder her. Das dauert meist einige Minuten.',
+  working: (s: number) => `arbeitet … ${s} s`,
+  rebuildBusy: 'Umbau läuft …',
+  rebuildPlaceholder: 'Auftrag eingeben, ⌘/Strg + Enter startet',
+  rebuildStart: 'Umbauen',
+  undo: 'Rückgängig',
+
+  // Create.tsx
+  templateFailed: 'Die Vorlage ließ sich nicht laden.',
+  needFolder: 'Bitte den Ordner der neuen Präsentation angeben, z. B. …/Mein-Thema.',
+  placeholdersLeft: 'Im Prompt stehen noch Platzhalter in spitzen Klammern (<…>). Trotzdem starten?',
+  serverDown: 'Der Server ist nicht erreichbar.',
+  createHead: 'Neue Präsentation erzeugen',
+  createClose: 'Schließen (Esc) – ein laufender Auftrag läuft weiter',
+  folder: (p: string) => `Ordner: ${p}`,
+  createWorking: (min: number, s: number) =>
+    `arbeitet … ${min} min ${s} s. Eine ganze Präsentation dauert oft 10 bis 20 Minuten. Das Fenster kann zu; der Auftrag läuft weiter, und die bisherige Präsentation bleibt benutzbar.`,
+  doneWithNotes: 'Fertig, aber mit Meldungen (siehe oben). ',
+  done: 'Fertig. ',
+  doneCheck: 'Claude hat die Folien mit der Vorschau geprüft – bitte trotzdem einmal durchklicken; Korrekturen gehen mit „Folie umbauen“.',
+  copyPapers: 'Soll der Präsentator bei Fragen (Taste ?) in den Papers nachlesen, kopiere sie nach',
+  running: 'läuft …',
+  createAnother: 'Weitere erzeugen …',
+  openPresentation: 'Präsentation öffnen',
+  folderLabel: 'Ordner der neuen Präsentation (neu oder leer; darf irgendwo liegen)',
+  folderPlaceholder: '/Pfad/zu/Mein-Thema',
+  chooseFolder: 'Ordner wählen …',
+  promptLabel: 'Prompt (Vorlage aus prompt.txt im Präsentator-Ordner)',
+  papersNote1: 'Der Prompt darf auf Papers verweisen: als Dateipfad',
+  papersNote2: 'oder als Link. Claude liest sie beim Erzeugen.',
+  papersNote3a: 'Soll der Präsentator auch',
+  papersNote3b: 'während des Vortrags',
+  papersNote3c: 'bei Fragen (Taste ?) darin nachlesen, kopiere die Papers zusätzlich nach',
+  papersFolderFallback: '<Ordner der Präsentation>/quellen',
+  papersNote4: 'Der Ordner wird beim Erzeugen angelegt; Claude legt dort nur eigene Notizen ab.',
+  createHint: '⌘/Strg + Enter startet · dauert oft 10 bis 20 Minuten',
+  reloadTemplateTitle: 'Setzt den Prompt auf den Inhalt von prompt.txt zurück',
+  reloadTemplate: 'Vorlage neu laden',
+  jobRunning: 'Es läuft schon ein Auftrag',
+  create: 'Erzeugen',
+};
+
+const en: typeof de = {
+  noVideoExport: 'src/Video.tsx does not export a component called “Video”.',
+  loaded: 'loaded',
+  saving: 'saving …',
+  saved: 'saved',
+  saveError: 'Error while saving',
+  pdfFailed: (e) => `PDF export failed:\n${e}`,
+  presentation: 'Presentation',
+  pathPrompt: 'Path to the presentation folder (it contains src/ with Video.tsx and content.json):',
+  pleaseChoose: '– please choose –',
+  pickFolder: 'Choose another folder …',
+  typePath: 'Type a path …',
+  removeTitle: 'Removes this presentation from the list. Its files stay where they are, unchanged.',
+  removeConfirm: (title, path) => `Remove “${title}” from the list?\n\nThe files in ${path} are kept. The project folder is shown afterwards.`,
+  removeFromList: 'Remove from list',
+  createTitle: 'Lets Claude Code create a complete presentation in a new folder',
+  createRunning: '＋ Presentation in progress …',
+  createNew: '＋ New presentation …',
+  language: 'Language',
+  badgeLogTitle: 'Click to show the log',
+  badgeCreating: 'Creating new presentation',
+  badgeRebuilding: 'Rebuild running',
+  badgeDoneTitle: 'Click to show the result and open the presentation',
+  badgeDone: '✓ New presentation ready',
+  badgeView: 'view',
+  hide: 'Hide',
+  noPresentation: (
+    <>
+      No presentation chosen yet. Choose the folder of a presentation below – it contains <code>src/Video.tsx</code> and{' '}
+      <code>src/content.json</code> – or have a new one created.
+    </>
+  ),
+  loadFailed: (e) => `The presentation could not be loaded: ${e}`,
+  loading: 'Loading …',
+  createBusy: 'A new presentation is being created right now. Rebuilding is possible once it is finished.',
+  askAbout: '? Ask about this',
+  back: '◀ Back',
+  nextTitle: 'Plays to the next stop; while playing: jump straight there',
+  jump: 'Jump ▶▶',
+  next: 'Next ▶',
+  stopTitle: 'Add or remove a stop at this point (S)',
+  stopRemove: '− Stop',
+  stopAdd: '+ Stop',
+  fullscreen: 'Fullscreen',
+  pdfTitle: 'One PDF page per stop, exactly as the presenter pauses there. Saved in out/ inside the presentation folder.',
+  askSlide: '? Ask about slide',
+  rebuildRunning: '✎ Rebuilding …',
+  rebuildSlide: '✎ Rebuild slide',
+  info: (scene, scenes, frame, dur, saved) => `Scene ${scene}/${scenes} · Frame ${frame}/${dur} · ${saved}`,
+  keys: (
+    <>
+      Next: <kbd>Space</kbd> <kbd>→</kbd> <kbd>Enter</kbd> or click the slide · Back: <kbd>←</kbd> · Stop on/off: <kbd>S</kbd> · Fullscreen:{' '}
+      <kbd>F</kbd> · Ask the LLM: <kbd>?</kbd> (mark text first = ask about exactly that) · Rebuild slide: <kbd>U</kbd> · yellow ticks = stops ·
+      click the bar to jump there
+    </>
+  ),
+  liveEdit: 'Changes show up immediately and are saved automatically.',
+  shortName: 'Short name in the bar',
+  heading: 'Heading',
+  kicker: 'Kicker',
+  title: 'Title',
+  captions: 'Captions (from frame · text)',
+  texts: 'Texts in the slide',
+  listHead: (k) => `List “${k}” (one line per item)`,
+  timing: 'Timing',
+  durLabel: 'Scene duration in frames (30 per second)',
+  stopsLabel: 'Stops (frame numbers within this scene, comma-separated)',
+
+  dragMove: 'Drag = move · double-click = reset',
+  dragSize: 'Drag = resize',
+
+  quoted: (quote, q) => `(about the passage “${quote}”) ${q}`,
+  explainQuote: 'Explain the marked passage to me.',
+  errorStatus: (s) => `Error ${s}`,
+  noAnswer: 'No answer received.',
+  askHead: 'Ask about slide',
+  whoAnswers: 'Who answers',
+  llmEnv: 'LLM from .env',
+  close: 'Close (Esc)',
+  askIntro:
+    'Ask a question about what is shown right now. The model knows the texts of this slide and the sources in the “quellen” folder. You can mark text in the slide or in an answer and then ask about exactly that.',
+  sources: 'Sources: ',
+  noSources: 'No sources in the “quellen” folder.',
+  kChars: (n) => `${n}k characters`,
+  thinking: 'thinking …',
+  handoverTitle: 'Opens “Rebuild slide” with this suggestion as the instruction – you can still edit it before starting',
+  handover: '→ Use as rebuild instruction',
+  handoverText: (question, answer) => `Implement this suggestion from “Ask about slide”.\n\nMy question: ${question}\n\nSuggestion:\n${answer}`,
+  dropQuote: 'Discard marked text',
+  askPlaceholderQuote: 'Question about the marked text (empty = explain)',
+  askPlaceholder: 'Type a question (⇧↵ new line)',
+  askInputTitle: 'Enter sends · Shift+Enter inserts a new line',
+  askSend: 'Ask',
+
+  rebuildHead: 'Rebuild slide',
+  rebuildClose: 'Close (Esc) – a running rebuild continues',
+  rebuildIntro:
+    'Describe what should change in the slides – graphics, layout or text. Claude Code edits the files in src/, checks the result with a preview, then the presentation reloads. Before every rebuild the current state is backed up; “Undo” restores it. This usually takes a few minutes.',
+  working: (s) => `working … ${s} s`,
+  rebuildBusy: 'Rebuild running …',
+  rebuildPlaceholder: 'Type the instruction, ⌘/Ctrl + Enter starts',
+  rebuildStart: 'Rebuild',
+  undo: 'Undo',
+
+  templateFailed: 'The template could not be loaded.',
+  needFolder: 'Please enter the folder of the new presentation, e.g. …/My-Topic.',
+  placeholdersLeft: 'The prompt still contains placeholders in angle brackets (<…>). Start anyway?',
+  serverDown: 'The server cannot be reached.',
+  createHead: 'Create new presentation',
+  createClose: 'Close (Esc) – a running job continues',
+  folder: (p) => `Folder: ${p}`,
+  createWorking: (min, s) =>
+    `working … ${min} min ${s} s. A whole presentation often takes 10 to 20 minutes. You can close this window; the job keeps running and the current presentation stays usable.`,
+  doneWithNotes: 'Finished, with messages (see above). ',
+  done: 'Finished. ',
+  doneCheck: 'Claude checked the slides with the preview – still, please click through once; corrections go through “Rebuild slide”.',
+  copyPapers: 'If the presenter should look things up in the papers when asked (key ?), copy them to',
+  running: 'running …',
+  createAnother: 'Create another …',
+  openPresentation: 'Open presentation',
+  folderLabel: 'Folder of the new presentation (new or empty; can be anywhere)',
+  folderPlaceholder: '/path/to/My-Topic',
+  chooseFolder: 'Choose folder …',
+  promptLabel: 'Prompt (template from prompt.en.txt in the ShowPoint folder)',
+  papersNote1: 'The prompt may refer to papers: as a file path',
+  papersNote2: 'or as a link. Claude reads them while creating.',
+  papersNote3a: 'If the presenter should also look things up in them',
+  papersNote3b: 'during the talk',
+  papersNote3c: 'when asked (key ?), also copy the papers to',
+  papersFolderFallback: '<presentation folder>/quellen',
+  papersNote4: 'The folder is created when the presentation is created; Claude only puts its own notes there.',
+  createHint: '⌘/Ctrl + Enter starts · often takes 10 to 20 minutes',
+  reloadTemplateTitle: 'Resets the prompt to the contents of prompt.en.txt',
+  reloadTemplate: 'Reload template',
+  jobRunning: 'A job is already running',
+  create: 'Create',
+};
+
+export const T = lang === 'en' ? en : de;
+
+/** Small DE | EN switch. */
+export const LangSwitch: React.FC = () => (
+  <span className="lang" title={T.language}>
+    {(['de', 'en'] as const).map((l) => (
+      <button key={l} className={l === lang ? 'on' : ''} onClick={() => l !== lang && setLang(l)}>
+        {l.toUpperCase()}
+      </button>
+    ))}
+  </span>
+);
+
+export const langCss = `
+.lang{display:inline-flex;border:1px solid #2e3a63;border-radius:8px;overflow:hidden;vertical-align:middle}
+.lang button{border:0;border-radius:0;padding:4px 9px;font-size:12px;background:#0a0d18;color:#9aa6c7}
+.lang button.on{background:#8b6cff;color:#fff;font-weight:600}
+.pres-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.pres-top label{margin:0}
+`;

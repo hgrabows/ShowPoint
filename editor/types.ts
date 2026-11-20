@@ -1,15 +1,15 @@
 /**
- * Die Schnittstelle zwischen Präsentator und Inhalt.
- * Ein Inhaltsordner liefert:
- *   src/Video.tsx     – exportiert `Video`, eine Remotion-Komponente mit der Eigenschaft {content}
- *   src/content.json  – Daten in der Form `Content`
- *   src/begleittext.md, src/umbau-regeln.md (optional) – Hinweise für Fragen bzw. Umbau
- *   quellen/          – (optional) Dateien, in denen das Modell bei Fragen nachliest
+ * The interface between the presenter and the content.
+ * A content folder provides:
+ *   src/Video.tsx     – exports `Video`, a Remotion component with the prop {content}
+ *   src/content.json  – data in the shape `Content`
+ *   src/begleittext.md, src/umbau-regeln.md (optional) – notes for questions and for rebuilds
+ *   quellen/          – (optional) files the model reads when answering questions
  */
 export type Caption = {at: number; text: string};
 
 export type SceneContent = {
-  /** Kurzname für die Leiste des Präsentators */
+  /** Short name for the presenter's scene bar */
   name?: string;
   dur: number;
   kicker?: string;
@@ -21,7 +21,7 @@ export type SceneContent = {
 };
 
 export type Content = {
-  /** Name der Präsentation, erscheint im Fenstertitel */
+  /** Name of the presentation, shown in the window title */
   title?: string;
   order: string[];
   scenes: Record<string, SceneContent>;

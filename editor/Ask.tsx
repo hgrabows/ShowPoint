@@ -1,9 +1,10 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {useFloat} from './float';
+import {T} from './i18n';
 
 type Turn = {q: string; quote?: string; a: string; thinking: boolean; error?: string};
 
-const withQuote = (t: {q: string; quote?: string}) => (t.quote ? `(zur Stelle „${t.quote}“) ${t.q}` : t.q);
+const withQuote = (t: {q: string; quote?: string}) => (t.quote ? T.quoted(t.quote, t.q) : t.q);
 
 export const askCss = `
 .ask{position:absolute;right:2.5%;bottom:4%;width:46%;max-height:88%;display:flex;flex-direction:column;
@@ -42,7 +43,7 @@ export const Ask: React.FC<{
   quote: string;
   onClearQuote: () => void;
   onClose: () => void;
-  /** Übergibt einen Vorschlag als Auftrag an „Folie umbauen“. */
+  /** Hands a suggestion over to “Rebuild slide” as its instruction. */
   onHandover: (instruction: string) => void;
 }> = ({sceneId, sceneName, caption, quote, onClearQuote, onClose, onHandover}) => {
   const [provider, setProvider] = useState(() => {
@@ -77,7 +78,7 @@ export const Ask: React.FC<{
     setTurns((prev) => prev.map((t, i) => (i === prev.length - 1 ? fn(t) : t)));
 
   const send = async () => {
-    const q = text.trim() || (quote ? 'Erkläre mir die markierte Stelle.' : '');
+    const q = text.trim() || (quote ? T.explainQuote : '');
     if (!q || busy) return;
     const history = turns
       .filter((t) => t.a && !t.error)
@@ -96,7 +97,7 @@ export const Ask: React.FC<{
       });
       if (!r.ok || !r.body) {
         const msg = await r.text();
-        patchLast((t) => ({...t, thinking: false, error: msg || `Fehler ${r.status}`}));
+        patchLast((t) => ({...t, thinking: false, error: msg || T.errorStatus(r.status)}));
         return;
       }
       const reader = r.body.getReader();
@@ -123,11 +124,11 @@ export const Ask: React.FC<{
               patchLast((t) => ({...t, thinking: false, a: t.a + delta.content}));
             }
           } catch {
-            // unvollständige Zeile – ignorieren
+            // incomplete line – ignore
           }
         }
       }
-      patchLast((t) => (t.a || t.error ? {...t, thinking: false} : {...t, thinking: false, error: 'Keine Antwort erhalten.'}));
+      patchLast((t) => (t.a || t.error ? {...t, thinking: false} : {...t, thinking: false, error: T.noAnswer}));
     } catch (e) {
       patchLast((t) => ({...t, thinking: false, error: String((e as Error).message)}));
     } finally {
@@ -139,38 +140,36 @@ export const Ask: React.FC<{
   return (
     <div className="ask" ref={fl.ref} style={fl.style} onClick={(e) => e.stopPropagation()}>
       <div {...fl.head}>
-        Frage zur Folie <span>{sceneName}</span>
+        {T.askHead} <span>{sceneName}</span>
         <select
           value={provider}
-          title="Wer antwortet"
+          title={T.whoAnswers}
           onChange={(e) => {
             setProvider(e.target.value);
             try {
               localStorage.setItem('ask-provider', e.target.value);
             } catch {
-              // ohne Speicher gilt die Wahl nur für diesen Dialog
+              // without storage the choice applies to this dialog only
             }
           }}
         >
           <option value="claude">Claude Code</option>
-          <option value="llm">LLM aus .env</option>
+          <option value="llm">{T.llmEnv}</option>
         </select>
-        <button title="Schließen (Esc)" onClick={onClose}>
+        <button title={T.close} onClick={onClose}>
           ✕
         </button>
       </div>
       <div className="ask-log" ref={log}>
         {turns.length === 0 ? (
           <div className="ask-dim">
-            Stell eine Frage zu dem, was gerade zu sehen ist. Das Modell kennt die Texte dieser Folie
-            und die Quellen im Ordner „quellen“. Du kannst Text in der Folie oder in einer Antwort
-            markieren und dann gezielt dazu fragen.
+            {T.askIntro}
             <div className="ask-src">
-              {sources.length ? 'Quellen: ' : 'Keine Quellen im Ordner „quellen“.'}
+              {sources.length ? T.sources : T.noSources}
               {sources.map((q, i) => (
                 <span key={q.name} className={q.note ? 'ask-err' : undefined}>
                   {i ? ' · ' : ''}
-                  {q.name} ({Math.round(q.chars / 1000)} Tsd. Zeichen{q.note ? `, ${q.note}` : ''})
+                  {q.name} ({T.kChars(Math.round(q.chars / 1000))}{q.note ? `, ${q.note}` : ''})
                 </span>
               ))}
             </div>
@@ -180,19 +179,15 @@ export const Ask: React.FC<{
           <div key={i}>
             {t.quote ? <div className="ask-quote">{t.quote}</div> : null}
             <div className="ask-q">{t.q}</div>
-            {t.thinking ? <div className="ask-dim">denkt nach …</div> : null}
+            {t.thinking ? <div className="ask-dim">{T.thinking}</div> : null}
             {t.a ? <div className="ask-a">{t.a}</div> : null}
             {t.a && !t.thinking && !(busy && i === turns.length - 1) ? (
               <button
                 className="ask-hand"
-                title="Öffnet „Folie umbauen“ mit diesem Vorschlag als Auftrag – du kannst ihn vor dem Start noch ändern"
-                onClick={() =>
-                  onHandover(
-                    `Setze diesen Vorschlag aus „Frage zur Folie“ um.\n\nMeine Frage: ${withQuote(t)}\n\nVorschlag:\n${t.a}`,
-                  )
-                }
+                title={T.handoverTitle}
+                onClick={() => onHandover(T.handoverText(withQuote(t), t.a))}
               >
-                → Als Umbau-Auftrag übernehmen
+                {T.handover}
               </button>
             ) : null}
             {t.error ? <div className="ask-err">{t.error}</div> : null}
@@ -202,7 +197,7 @@ export const Ask: React.FC<{
       {quote ? (
         <div className="ask-pending">
           <div className="ask-quote">{quote}</div>
-          <button title="Markierung verwerfen" onClick={onClearQuote}>
+          <button title={T.dropQuote} onClick={onClearQuote}>
             ✕
           </button>
         </div>
@@ -213,8 +208,8 @@ export const Ask: React.FC<{
           className="ask-ta"
           rows={Math.min(6, text.split('\n').length)}
           value={text}
-          placeholder={quote ? 'Frage zur Markierung (leer = erklären)' : 'Frage eingeben (⇧↵ neue Zeile)'}
-          title="Enter sendet · Shift+Enter fügt eine neue Zeile ein"
+          placeholder={quote ? T.askPlaceholderQuote : T.askPlaceholder}
+          title={T.askInputTitle}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.nativeEvent.isComposing) {
@@ -225,7 +220,7 @@ export const Ask: React.FC<{
           }}
         />
         <button className="primary" onClick={send} disabled={busy}>
-          Fragen
+          {T.askSend}
         </button>
       </div>
       {fl.grip}

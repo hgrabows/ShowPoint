@@ -5,7 +5,7 @@ import {Beispiel, Title} from './scenes';
 
 export type Content = {title?: string; order: string[]; scenes: Record<string, SceneContent>};
 
-// Jede Szenen-ID aus content.json („order“) braucht hier einen Eintrag.
+// Every scene ID from content.json ("order") needs an entry here.
 const REG: Record<string, React.FC<SceneProps>> = {
   title: Title,
   beispiel: Beispiel,

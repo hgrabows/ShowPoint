@@ -4,7 +4,7 @@
 classic e-learning: presentations are animated [Remotion](https://www.remotion.dev) scenes that play in the browser,
 pause at stops, answer questions about what is on screen – and can be rebuilt or created from scratch by Claude Code.
 
-> The user interface and the detailed guide ([ANLEITUNG.md](ANLEITUNG.md)) are currently in German.
+> Full guide: [GUIDE.md](GUIDE.md) (German version: [ANLEITUNG.md](ANLEITUNG.md)).
 
 ## What it does
 
@@ -19,6 +19,8 @@ pause at stops, answer questions about what is on screen – and can be rebuilt 
 - **Export to PDF** – one page per stop, exactly as the presenter pauses there (button „⤓ PDF“ or `npm run pdf`);
   handy as a handout.
 - **Render to video** – `npm run render` produces an MP4 of the chosen presentation.
+- **German or English** – switch the interface between DE and EN in the top bar; Claude answers in that
+  language, and new presentations start from the matching template and prompt.
 
 Presenter and content are separate: each presentation lives in its own folder and is selected in the app.
 
@@ -35,7 +37,7 @@ npm run edit
 ```
 
 Open <http://localhost:5173>, then choose or create a presentation at the top right. A starting skeleton lives in
-[`vorlage/`](vorlage/).
+[`vorlage/`](vorlage/) (English texts in [`vorlage/en/`](vorlage/en/)). See [GUIDE.md](GUIDE.md) for details.
 
 ## License
 

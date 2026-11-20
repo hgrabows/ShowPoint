@@ -1,5 +1,7 @@
 # ShowPoint – Anleitung
 
+*English version: [GUIDE.md](GUIDE.md)*
+
 Der Präsentator ist ein kleiner Vite-Editor (`editor/`), der eine Remotion-Präsentation im Browser abspielt,
 an Haltepunkten stoppt und per Leertaste, Pfeiltaste oder Klick weiterschaltet. Dieser Ordner enthält **nur den
 Präsentator**. Jede Präsentation liegt in einem eigenen Ordner irgendwo auf der Festplatte und wird im Präsentator
@@ -33,6 +35,15 @@ Dann <http://localhost:5173> öffnen. Der Port ist fest; läuft dort schon ein a
 den anderen zuerst beenden. Ist noch keine Präsentation gewählt, zeigt die Seite nur die Auswahl.
 
 Tasten: Leertaste / → / Enter / Klick = weiter · ← = zurück · `S` = Haltepunkt ein/aus · `F` = Vollbild · `?` = Frage ans LLM.
+
+## Sprache (Deutsch / Englisch)
+
+- Die Oberfläche lässt sich oben in der Leiste zwischen **DE** und **EN** umschalten. Voreinstellung ist die Sprache
+  des Browsers; die Wahl merkt sich der Browser.
+- Claude antwortet (Fragen, Umbau, Erzeugen) in der gewählten Sprache.
+- Eine neue Präsentation, die aus der englischen Oberfläche erzeugt wird, startet mit der englischen Vorlage
+  (`vorlage/` mit den englischen Dateien aus `vorlage/en/` darüber) und dem Prompt aus `prompt.en.txt`.
+- Die Texte auf den Folien richten sich nach der Sprache des Auftrags (z. B. „Sprache: Deutsch“ im Prompt).
 
 ## Präsentator und Inhalt sind getrennt
 
@@ -73,7 +84,7 @@ Welche Präsentation gezeigt wird, wählt man im Präsentator rechts oben unter 
 | `scripts/render.mjs`, `scripts/pdf.mjs`, `scripts/vorschau*.mjs`, `remotion.config.ts` | Präsentator: rendert die gewählte Präsentation als Video bzw. PDF; sorgt dafür, dass sie die hier installierten Pakete findet. |
 | `editor/main.tsx` | Oberfläche des Präsentators. Die Anzeigenamen der Szenen kommen aus `content.json` (`name`). |
 | `vite.config.mts` | Server: `/api/content` (lesen/speichern), `/api/ask` (die `?`-Taste), `/api/rebuild` (Folie umbauen), `/api/create` (neue Präsentation); Zugänge aus `.env`. |
-| `prompt.txt`, `vorlage/` | Vorlage für den Prompt und Gerüst (Bausteine, Beispiel-Szene) einer neuen Präsentation. |
+| `prompt.txt`, `prompt.en.txt`, `vorlage/` | Vorlage für den Prompt (deutsch/englisch) und Gerüst (Bausteine, Beispiel-Szene) einer neuen Präsentation; `vorlage/en/` enthält die englischen Fassungen der Texte. |
 
 ## Weg A: neue Szenen einladen (empfohlen)
 
@@ -218,7 +229,7 @@ eine halbe Minute.
 
 Knopf „＋ Neue Präsentation erzeugen …“ (rechts oben unter „Präsentation“): Ordner der neuen Präsentation angeben
 (neu oder leer, irgendwo auf der Festplatte) und den Prompt ausfüllen. Das Fenster ist mit der Vorlage aus
-`prompt.txt` (in diesem Ordner, frei änderbar) vorbelegt. Der Server kopiert das Gerüst aus `vorlage/` in den
+`prompt.txt` (in diesem Ordner, frei änderbar; in der englischen Oberfläche `prompt.en.txt`) vorbelegt. Der Server kopiert das Gerüst aus `vorlage/` in den
 Ordner, hängt ihn unter `inhalte/` ein und startet Claude Code (Modell aus `.env`, `CLAUDE_MODEL`), das die Folien,
 `content.json`, `begleittext.md`, `umbau-regeln.md` und `quellen/00-notizen.md` schreibt. Danach prüft der Server
 `content.json` und die Typen; bei Typfehlern bessert Claude bis zu zweimal nach. Der Auftrag läuft im Hintergrund
