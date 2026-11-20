@@ -381,8 +381,9 @@ Regeln:
 - Nichts darf sich überlappen oder aus dem Bild ragen; rechne Breiten und Positionen nach.
 - Ändere nur, was der Auftrag verlangt. Sprechtexte (captions), Titel und andere Folien bleiben, wenn nichts anderes gesagt ist.
 - Quellen zum Thema liegen, falls vorhanden, in ${outside ? path.join(realDir, 'quellen') : rel(quellenDir())}/.
-- Du kannst nichts ausführen oder rendern. Der Server prüft danach die Typen; schreibe deshalb sorgfältig gültiges TypeScript.
-${extra ? `Besonderheiten dieser Präsentation:\n${extra}\n` : ''}Antworte zum Schluss in wenigen Sätzen: was geändert wurde, in welchen Dateien, und was du nicht prüfen konntest.`;
+${vorschauHint(realDir)}
+  Prüfe nach dem Umbau mindestens die geänderten Szenen; sieh dir die Bilder an, bevor du fertig meldest.
+${extra ? `Besonderheiten dieser Präsentation:\n${extra}\n` : ''}Antworte zum Schluss in wenigen Sätzen: was geändert wurde, in welchen Dateien, was die Vorschau gezeigt hat und was du nicht prüfen konntest.`;
 };
 
 const jobStatus = () => ({
@@ -398,6 +399,16 @@ const jobStatus = () => ({
   endedAt: job.endedAt,
   seconds: Math.round(((job.running ? Date.now() : job.endedAt || Date.now()) - job.startedAt) / 1000),
 });
+
+// Vorschau-Werkzeug für Claude: Typprüfung und Bilder an jedem Haltepunkt, als kleiner MCP-Server (scripts/vorschau-mcp.mjs).
+// Claude bekommt dafür kein Bash: Ordner und Befehl legt der Server fest, Claude wählt nur die Szenen.
+const vorschauRule = 'mcp__showpoint__vorschau';
+const vorschauMcp = (dir: string) => [
+  '--mcp-config',
+  JSON.stringify({mcpServers: {showpoint: {command: process.execPath, args: [path.join(root, 'scripts', 'vorschau-mcp.mjs'), dir]}}}),
+];
+const vorschauHint = (_dir: string) => `- Prüfen mit dem Werkzeug „vorschau“ (Eingabe: szenen = Liste von Szenen-IDs aus content.json):
+  Es prüft content.json und die Typen und gibt jede genannte Szene an jedem Haltepunkt als Bild zurück. Schau dir die Bilder an und prüfe: nichts überlappt, nichts ragt aus dem Bild oder in den Untertitel-Kasten, alles gut lesbar, die Elemente erscheinen in sinnvoller Reihenfolge. Behebe gefundene Fehler und prüfe erneut, bis alles stimmt (höchstens etwa drei Durchgänge). Ein Aufruf dauert einige Sekunden je Szene.`;
 
 const push = (kind: LogLine['kind'], text: string) => {
   const last = job.log[job.log.length - 1];
@@ -437,8 +448,8 @@ function runClaude(o: {prompt: string; system: string; tools: string; allowed: s
         else if (ev.type === 'assistant') {
           for (const b of ev.message?.content ?? []) {
             if (b.type !== 'tool_use') continue;
-            const target = b.input?.file_path ?? b.input?.pattern ?? b.input?.path ?? b.input?.url ?? '';
-            push('tool', `${b.name} ${String(target).replace(o.cwd + '/', '').replace(root + '/', '')}`.trim());
+            const target = b.name === vorschauRule ? `${(b.input?.szenen ?? []).join(', ') || 'alle Szenen'}` : (b.input?.file_path ?? b.input?.pattern ?? b.input?.path ?? b.input?.url ?? '');
+            push('tool', `${b.name === vorschauRule ? 'Vorschau' : b.name} ${String(target).replace(o.cwd + '/', '').replace(root + '/', '')}`.trim());
           }
         } else if (ev.type === 'result' && ev.is_error) {
           failed = true;
@@ -527,8 +538,8 @@ function startRebuild(instruction: string, sceneId: string) {
     prompt: `Gerade gezeigte Folie: Nr. ${nr} (Szenen-ID „${sceneId}“, Titel „${content.scenes[sceneId]?.title ?? ''}“).\n\nAuftrag:\n${instruction}`,
     system: rebuildSystem(),
     tools: 'Read,Edit,Write,Glob,Grep',
-    allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`],
-    extra: outside ? ['--add-dir', realDir] : [],
+    allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`, vorschauRule],
+    extra: [...(outside ? ['--add-dir', realDir] : []), ...vorschauMcp(realDir)],
     cwd: root,
     done: () => {
       // Prüfung: gültiges JSON und fehlerfreie Typen
@@ -562,8 +573,10 @@ Regeln:
 - Elemente erscheinen nacheinander, passend zum Sprechtext (captions[].at). Jeder Untertitel steht etwa 4 bis 6 Sekunden. Haltepunkte (stops) kurz vor jedem nächsten Untertitel und am Ende der Szene (dur − 13).
 - Grafiken statt Textlisten, gezeichnet mit div und SVG aus den Bausteinen. Keine Bilder oder Dateien von außen, nur die Pakete remotion und react. ui.tsx darfst du ergänzen, vorhandene Bausteine aber nicht ändern.
 - Die Kompositions-ID in src/Root.tsx bleibt, wie sie ist.
-- Schreibe nur in ${dir}. Du kannst nichts ausführen oder rendern; der Server prüft danach die Typen (TypeScript strict). Schreibe sorgfältig gültiges TypeScript und importiere nur, was du benutzt und was es gibt.
-Antworte zum Schluss knapp: die Folien in ihrer Reihenfolge, deine Annahmen, welche Quellen du gelesen hast und welche nicht, und was du nicht prüfen konntest.`;
+- Schreibe nur in ${dir}. Schreibe sorgfältig gültiges TypeScript (strict) und importiere nur, was du benutzt und was es gibt.
+${vorschauHint(dir)}
+  Prüfe so am Ende jede Szene (mehrere Szenen-IDs je Aufruf sind möglich, höchstens 40 Bilder).
+Antworte zum Schluss knapp: die Folien in ihrer Reihenfolge, deine Annahmen, welche Quellen du gelesen hast und welche nicht, was die Vorschau gezeigt hat und was du nicht prüfen konntest.`;
 
 function startCreate(dirInput: string, prompt: string) {
   const typed = expandHome(dirInput.trim());
@@ -613,7 +626,7 @@ function startCreate(dirInput: string, prompt: string) {
     }
   }
   const allowed = [
-    `Read(/${dir}/**)`, `Edit(/${dir}/**)`, `Write(/${dir}/**)`, `Read(/${path.join(root, 'ANLEITUNG.md')})`,
+    `Read(/${dir}/**)`, `Edit(/${dir}/**)`, `Write(/${dir}/**)`, `Read(/${path.join(root, 'ANLEITUNG.md')})`, vorschauRule,
     ...readRules,
     ...[...hosts].map((h) => `WebFetch(domain:${h})`),
   ];
@@ -622,6 +635,7 @@ function startCreate(dirInput: string, prompt: string) {
       prompt: text,
       system: createSystem(dir),
       tools: `Read,Edit,Write,Glob,Grep${hosts.size ? ',WebFetch' : ''}`,
+      extra: vorschauMcp(dir),
       allowed,
       cwd: dir,
       done: (ok) => {

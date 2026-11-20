@@ -70,7 +70,7 @@ Welche Präsentation gezeigt wird, wählt man im Präsentator rechts oben unter 
 | `src/scenesA.tsx`, `scenesB.tsx`, `scenesC.tsx` | Die Szenen selbst. |
 | `src/ui.tsx` | Bausteine für Szenen (`Scene`, `Appear`, `Box`, `Arrow`, Farben `C` …) und die Typen `SceneContent`, `SceneProps`. |
 | `src/Root.tsx`, `src/index.ts` | Komposition für das Rendern als Video (`npm run render`). |
-| `scripts/render.mjs`, `scripts/pdf.mjs`, `remotion.config.ts` | Präsentator: rendert die gewählte Präsentation als Video bzw. PDF; sorgt dafür, dass sie die hier installierten Pakete findet. |
+| `scripts/render.mjs`, `scripts/pdf.mjs`, `scripts/vorschau*.mjs`, `remotion.config.ts` | Präsentator: rendert die gewählte Präsentation als Video bzw. PDF; sorgt dafür, dass sie die hier installierten Pakete findet. |
 | `editor/main.tsx` | Oberfläche des Präsentators. Die Anzeigenamen der Szenen kommen aus `content.json` (`name`). |
 | `vite.config.mts` | Server: `/api/content` (lesen/speichern), `/api/ask` (die `?`-Taste), `/api/rebuild` (Folie umbauen), `/api/create` (neue Präsentation); Zugänge aus `.env`. |
 | `prompt.txt`, `vorlage/` | Vorlage für den Prompt und Gerüst (Bausteine, Beispiel-Szene) einer neuen Präsentation. |
@@ -228,14 +228,28 @@ Ordner, hängt ihn unter `inhalte/` ein und startet Claude Code (Modell aus `.en
   Claude darf genau diese Dateien lesen und nur die Adressen (Domains) der genannten Links abrufen; schreiben darf es nur im neuen Ordner.
 - **Papers für Fragen:** Soll der Präsentator während des Vortrags (Taste `?`) in den Papers nachlesen, müssen sie
   zusätzlich in `quellen/` der neuen Präsentation liegen – das Erzeugen kopiert sie nicht dorthin.
-- Die Folien werden nicht gerendert oder angesehen; einmal durchklicken und mit „Folie umbauen“ nachbessern.
+- Claude prüft die Folien mit dem Vorschau-Werkzeug (siehe unten) und bessert Überlappungen u. Ä. selbst nach.
+  Trotzdem einmal durchklicken und bei Bedarf mit „Folie umbauen“ nachbessern.
 - Allgemeine Regeln für Claude: `createSystem` in `vite.config.mts`.
 
 ## Folien aus dem Präsentator umbauen lassen
 
 Knopf „✎ Folie umbauen“ oder Taste `U`: Auftrag eintippen, ⌘/Strg + Enter. Der Server startet dafür Claude Code
 (Befehl `claude`, Modell aus `.env`, `CLAUDE_MODEL`) im Projektordner. Es darf lesen und nur Dateien im `src/` des Inhaltsordners ändern,
-nichts ausführen. Vorher wird `src/` nach `.umbau/<Zeitstempel>/` gesichert (die letzten 10 bleiben); „Rückgängig“
+aber nichts ausführen – außer dem Vorschau-Werkzeug. Vorher wird `src/` nach `.umbau/<Zeitstempel>/` gesichert (die letzten 10 bleiben); „Rückgängig“
 stellt den Stand vor dem letzten Umbau wieder her. Danach prüft der Server `content.json` und die Typen
 (`tsc --noEmit`) und zeigt das Ergebnis im Dialog. Während ein Umbau läuft, ist das Speichern im Editor gesperrt.
 Die allgemeinen Regeln für Claude stehen in `vite.config.mts` (`rebuildSystem`), die Besonderheiten des Inhalts in `src/umbau-regeln.md`.
+
+## Vorschau-Werkzeug für Claude
+
+Beim Umbauen und beim Erzeugen bekommt Claude ein einziges zusätzliches Werkzeug, `vorschau`: Es prüft `content.json`
+und die Typen und gibt die gewünschten Szenen an jedem Haltepunkt als Bild zurück (halbe Größe). Claude sieht sich die
+Bilder an, bessert Überlappungen, abgeschnittene oder zu kleine Texte nach und prüft erneut. Das kostet je Durchgang
+einige Sekunden pro Szene.
+
+- Technisch ist es ein kleiner MCP-Server (`scripts/vorschau-mcp.mjs`), der `scripts/vorschau.mjs` aufruft. Den Ordner
+  legt der Server fest, Claude wählt nur die Szenen. Claude bekommt **kein** Bash – mit Bash dürfte Claude Code
+  „harmlose“ Lesebefehle wie `ls` oder `cat` von sich aus ausführen und so z. B. die Sperre für `.env` umgehen.
+- Die Bilder liegen danach in `.vorschau/` im Ordner der Präsentation (steht in dessen `.gitignore`).
+- Von Hand: `node scripts/vorschau.mjs <Ordner der Präsentation> [Szenen-ID …]`.
