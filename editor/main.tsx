@@ -710,7 +710,15 @@ const App: React.FC = () => {
           current={id}
           nameOf={nameOf}
           durOf={(sid) => content.scenes[sid].dur}
-          onJump={(sid) => goto(starts[content.order.indexOf(sid)])}
+          onJump={(sid) => {
+            // Jump into the middle of the slide rather than its (often still empty) first frame:
+            // to the stop closest to the middle, so “Next” continues from there; without stops, the middle frame.
+            const sc0 = content.scenes[sid];
+            const mid = sc0.dur / 2;
+            const inner = sc0.stops.filter((s) => s > 0 && s < sc0.dur);
+            const at = inner.length ? inner.reduce((a, b) => (Math.abs(b - mid) < Math.abs(a - mid) ? b : a)) : Math.floor(mid);
+            goto(starts[content.order.indexOf(sid)] + at);
+          }}
           onReorder={(next) => {
             // keep showing the same slide at the same point after the move
             const start = next.slice(0, next.indexOf(id)).reduce((a, sid) => a + content.scenes[sid].dur, 0);
