@@ -165,6 +165,7 @@ The editor overwrites `content.json` when you edit; version control in the prese
 
 - `src/Root.tsx`: adjust the composition ID (create only one composition; it is picked automatically when rendering).
 - `?` key: topic, audience and tone are in `src/begleittext.md`, the reference material in the `quellen/` folder. Switch both to the new topic, otherwise the model answers with the wrong background. In the dialog you choose between "Claude Code" (command `claude`, model in `.env` as `CLAUDE_MODEL`) and "LLM from .env". The credentials are in `.env` (template: `.env.example`).
+  With "Claude Code" the model may **search the internet and read web pages** when answering (WebSearch, WebFetch) – e.g. for current facts – and then names the pages it used; the dialog shows what it searches for (🔎) and reads (🌐). It cannot read files or run commands. "LLM from .env" has no internet access.
 - "Rebuild slide": describe the specifics of the slides (building blocks, dimensions, facts) in `src/umbau-regeln.md`.
 
 ## Route B: bring in a finished third-party composition unchanged
@@ -255,6 +256,21 @@ but may not run anything – except the preview tool. Beforehand `src/` is backe
 restores the state before the last rebuild. Afterwards the server checks `content.json` and the types
 (`tsc --noEmit`) and shows the result in the dialog. While a rebuild is running, saving in the editor is locked.
 The general rules for Claude are in `vite.config.mts` (`rebuildSystem`), the specifics of the content in `src/umbau-regeln.md`.
+
+## Adding images
+
+Images (screenshots, photos, logos) can be added through a task – in “Rebuild slide” and in “New presentation”:
+
+> Put the image "/Users/me/Desktop/Screenshot App 1.png" to the right of the diagram.
+
+- The server detects image paths in the task (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.svg`; starting with `/` or `~`)
+  and copies the files into `src/bilder/` (images) of the presentation before starting. **Put paths with spaces in
+  quotes.** Paths that cannot be found show up as errors in the log.
+- Claude looks at the image, embeds it via `import` with Remotion's `<Img>` and checks its position with the preview.
+  Labels stay real, editable text.
+- The image is then part of the presentation: it shows in the presenter, the PDF and the video, and works on other
+  computers too. “Undo” takes it out again.
+- Claude cannot generate images itself; it draws graphics as SVG/HTML (sharp and animatable).
 
 ## Preview tool for Claude
 

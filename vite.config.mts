@@ -49,6 +49,8 @@ const MSG = {
     notEmpty: (abs: string) => `Der Ordner ${abs} ist nicht leer. Für eine neue Präsentation bitte einen neuen oder leeren Ordner angeben.`,
     templateMissing: 'Die Vorlage (Ordner vorlage/ im Präsentator) fehlt.',
     sourceNotFound: (f: string) => `Quelle nicht gefunden: ${f}`,
+    imageNotFound: (f: string) => `Bild nicht gefunden: ${f}`,
+    imageCopied: (name: string) => `Bild übernommen → src/bilder/${name}`,
     undone: 'Rückgängig gemacht: der Inhalt ist wieder auf dem Stand vor diesem Umbau.',
     noPdf: 'Noch kein PDF erzeugt.',
     pdfFailed: (code: number | null) => `PDF-Export fehlgeschlagen (Code ${code}).`,
@@ -94,6 +96,8 @@ const MSG = {
     notEmpty: (abs: string) => `The folder ${abs} is not empty. Please choose a new or empty folder for a new presentation.`,
     templateMissing: 'The template (folder vorlage/ in the presenter) is missing.',
     sourceNotFound: (f: string) => `Source not found: ${f}`,
+    imageNotFound: (f: string) => `Image not found: ${f}`,
+    imageCopied: (name: string) => `Image added → src/bilder/${name}`,
     undone: 'Undone: the content is back to the state before this rebuild.',
     noPdf: 'No PDF created yet.',
     pdfFailed: (code: number | null) => `PDF export failed (code ${code}).`,
@@ -313,6 +317,9 @@ type AskBody = {
 const sse = (res: import('node:http').ServerResponse, obj: unknown) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
 
 /** Answer from Claude Code (command `claude`, logged in via the subscription – no API key needed). */
+const askWebNote = `## Internet
+You can search the web (WebSearch) and read web pages (WebFetch). Use them when the slide and the sources do not answer the question, for current facts, or when asked to look something up. Then name the pages you used (title and URL) briefly at the end.`;
+
 function askClaude(
   system: string,
   history: {role: string; content: string}[],
@@ -330,7 +337,9 @@ function askClaude(
   ].join('\n\n');
   const child = spawn(
     'claude',
-    ['-p', '--model', fileEnv.CLAUDE_MODEL || 'sonnet', '--system-prompt', system, '--tools', '', '--strict-mcp-config',
+    // Questions may use the internet: web search and reading web pages. No other tools (no files, no shell).
+    ['-p', '--model', fileEnv.CLAUDE_MODEL || 'sonnet', '--system-prompt', `${system}\n\n${askWebNote}`,
+      '--tools', 'WebSearch,WebFetch', '--allowedTools', 'WebSearch', 'WebFetch', '--strict-mcp-config',
       '--no-session-persistence', '--output-format', 'stream-json', '--include-partial-messages', '--verbose'],
     {cwd: os.tmpdir(), env},
   );
@@ -356,6 +365,12 @@ function askClaude(
         if (delta?.type === 'text_delta' && delta.text) {
           got = true;
           sse(res, {choices: [{delta: {content: delta.text}}]});
+        } else if (ev.type === 'assistant') {
+          // show what Claude is looking up while the answer is not there yet
+          for (const b of ev.message?.content ?? []) {
+            if (b.type === 'tool_use' && b.name === 'WebSearch') sse(res, {status: `🔎 ${String(b.input?.query ?? '')}`});
+            if (b.type === 'tool_use' && b.name === 'WebFetch') sse(res, {status: `🌐 ${String(b.input?.url ?? '')}`});
+          }
         } else if (ev.type === 'result' && ev.is_error) {
           fail(String(ev.result ?? t.unknownError));
         }
@@ -486,6 +501,7 @@ Rules:
 - Change only what the task asks for. Spoken texts (captions), titles and other slides stay as they are unless stated otherwise.
 - Keep the language of the existing slide texts unless the task says otherwise.
 - Sources on the topic, if any, are in ${outside ? path.join(realDir, 'quellen') : rel(quellenDir())}/.
+${imageRule}
 ${vorschauHint(realDir)}
   After the rebuild, check at least the changed scenes; look at the images before reporting that you are done.
 ${extra ? `Special notes for this presentation:\n${extra}\n` : ''}Finally answer in a few sentences: what was changed, in which files, what the preview showed and what you could not check. Write your final answer in ${LANG_NAME[lang]}.`;
@@ -624,6 +640,35 @@ const pushTypeResult = (out: string) => {
   else push('check', t.typeOk);
 };
 
+// Images named in a task by file path are copied into src/bilder/ of the presentation, so they become part of it
+// (presenter, PDF, video, other computers) and "Undo" removes them again. Returns a note for Claude's task text.
+const IMAGE_EXT = 'png|jpe?g|webp|gif|svg';
+function takeImages(text: string, srcDir: string, lang: Lang): string {
+  const found = new Set<string>();
+  for (const m of text.matchAll(new RegExp(`["„“'‚]((?:~|/)[^"“”'\\n]+\\.(?:${IMAGE_EXT}))["“”'‘]`, 'gi'))) found.add(m[1]);
+  for (const m of text.matchAll(new RegExp(`(?:^|[\\s(])((?:~|/)[^\\s"'“”<>()]*\\.(?:${IMAGE_EXT}))`, 'gim'))) found.add(m[1]);
+  const dest = path.join(srcDir, 'bilder');
+  const lines: string[] = [];
+  for (const f of found) {
+    const from = path.resolve(expandHome(f));
+    if (!fs.existsSync(from) || !fs.statSync(from).isFile()) {
+      // a path with spaces is also found cut off at the first space – only report the full one
+      if (![...found].some((g) => g !== f && g.includes(f))) push('error', MSG[lang].imageNotFound(f));
+      continue;
+    }
+    const ext = path.extname(from).toLowerCase();
+    const stem = path.basename(from, path.extname(from)).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'bild';
+    fs.mkdirSync(dest, {recursive: true});
+    let name = `${stem}${ext}`;
+    for (let i = 2; fs.existsSync(path.join(dest, name)) && !fs.readFileSync(path.join(dest, name)).equals(fs.readFileSync(from)); i++) name = `${stem}-${i}${ext}`;
+    fs.copyFileSync(from, path.join(dest, name));
+    push('tool', MSG[lang].imageCopied(name));
+    lines.push(`- ${f} → ${path.join(dest, name)} (in the code: src/bilder/${name})`);
+  }
+  return lines.length ? `\n\nImages supplied with this task, already copied into the presentation (look at each with Read before placing it):\n${lines.join('\n')}` : '';
+}
+const imageRule = `- Images: use only image files inside the presentation's src/bilder/ (the user supplies them; the server copies image paths named in a task there). Import them relative to the scene file, e.g. \`import foto from './bilder/foto.png'\`, and show them with \`<Img src={foto} style={{width: …, height: …, objectFit: 'contain'}} />\` (Img from 'remotion', never a plain <img>, never paths outside the presentation). Keep labels as real text from c.t next to or on top of the image, not baked into it. Images may fade or move in like other elements; check size and position with the preview.`;
+
 function startRebuild(instruction: string, sceneId: string, lang: Lang) {
   if (!hasInhalt()) throw new Error(MSG[lang].noPresentation);
   const content = JSON.parse(fs.readFileSync(contentFile(), 'utf8'));
@@ -650,8 +695,9 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang) {
   const outside = realDir !== root && !realDir.startsWith(root + path.sep);
   const editRule = outside ? `/${path.join(realDir, 'src')}/**` : `${rel(inhaltSrc())}/**`;
   const file = contentFile();
+  const images = takeImages(instruction, real(inhaltSrc()), lang); // after the backup, so "Undo" removes them
   runClaude({
-    prompt: `Slide currently shown: no. ${nr} (scene ID "${sceneId}", title "${content.scenes[sceneId]?.title ?? ''}").\n\nTask:\n${instruction}`,
+    prompt: `Slide currently shown: no. ${nr} (scene ID "${sceneId}", title "${content.scenes[sceneId]?.title ?? ''}").\n\nTask:\n${instruction}${images}`,
     system: rebuildSystem(lang),
     tools: 'Read,Edit,Write,Glob,Grep',
     allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`, vorschauRule],
@@ -692,7 +738,8 @@ Rules:
 - Nothing may overlap or stick out of the frame. Check widths and positions by calculation; as a rule of thumb a character needs about 0.55 × font size of width. Text in the picture at least 22 px, captions at most about 150 characters.
 - All visible texts come from c.t (keys t01, t02, …) or c.lists, never hard-coded – only then can they be edited in the presenter.
 - Elements appear one after another, matching the spoken text (captions[].at). Each caption stays about 4 to 6 seconds. Stops shortly before each next caption and at the end of the scene (dur − 13).
-- Graphics instead of text lists, drawn with div and SVG from the building blocks. No images or files from outside, only the packages remotion and react. You may add to ui.tsx, but do not change existing building blocks.
+- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages remotion and react; images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
+${imageRule}
 - The composition ID in src/Root.tsx stays as it is.
 - Only write in ${dir}. Write valid TypeScript (strict) carefully and import only what you use and what exists.
 ${vorschauHint(dir)}
@@ -779,7 +826,8 @@ function startCreate(dirInput: string, prompt: string, lang: Lang) {
         });
       },
     });
-  run(`Task for the new presentation:\n\n${prompt}`, 0);
+  const images = takeImages(prompt, path.join(dir, 'src'), lang);
+  run(`Task for the new presentation:\n\n${prompt}${images}`, 0);
 }
 
 function undoRebuild(lang: Lang) {

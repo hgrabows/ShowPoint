@@ -165,6 +165,7 @@ Der Editor überschreibt `content.json` beim Bearbeiten; eine Versionsverwaltung
 
 - `src/Root.tsx`: die Kompositions-ID anpassen (nur eine Komposition anlegen, sie wird beim Rendern automatisch genommen).
 - `?`-Taste: Thema, Zielgruppe und Ton stehen in `src/begleittext.md`, das Nachschlagematerial im Ordner `quellen/`. Beides auf das neue Thema umstellen, sonst antwortet das Modell mit falschem Hintergrund. Im Dialog wählt man zwischen „Claude Code“ (Befehl `claude`, Modell in `.env` als `CLAUDE_MODEL`) und „LLM aus .env“. Der Zugang steht in `.env` (Vorlage: `.env.example`).
+  Mit „Claude Code“ darf das Modell bei Fragen **im Internet suchen und Webseiten lesen** (WebSearch, WebFetch) – etwa für aktuelle Fakten – und nennt dann die genutzten Seiten; im Dialog erscheint, wonach es sucht (🔎) und was es liest (🌐). Dateien lesen oder Befehle ausführen kann es dabei nicht. „LLM aus .env“ hat keinen Internetzugang.
 - „Folie umbauen“: Besonderheiten der Folien (Bausteine, Maße, Fakten) in `src/umbau-regeln.md` beschreiben.
 
 ## Weg B: eine fertige fremde Komposition unverändert einladen
@@ -255,6 +256,21 @@ aber nichts ausführen – außer dem Vorschau-Werkzeug. Vorher wird `src/` nach
 stellt den Stand vor dem letzten Umbau wieder her. Danach prüft der Server `content.json` und die Typen
 (`tsc --noEmit`) und zeigt das Ergebnis im Dialog. Während ein Umbau läuft, ist das Speichern im Editor gesperrt.
 Die allgemeinen Regeln für Claude stehen in `vite.config.mts` (`rebuildSystem`), die Besonderheiten des Inhalts in `src/umbau-regeln.md`.
+
+## Bilder einbinden
+
+Bilder (Screenshots, Fotos, Logos) lassen sich per Auftrag einbinden – bei „Folie umbauen“ und bei „Neue Präsentation“:
+
+> Setze das Bild „/Users/ich/Desktop/Screenshot App 1.png“ rechts neben die Grafik.
+
+- Der Server erkennt Bildpfade im Auftrag (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.svg`; beginnend mit `/` oder `~`)
+  und kopiert die Dateien vor dem Start nach `src/bilder/` der Präsentation. **Pfade mit Leerzeichen in
+  Anführungszeichen setzen.** Nicht gefundene Pfade erscheinen als Fehler im Protokoll.
+- Claude sieht sich das Bild an, bindet es per `import` mit Remotions `<Img>` ein und prüft die Lage mit der Vorschau.
+  Beschriftungen bleiben echter, änderbarer Text.
+- Das Bild ist damit Teil der Präsentation: Es erscheint im Präsentator, im PDF und im Video und funktioniert auch
+  auf anderen Rechnern. „Rückgängig“ nimmt es wieder heraus.
+- Bilder selbst erzeugen kann Claude nicht; Grafiken zeichnet es als SVG/HTML (scharf und animierbar).
 
 ## Vorschau-Werkzeug für Claude
 

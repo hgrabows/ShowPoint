@@ -129,7 +129,7 @@ const de = {
   llmEnv: 'LLM aus .env',
   close: 'Schließen (Esc)',
   askIntro:
-    'Stell eine Frage zu dem, was gerade zu sehen ist. Das Modell kennt die Texte dieser Folie und die Quellen im Ordner „quellen“. Du kannst Text in der Folie oder in einer Antwort markieren und dann gezielt dazu fragen.',
+    'Stell eine Frage zu dem, was gerade zu sehen ist. Das Modell kennt die Texte dieser Folie und die Quellen im Ordner „quellen“. Du kannst Text in der Folie oder in einer Antwort markieren und dann gezielt dazu fragen. Mit „Claude Code“ kann das Modell auch im Internet suchen.',
   sources: 'Quellen: ',
   noSources: 'Keine Quellen im Ordner „quellen“.',
   kChars: (n: number) => `${n} Tsd. Zeichen`,
@@ -274,7 +274,7 @@ const en: typeof de = {
   llmEnv: 'LLM from .env',
   close: 'Close (Esc)',
   askIntro:
-    'Ask a question about what is shown right now. The model knows the texts of this slide and the sources in the “quellen” folder. You can mark text in the slide or in an answer and then ask about exactly that.',
+    'Ask a question about what is shown right now. The model knows the texts of this slide and the sources in the “quellen” folder. You can mark text in the slide or in an answer and then ask about exactly that. With “Claude Code” the model can also search the internet.',
   sources: 'Sources: ',
   noSources: 'No sources in the “quellen” folder.',
   kChars: (n) => `${n}k characters`,

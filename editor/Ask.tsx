@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {useFloat, useFollowLog} from './float';
 import {T} from './i18n';
 
-type Turn = {q: string; quote?: string; a: string; thinking: boolean; error?: string};
+type Turn = {q: string; quote?: string; a: string; thinking: boolean; error?: string; looked?: string[]};
 
 const withQuote = (t: {q: string; quote?: string}) => (t.quote ? T.quoted(t.quote, t.q) : t.q);
 
@@ -29,6 +29,7 @@ export const askCss = `
 .selbtn:hover{background:#7a5cf0}
 .ask-err{color:#f87171}
 .ask-dim{color:#9aa6c7}
+.ask-web{font-size:.8em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ask-src{margin-top:.6em;font-size:.85em}
 .ask-in{display:flex;gap:.5em;padding:.6em .9em;border-top:1px solid #2e3a63}
 .ask-in .ask-ta{font-size:1em;padding:.5em .7em;min-height:0;resize:none;line-height:1.4;max-height:8em;overflow-y:auto}
@@ -116,6 +117,7 @@ export const Ask: React.FC<{
               const msg = typeof json.error === 'string' ? json.error : json.error.message;
               patchLast((t) => ({...t, thinking: false, error: msg}));
             }
+            if (json.status) patchLast((t) => ({...t, looked: [...(t.looked ?? []), String(json.status)]}));
             const delta = json.choices?.[0]?.delta;
             if (delta?.content) {
               patchLast((t) => ({...t, thinking: false, a: t.a + delta.content}));
@@ -176,6 +178,11 @@ export const Ask: React.FC<{
           <div key={i}>
             {t.quote ? <div className="ask-quote">{t.quote}</div> : null}
             <div className="ask-q">{t.q}</div>
+            {t.looked?.map((l, k) => (
+              <div key={k} className="ask-dim ask-web">
+                {l}
+              </div>
+            ))}
             {t.thinking ? <div className="ask-dim">{T.thinking}</div> : null}
             {t.a ? <div className="ask-a">{t.a}</div> : null}
             {t.a && !t.thinking && !(busy && i === turns.length - 1) ? (
