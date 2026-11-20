@@ -1,0 +1,228 @@
+import React, {useEffect, useRef, useState} from 'react';
+import {useFloat} from './float';
+
+type Turn = {q: string; quote?: string; a: string; thinking: boolean; error?: string};
+
+const withQuote = (t: {q: string; quote?: string}) => (t.quote ? `(zur Stelle „${t.quote}“) ${t.q}` : t.q);
+
+export const askCss = `
+.ask{position:absolute;right:2.5%;bottom:4%;width:46%;max-height:88%;display:flex;flex-direction:column;
+  background:rgba(13,18,36,.97);border:2px solid #8b6cff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);
+  cursor:default;font-size:clamp(14px,1.25vw,26px);line-height:1.45;color:#e8ecf8}
+.ask-head{display:flex;align-items:center;gap:.6em;padding:.6em .9em;border-bottom:1px solid #2e3a63;font-weight:700}
+.ask-head{white-space:nowrap}
+.ask-head span{color:#9aa6c7;font-weight:400;font-size:.8em;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ask-head button{margin-left:auto;padding:.2em .6em;font-size:.8em}
+.ask-log{flex:1;min-height:3em;overflow-y:auto;padding:.7em .9em;display:flex;flex-direction:column;gap:.7em}
+.ask-q{color:#ffb020;font-weight:600}
+.ask-a{white-space:pre-wrap}
+.ask,.ask *{user-select:text}
+.ask-quote{border-left:3px solid #8b6cff;padding:.1em .6em;color:#c9d1ec;font-style:italic;font-size:.9em;margin:.2em 0}
+.ask-pending{display:flex;align-items:flex-start;gap:.5em;padding:.5em .9em 0}
+.ask-pending .ask-quote{flex:1;margin:0;max-height:5.5em;overflow:auto}
+.ask-pending button{padding:.1em .5em;font-size:.8em}
+.ask-head select{width:auto;font-size:.8em;padding:.2em .4em;margin-left:auto}
+.ask-head select + button{margin-left:0}
+.selbtn{position:absolute;z-index:20;transform:translate(-50%,0);background:#8b6cff;border-color:#8b6cff;color:#fff;font-weight:600;
+  font-size:clamp(13px,1.1vw,22px);padding:.35em .7em;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.selbtn:hover{background:#7a5cf0}
+.ask-err{color:#f87171}
+.ask-dim{color:#9aa6c7}
+.ask-src{margin-top:.6em;font-size:.85em}
+.ask-in{display:flex;gap:.5em;padding:.6em .9em;border-top:1px solid #2e3a63}
+.ask-in input{font-size:1em;padding:.5em .7em}
+.ask-in button{font-size:.9em;white-space:nowrap}
+.ask-hand{margin-top:.4em;padding:.15em .6em;font-size:.8em}
+`;
+
+export const Ask: React.FC<{
+  sceneId: string;
+  sceneName: string;
+  caption: string;
+  quote: string;
+  onClearQuote: () => void;
+  onClose: () => void;
+  /** Übergibt einen Vorschlag als Auftrag an „Folie umbauen“. */
+  onHandover: (instruction: string) => void;
+}> = ({sceneId, sceneName, caption, quote, onClearQuote, onClose, onHandover}) => {
+  const [provider, setProvider] = useState(() => {
+    try {
+      return localStorage.getItem('ask-provider') || 'claude';
+    } catch {
+      return 'claude';
+    }
+  });
+  const fl = useFloat('ask-box', {l: 0.515, t: 0.06, w: 0.46});
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sources, setSources] = useState<{name: string; chars: number; note?: string}[]>([]);
+  const input = useRef<HTMLInputElement>(null);
+  const log = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    input.current?.focus();
+  }, [quote]);
+  useEffect(() => {
+    fetch('/api/sources')
+      .then((r) => r.json())
+      .then(setSources)
+      .catch(() => setSources([]));
+  }, []);
+  useEffect(() => {
+    log.current?.scrollTo(0, log.current.scrollHeight);
+  }, [turns]);
+
+  const patchLast = (fn: (t: Turn) => Turn) =>
+    setTurns((prev) => prev.map((t, i) => (i === prev.length - 1 ? fn(t) : t)));
+
+  const send = async () => {
+    const q = text.trim() || (quote ? 'Erkläre mir die markierte Stelle.' : '');
+    if (!q || busy) return;
+    const history = turns
+      .filter((t) => t.a && !t.error)
+      .flatMap((t) => [
+        {role: 'user', content: withQuote(t)},
+        {role: 'assistant', content: t.a},
+      ]);
+    setText('');
+    setBusy(true);
+    setTurns((prev) => [...prev, {q, quote: quote || undefined, a: '', thinking: true}]);
+    onClearQuote();
+    try {
+      const r = await fetch('/api/ask', {
+        method: 'POST',
+        body: JSON.stringify({question: q, quote, provider, sceneId, caption, history}),
+      });
+      if (!r.ok || !r.body) {
+        const msg = await r.text();
+        patchLast((t) => ({...t, thinking: false, error: msg || `Fehler ${r.status}`}));
+        return;
+      }
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      for (;;) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, {stream: true});
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          try {
+            const json = JSON.parse(payload);
+            if (json.error) {
+              const msg = typeof json.error === 'string' ? json.error : json.error.message;
+              patchLast((t) => ({...t, thinking: false, error: msg}));
+            }
+            const delta = json.choices?.[0]?.delta;
+            if (delta?.content) {
+              patchLast((t) => ({...t, thinking: false, a: t.a + delta.content}));
+            }
+          } catch {
+            // unvollständige Zeile – ignorieren
+          }
+        }
+      }
+      patchLast((t) => (t.a || t.error ? {...t, thinking: false} : {...t, thinking: false, error: 'Keine Antwort erhalten.'}));
+    } catch (e) {
+      patchLast((t) => ({...t, thinking: false, error: String((e as Error).message)}));
+    } finally {
+      setBusy(false);
+      input.current?.focus();
+    }
+  };
+
+  return (
+    <div className="ask" ref={fl.ref} style={fl.style} onClick={(e) => e.stopPropagation()}>
+      <div {...fl.head}>
+        Frage zur Folie <span>{sceneName}</span>
+        <select
+          value={provider}
+          title="Wer antwortet"
+          onChange={(e) => {
+            setProvider(e.target.value);
+            try {
+              localStorage.setItem('ask-provider', e.target.value);
+            } catch {
+              // ohne Speicher gilt die Wahl nur für diesen Dialog
+            }
+          }}
+        >
+          <option value="claude">Claude Code</option>
+          <option value="llm">LLM aus .env</option>
+        </select>
+        <button title="Schließen (Esc)" onClick={onClose}>
+          ✕
+        </button>
+      </div>
+      <div className="ask-log" ref={log}>
+        {turns.length === 0 ? (
+          <div className="ask-dim">
+            Stell eine Frage zu dem, was gerade zu sehen ist. Das Modell kennt die Texte dieser Folie
+            und die Quellen im Ordner „quellen“. Du kannst Text in der Folie oder in einer Antwort
+            markieren und dann gezielt dazu fragen.
+            <div className="ask-src">
+              {sources.length ? 'Quellen: ' : 'Keine Quellen im Ordner „quellen“.'}
+              {sources.map((q, i) => (
+                <span key={q.name} className={q.note ? 'ask-err' : undefined}>
+                  {i ? ' · ' : ''}
+                  {q.name} ({Math.round(q.chars / 1000)} Tsd. Zeichen{q.note ? `, ${q.note}` : ''})
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {turns.map((t, i) => (
+          <div key={i}>
+            {t.quote ? <div className="ask-quote">{t.quote}</div> : null}
+            <div className="ask-q">{t.q}</div>
+            {t.thinking ? <div className="ask-dim">denkt nach …</div> : null}
+            {t.a ? <div className="ask-a">{t.a}</div> : null}
+            {t.a && !t.thinking && !(busy && i === turns.length - 1) ? (
+              <button
+                className="ask-hand"
+                title="Öffnet „Folie umbauen“ mit diesem Vorschlag als Auftrag – du kannst ihn vor dem Start noch ändern"
+                onClick={() =>
+                  onHandover(
+                    `Setze diesen Vorschlag aus „Frage zur Folie“ um.\n\nMeine Frage: ${withQuote(t)}\n\nVorschlag:\n${t.a}`,
+                  )
+                }
+              >
+                → Als Umbau-Auftrag übernehmen
+              </button>
+            ) : null}
+            {t.error ? <div className="ask-err">{t.error}</div> : null}
+          </div>
+        ))}
+      </div>
+      {quote ? (
+        <div className="ask-pending">
+          <div className="ask-quote">{quote}</div>
+          <button title="Markierung verwerfen" onClick={onClearQuote}>
+            ✕
+          </button>
+        </div>
+      ) : null}
+      <div className="ask-in">
+        <input
+          ref={input}
+          value={text}
+          placeholder={quote ? 'Frage zur markierten Stelle (leer = „erkläre das“)' : 'Frage eingeben, Enter sendet'}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') send();
+            if (e.key === 'Escape') onClose();
+          }}
+        />
+        <button className="primary" onClick={send} disabled={busy}>
+          Fragen
+        </button>
+      </div>
+      {fl.grip}
+    </div>
+  );
+};

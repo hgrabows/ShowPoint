@@ -1,0 +1,32 @@
+{
+  "title": "Neue Präsentation",
+  "order": ["title", "beispiel"],
+  "scenes": {
+    "title": {
+      "name": "Titel",
+      "dur": 150,
+      "stops": [135],
+      "t": {"t01": "Neue Präsentation", "t02": "Untertitel"},
+      "lists": {}
+    },
+    "beispiel": {
+      "name": "Beispiel",
+      "dur": 300,
+      "kicker": "Dachzeile",
+      "title": "Überschrift der Folie",
+      "captions": [
+        {"at": 10, "text": "Der Sprechtext erscheint unten als Untertitel."},
+        {"at": 150, "text": "Ab Bild 150 folgt der nächste Satz."}
+      ],
+      "stops": [140, 287],
+      "t": {
+        "t01": "Erster Kasten",
+        "t02": "kleine Zeile darunter",
+        "t03": "Zweiter Kasten",
+        "t04": "kleine Zeile darunter",
+        "t05": "Alle sichtbaren Texte stehen in content.json."
+      },
+      "lists": {}
+    }
+  }
+}

@@ -1,0 +1,3 @@
+- Die Zeichnung der Folien steht in src/scenes*.tsx, gemeinsame Bausteine in src/ui.tsx.
+- Bühne 1920×1080. Der Titel belegt oben bis etwa y=170, der Untertitel-Kasten beginnt bei y=922.
+- Jede Szene bekommt {dur, c, all}; sichtbare Texte kommen aus c.t / c.lists, nicht fest in den Code.

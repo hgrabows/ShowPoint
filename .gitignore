@@ -1,0 +1,7 @@
+.env
+node_modules
+out
+quellen/.cache
+.umbau
+.DS_Store
+inhalte/

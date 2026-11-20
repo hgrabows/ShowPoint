@@ -1,0 +1,25 @@
+Erstelle eine Präsentation zu folgendem Thema.
+
+Thema:
+<Worum geht es? Ein bis drei Sätze.>
+
+Zielgruppe und Vorwissen:
+<z. B. Studierende im Master Informatik; kennen Embeddings, aber keine Details zum Thema>
+
+Umfang:
+<z. B. 10 bis 12 Folien, etwa 4 Minuten Laufzeit>
+
+Quellen (Papers, eigene Notizen, Links) – je Zeile eine:
+<Pfad zu einer Datei, z. B. ~/Downloads/paper.pdf>
+<oder ein Link, z. B. https://arxiv.org/abs/1234.56789>
+
+Schwerpunkte:
+- <Was soll auf jeden Fall erklärt werden?>
+- <Was darf wegbleiben?>
+
+Aufbau:
+Titel, Problem, Grundidee, die Schritte des Verfahrens einzeln, Ergebnisse mit Zahlen aus den Quellen, Grenzen, Fazit.
+
+Stil:
+Anschaulich und Schritt für Schritt, mit Grafiken statt Textwüsten. Pro Folie ein Gedanke. Sprache: Deutsch.
+Fachliche Angaben und Zahlen nur aus den Quellen; nichts erfinden.
