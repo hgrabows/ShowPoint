@@ -14,7 +14,7 @@ export const askCss = `
 .ask-head span{color:#9aa6c7;font-weight:400;font-size:.8em;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .ask-head button{margin-left:auto;padding:.2em .6em;font-size:.8em}
 .ask-log{flex:1;min-height:3em;overflow-y:auto;padding:.7em .9em;display:flex;flex-direction:column;gap:.7em}
-.ask-q{color:#ffb020;font-weight:600}
+.ask-q{color:#ffb020;font-weight:600;white-space:pre-wrap}
 .ask-a{white-space:pre-wrap}
 .ask,.ask *{user-select:text}
 .ask-quote{border-left:3px solid #8b6cff;padding:.1em .6em;color:#c9d1ec;font-style:italic;font-size:.9em;margin:.2em 0}
@@ -30,7 +30,7 @@ export const askCss = `
 .ask-dim{color:#9aa6c7}
 .ask-src{margin-top:.6em;font-size:.85em}
 .ask-in{display:flex;gap:.5em;padding:.6em .9em;border-top:1px solid #2e3a63}
-.ask-in input{font-size:1em;padding:.5em .7em}
+.ask-in .ask-ta{font-size:1em;padding:.5em .7em;min-height:0;resize:none;line-height:1.4;max-height:8em;overflow-y:auto}
 .ask-in button{font-size:.9em;white-space:nowrap}
 .ask-hand{margin-top:.4em;padding:.15em .6em;font-size:.8em}
 `;
@@ -57,7 +57,7 @@ export const Ask: React.FC<{
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [sources, setSources] = useState<{name: string; chars: number; note?: string}[]>([]);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const log = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -208,13 +208,19 @@ export const Ask: React.FC<{
         </div>
       ) : null}
       <div className="ask-in">
-        <input
+        <textarea
           ref={input}
+          className="ask-ta"
+          rows={Math.min(6, text.split('\n').length)}
           value={text}
-          placeholder={quote ? 'Frage zur markierten Stelle (leer = „erkläre das“)' : 'Frage eingeben, Enter sendet'}
+          placeholder={quote ? 'Frage zur Markierung (leer = erklären)' : 'Frage eingeben (⇧↵ neue Zeile)'}
+          title="Enter sendet · Shift+Enter fügt eine neue Zeile ein"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') send();
+            if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              send();
+            }
             if (e.key === 'Escape') onClose();
           }}
         />
