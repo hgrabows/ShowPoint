@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {useFloat} from './float';
+import {useFloat, useFollowLog} from './float';
 import {T} from './i18n';
 
 type Line = {kind: 'text' | 'tool' | 'error' | 'check' | 'checkfail' | 'checkretry'; text: string};
@@ -26,10 +26,10 @@ export const Rebuild: React.FC<{
   /** Prefilled instruction, e.g. from “Ask about slide”; n changes with every new handover. */
   draft?: {text: string; n: number} | null;
 }> = ({sceneName, state, onStart, onUndo, onClose, draft}) => {
+  const log = useFollowLog(state);
   const fl = useFloat('rebuild-box', {l: 0.025, t: 0.06, w: 0.46});
   const [text, setText] = useState('');
   const area = useRef<HTMLTextAreaElement>(null);
-  const log = useRef<HTMLDivElement>(null);
   const running = !!state?.running;
 
   useEffect(() => {
@@ -40,9 +40,6 @@ export const Rebuild: React.FC<{
     setText(draft.text);
     area.current?.focus();
   }, [draft?.n]);
-  useEffect(() => {
-    log.current?.scrollTo(0, log.current.scrollHeight);
-  }, [state]);
 
   const start = () => {
     const t = text.trim();
@@ -59,7 +56,7 @@ export const Rebuild: React.FC<{
           ✕
         </button>
       </div>
-      <div className="ask-log" ref={log}>
+      <div className="ask-log" {...log}>
         {!state?.instruction ? (
           <div className="ask-dim">
             {T.rebuildIntro}

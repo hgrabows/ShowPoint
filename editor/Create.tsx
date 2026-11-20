@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {RebuildState, isBad} from './Rebuild';
 import {T, lang} from './i18n';
+import {useFollowLog} from './float';
 
 export const createCss = `
 .cr-back{position:fixed;inset:0;z-index:50;background:rgba(5,8,18,.72);display:flex;align-items:center;justify-content:center}
@@ -53,12 +54,12 @@ export const Create: React.FC<{
   onOpen: (dir: string) => void;
   onClose: () => void;
 }> = ({state, seen, onSeen, onStarted, onOpen, onClose}) => {
+  const log = useFollowLog(state);
   const [template, setTemplate] = useState('');
   const [dir, setDir] = useState('');
   const [prompt, setPrompt] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const log = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch('/api/create')
@@ -79,9 +80,6 @@ export const Create: React.FC<{
   useEffect(() => {
     if (prompt || dir) store(DRAFT, JSON.stringify({dir, prompt}));
   }, [dir, prompt]);
-  useEffect(() => {
-    log.current?.scrollTo(0, log.current.scrollHeight);
-  }, [state]);
 
   const mine = state?.kind === 'create' && !!state.instruction;
   const showLog = mine && (state!.running || String(state!.startedAt) !== seen);
@@ -129,7 +127,7 @@ export const Create: React.FC<{
         </div>
         {showLog ? (
           <>
-            <div className="cr-body cr-log" ref={log}>
+            <div className="cr-body cr-log" {...log}>
               <div className="hint">{T.folder(state!.createdPath)}</div>
               <div className="cr-q">{state!.instruction}</div>
               {state!.log.map((l, i) =>

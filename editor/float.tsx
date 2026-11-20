@@ -85,3 +85,23 @@ export function useFloat(key: string, def: {l: number; t: number; w: number}) {
     grip: <div className="fl-grip" title={T.dragSize} onPointerDown={start('size')} />,
   };
 }
+
+/**
+ * Props for a scrolling log: new content keeps it scrolled to the bottom, but only while the reader is already
+ * at the bottom. Once they scroll up to read, it stays put until they scroll back down.
+ */
+export function useFollowLog(dep: unknown) {
+  const ref = useRef<HTMLDivElement>(null);
+  const atBottom = useRef(true);
+  useEffect(() => {
+    const el = ref.current;
+    if (el && atBottom.current) el.scrollTop = el.scrollHeight;
+  }, [dep]);
+  return {
+    ref,
+    onScroll: () => {
+      const el = ref.current;
+      if (el) atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    },
+  };
+}

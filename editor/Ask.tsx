@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {useFloat} from './float';
+import {useFloat, useFollowLog} from './float';
 import {T} from './i18n';
 
 type Turn = {q: string; quote?: string; a: string; thinking: boolean; error?: string};
@@ -55,11 +55,11 @@ export const Ask: React.FC<{
   });
   const fl = useFloat('ask-box', {l: 0.515, t: 0.06, w: 0.46});
   const [turns, setTurns] = useState<Turn[]>([]);
+  const log = useFollowLog(turns);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [sources, setSources] = useState<{name: string; chars: number; note?: string}[]>([]);
   const input = useRef<HTMLTextAreaElement>(null);
-  const log = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     input.current?.focus();
@@ -70,9 +70,6 @@ export const Ask: React.FC<{
       .then(setSources)
       .catch(() => setSources([]));
   }, []);
-  useEffect(() => {
-    log.current?.scrollTo(0, log.current.scrollHeight);
-  }, [turns]);
 
   const patchLast = (fn: (t: Turn) => Turn) =>
     setTurns((prev) => prev.map((t, i) => (i === prev.length - 1 ? fn(t) : t)));
@@ -160,7 +157,7 @@ export const Ask: React.FC<{
           ✕
         </button>
       </div>
-      <div className="ask-log" ref={log}>
+      <div className="ask-log" {...log}>
         {turns.length === 0 ? (
           <div className="ask-dim">
             {T.askIntro}
