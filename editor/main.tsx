@@ -169,7 +169,9 @@ const App: React.FC = () => {
     try {
       const st: RebuildState = await fetch('/api/rebuild').then((r) => r.json());
       setRb(st);
-      if (st.running && st.kind !== 'create') setRebuilding(true);
+      // A rebuild found running (e.g. after a reload) opens its window once; closed, it stays closed – the badge
+      // bottom left shows the progress, and a click on it opens the window again.
+      if (st.running && !rbWas.current && st.kind !== 'create') setRebuilding(true);
       // A new presentation is created in the background; its window only opens by itself once it is done.
       if (rbWas.current && !st.running && st.kind === 'create') setCreating(true);
       if (rbWas.current && !st.running && st.kind !== 'create') {
