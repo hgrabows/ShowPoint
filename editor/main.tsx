@@ -108,6 +108,19 @@ const App: React.FC = () => {
   const [asking, setAsking] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [rbDraft, setRbDraft] = useState<{text: string; n: number} | null>(null);
+  const [pdf, setPdf] = useState<{running: boolean; progress: number; file: string; error: string} | null>(null);
+  const pdfExport = useCallback(async () => {
+    if (pdf?.running) return;
+    let st = await fetch('/api/pdf', {method: 'POST'}).then((r) => (r.ok ? r.json() : r.text().then((t) => ({running: false, progress: 0, file: '', error: t}))));
+    setPdf(st);
+    while (st.running) {
+      await new Promise((r) => setTimeout(r, 1000));
+      st = await fetch('/api/pdf').then((r) => r.json());
+      setPdf(st);
+    }
+    if (st.error) window.alert(`PDF-Export fehlgeschlagen:\n${st.error}`);
+    else if (st.file) window.open('/api/pdf/file', '_blank');
+  }, [pdf?.running]);
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
   creatingRef.current = creating;
@@ -664,6 +677,13 @@ const App: React.FC = () => {
             {onStop ? '− Haltepunkt' : '+ Haltepunkt'}
           </button>
           <button onClick={fullscreen}>Vollbild</button>
+          <button
+            onClick={pdfExport}
+            disabled={pdf?.running}
+            title="Eine PDF-Seite je Haltepunkt, so wie der Präsentator dort anhält. Gespeichert unter out/ im Ordner der Präsentation."
+          >
+            {pdf?.running ? `PDF … ${pdf.progress} %` : '⤓ PDF'}
+          </button>
           <button onClick={openAsk}>? Frage zur Folie</button>
           <button
             className="fix-rb"

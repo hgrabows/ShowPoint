@@ -16,6 +16,8 @@ pause at stops, answer questions about what is on screen – and can be rebuilt 
   the presentation reloads. Every rebuild can be undone. A suggestion from “ask” can be handed over with one click.
 - **Create a presentation** – give a folder and a prompt; Claude Code writes the scenes, texts and stops from a template.
 - **Edit texts and timing** – captions, titles, lists, durations and stops are edited live in the side panel.
+- **Export to PDF** – one page per stop, exactly as the presenter pauses there (button „⤓ PDF“ or `npm run pdf`);
+  handy as a handout.
 - **Render to video** – `npm run render` produces an MP4 of the chosen presentation.
 
 Presenter and content are separate: each presentation lives in its own folder and is selected in the app.

@@ -648,6 +648,31 @@ function undoRebuild() {
   return true;
 }
 
+// PDF-Export: startet scripts/pdf.mjs (eine Seite je Haltepunkt) und merkt sich Fortschritt und Ergebnis.
+const pdfJob = {running: false, progress: 0, file: '', error: '', startedAt: 0};
+function startPdf() {
+  if (pdfJob.running) return;
+  Object.assign(pdfJob, {running: true, progress: 0, file: '', error: '', startedAt: Date.now()});
+  const child = spawn(process.execPath, ['scripts/pdf.mjs'], {cwd: process.cwd(), env: {...process.env, INHALT: inhaltRel}});
+  let err = '';
+  let buf = '';
+  child.stdout.on('data', (c) => {
+    buf += c;
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const l of lines) {
+      const m = l.match(/^PROGRESS (\d+)/);
+      if (m) pdfJob.progress = Number(m[1]);
+      if (l.startsWith('FERTIG ')) pdfJob.file = l.slice(7).trim();
+    }
+  });
+  child.stderr.on('data', (c) => (err = (err + c).slice(-4000)));
+  child.on('close', (code) => {
+    pdfJob.running = false;
+    if (code !== 0 || !pdfJob.file) pdfJob.error = err.trim().split('\n').slice(-6).join('\n') || `PDF-Export fehlgeschlagen (Code ${code}).`;
+  });
+}
+
 // Kleiner Editor: liest und schreibt src/content.json, aus der auch das Video gerendert wird.
 export default defineConfig({
   root: 'editor',
@@ -657,6 +682,27 @@ export default defineConfig({
     {
       name: 'content-api',
       configureServer(server) {
+        server.middlewares.use('/api/pdf', (req, res) => {
+          if (req.url?.startsWith('/file')) {
+            if (!pdfJob.file || !fs.existsSync(pdfJob.file)) {
+              res.statusCode = 404;
+              return res.end('Noch kein PDF erzeugt.');
+            }
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(path.basename(pdfJob.file))}`);
+            return fs.createReadStream(pdfJob.file).pipe(res);
+          }
+          if (req.method === 'POST') {
+            if (!hasInhalt()) {
+              res.statusCode = 404;
+              return res.end('Keine Präsentation gewählt.');
+            }
+            startPdf();
+          }
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(pdfJob));
+        });
+
         server.middlewares.use('/api/content', (req, res) => {
           if (!hasInhalt()) {
             res.statusCode = 404;

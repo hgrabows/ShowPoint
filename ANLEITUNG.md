@@ -70,7 +70,7 @@ Welche Präsentation gezeigt wird, wählt man im Präsentator rechts oben unter 
 | `src/scenesA.tsx`, `scenesB.tsx`, `scenesC.tsx` | Die Szenen selbst. |
 | `src/ui.tsx` | Bausteine für Szenen (`Scene`, `Appear`, `Box`, `Arrow`, Farben `C` …) und die Typen `SceneContent`, `SceneProps`. |
 | `src/Root.tsx`, `src/index.ts` | Komposition für das Rendern als Video (`npm run render`). |
-| `scripts/render.mjs`, `remotion.config.ts` | Präsentator: rendert die gewählte Präsentation; sorgt dafür, dass sie die hier installierten Pakete findet. |
+| `scripts/render.mjs`, `scripts/pdf.mjs`, `remotion.config.ts` | Präsentator: rendert die gewählte Präsentation als Video bzw. PDF; sorgt dafür, dass sie die hier installierten Pakete findet. |
 | `editor/main.tsx` | Oberfläche des Präsentators. Die Anzeigenamen der Szenen kommen aus `content.json` (`name`). |
 | `vite.config.mts` | Server: `/api/content` (lesen/speichern), `/api/ask` (die `?`-Taste), `/api/rebuild` (Folie umbauen), `/api/create` (neue Präsentation); Zugänge aus `.env`. |
 | `prompt.txt`, `vorlage/` | Vorlage für den Prompt und Gerüst (Bausteine, Beispiel-Szene) einer neuen Präsentation. |
@@ -185,6 +185,18 @@ npm run render
 Rendert die im Präsentator gewählte Präsentation nach `out/<titel>.mp4` **in deren Ordner**
 (z. B. `<Ordner der Präsentation>/out/<titel>.mp4`). Weitere Remotion-Optionen lassen sich
 anhängen, z. B. `npm run render -- --frames=0-90`.
+
+## Als PDF ausgeben
+
+Knopf „⤓ PDF“ im Präsentator, oder im Terminal:
+
+```bash
+npm run pdf
+```
+
+Erzeugt `out/<titel>.pdf` im Ordner der Präsentation: **eine Seite je Haltepunkt**, genau das Bild, bei dem der
+Präsentator dort anhält (mit Untertitel), dazu das Schlussbild. Gut als Handout oder zum Nachlesen; dauert etwa
+eine halbe Minute.
 
 ## Stolpersteine
 
