@@ -114,6 +114,12 @@ const de = {
   slides: 'Folien',
   slidesHint: 'ziehen = umsortieren · Klick = hinspringen',
   slideRowTitle: 'Ziehen, um die Folie zu verschieben · Klick springt zur Folie',
+  slideRemoveTitle: 'Folie entfernen (lässt sich unten wiederherstellen)',
+  slideRemoveConfirm: (name: string) =>
+    `Folie „${name}“ aus der Präsentation entfernen?\n\nTexte und Code bleiben erhalten; unter „Entfernte Folien“ lässt sie sich wieder einfügen.`,
+  slidesRemoved: (n: number) => `Entfernte Folien (${n})`,
+  slideRestore: '↩ wieder einfügen',
+  slideRestoreTitle: 'Fügt die Folie wieder an ihrer alten Stelle ein (sonst am Ende)',
 
   // float.tsx
   dragMove: 'Ziehen = verschieben · Doppelklick = zurücksetzen',
@@ -261,6 +267,11 @@ const en: typeof de = {
   slides: 'Slides',
   slidesHint: 'drag = reorder · click = jump',
   slideRowTitle: 'Drag to move the slide · click to jump to it',
+  slideRemoveTitle: 'Remove slide (can be restored below)',
+  slideRemoveConfirm: (name) => `Remove the slide “${name}” from the presentation?\n\nIts texts and code are kept; it can be put back under “Removed slides”.`,
+  slidesRemoved: (n) => `Removed slides (${n})`,
+  slideRestore: '↩ restore',
+  slideRestoreTitle: 'Puts the slide back at its old position (otherwise at the end)',
 
   dragMove: 'Drag = move · double-click = reset',
   dragSize: 'Drag = resize',

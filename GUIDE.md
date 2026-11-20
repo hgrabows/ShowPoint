@@ -39,6 +39,11 @@ Keys: space / → / Enter / click = next · ← = back · `S` = stop on/off · `
 (a yellow line shows where it will land); click a row to jump to it. The new order is saved right away in
 `content.json` (`order`); the slides themselves are not changed.
 
+**Removing slides:** 🗑 at the right of a row (shown on hover). The slide disappears from the presentation, but its
+texts and code are kept: below the list, “Removed slides (n)” offers “↩ restore”, which puts it back at its old
+position. To delete a slide for good (including its code), use “Rebuild slide”.
+In `content.json`, removed slides stay in `scenes` but not in `order`; `removed` remembers their position.
+
 ## Language (German / English)
 
 - The user interface can be switched between **DE** and **EN** in the top bar. The default is the browser's language;

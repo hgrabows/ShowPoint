@@ -24,6 +24,11 @@ export type Content = {
   /** Name of the presentation, shown in the window title */
   title?: string;
   order: string[];
+  /**
+   * Slides removed in the slide list: their data stays in `scenes` (and their code in src/) so they can be
+   * restored; `after` is the slide they followed. Scenes missing from `order` count as removed either way.
+   */
+  removed?: {id: string; after: string | null}[];
   scenes: Record<string, SceneContent>;
 };
 

@@ -19,11 +19,20 @@ export const slidesCss = `
 .sl-nr{color:#9aa6c7;font-variant-numeric:tabular-nums;min-width:1.6em;text-align:right}
 .sl-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 .sl-dur{color:#5d6a92;font-size:11px;font-variant-numeric:tabular-nums}
+.sl-del{padding:0 4px;border:0;background:none;color:#9aa6c7;font-size:13px;line-height:1;visibility:hidden;cursor:pointer}
+.sl-row:hover .sl-del{visibility:visible}
+.sl-del:hover{background:none;color:#f87171}
+.sl-gone{margin-top:8px;font-size:12px;color:#9aa6c7}
+.sl-gone summary{cursor:pointer}
+.sl-gone-row{display:flex;align-items:center;gap:8px;padding:4px 8px;margin-top:2px;border-radius:6px;background:#0f1428}
+.sl-gone-row .sl-name{color:#9aa6c7}
+.sl-gone-row button{padding:2px 8px;font-size:12px}
 `;
 
 /**
  * Slide manager: the scenes in their current order. Drag a row to reorder, click to jump to that slide.
- * Only `order` in content.json changes; the scenes themselves stay untouched.
+ * Removing takes a slide out of `order` only; its texts and code stay, and it can be restored from the list below.
+ * Only `order` (and `removed`) in content.json change; the scenes themselves stay untouched.
  */
 export const Slides: React.FC<{
   order: string[];
@@ -32,7 +41,10 @@ export const Slides: React.FC<{
   durOf: (id: string) => number;
   onJump: (id: string) => void;
   onReorder: (order: string[]) => void;
-}> = ({order, current, nameOf, durOf, onJump, onReorder}) => {
+  removed: string[];
+  onRemove: (id: string) => void;
+  onRestore: (id: string) => void;
+}> = ({order, current, nameOf, durOf, onJump, onReorder, removed, onRemove, onRestore}) => {
   const [drag, setDrag] = useState<string | null>(null);
   const [drop, setDrop] = useState<{id: string; after: boolean} | null>(null);
 
@@ -92,9 +104,35 @@ export const Slides: React.FC<{
             <span className="sl-nr">{i + 1}</span>
             <span className="sl-name">{nameOf(id)}</span>
             <span className="sl-dur">{Math.round(durOf(id) / 30)} s</span>
+            {order.length > 1 ? (
+              <button
+                className="sl-del"
+                draggable={false}
+                title={T.slideRemoveTitle}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm(T.slideRemoveConfirm(nameOf(id)))) onRemove(id);
+                }}
+              >
+                🗑
+              </button>
+            ) : null}
           </div>
         ))}
       </div>
+      {removed.length ? (
+        <details className="sl-gone">
+          <summary>{T.slidesRemoved(removed.length)}</summary>
+          {removed.map((id) => (
+            <div key={id} className="sl-gone-row">
+              <span className="sl-name">{nameOf(id)}</span>
+              <button title={T.slideRestoreTitle} onClick={() => onRestore(id)}>
+                {T.slideRestore}
+              </button>
+            </div>
+          ))}
+        </details>
+      ) : null}
     </div>
   );
 };

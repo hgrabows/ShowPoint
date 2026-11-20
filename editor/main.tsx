@@ -710,14 +710,34 @@ const App: React.FC = () => {
           current={id}
           nameOf={nameOf}
           durOf={(sid) => content.scenes[sid].dur}
-          onJump={(sid) => {
-            // Jump into the middle of the slide rather than its (often still empty) first frame:
-            // to the stop closest to the middle, so “Next” continues from there; without stops, the middle frame.
-            const sc0 = content.scenes[sid];
-            const mid = sc0.dur / 2;
-            const inner = sc0.stops.filter((s) => s > 0 && s < sc0.dur);
-            const at = inner.length ? inner.reduce((a, b) => (Math.abs(b - mid) < Math.abs(a - mid) ? b : a)) : Math.floor(mid);
-            goto(starts[content.order.indexOf(sid)] + at);
+          onJump={(sid) => goto(starts[content.order.indexOf(sid)] + midOf(content.scenes[sid]))}
+          removed={Object.keys(content.scenes).filter((sid) => !content.order.includes(sid))}
+          onRemove={(sid) => {
+            const i = content.order.indexOf(sid);
+            const next = content.order.filter((x) => x !== sid);
+            const startOf = (sid2: string) => next.slice(0, next.indexOf(sid2)).reduce((a, x) => a + content.scenes[x].dur, 0);
+            edit((c) => {
+              c.order = next;
+              c.removed = [...(c.removed ?? []).filter((r) => r.id !== sid), {id: sid, after: i > 0 ? content.order[i - 1] : null}];
+            });
+            // removed the slide being shown: show the one that takes its place; otherwise stay where we are
+            if (sid === id) {
+              const take = next[Math.min(i, next.length - 1)];
+              goto(startOf(take) + midOf(content.scenes[take]));
+            }
+            else goto(startOf(id) + local);
+          }}
+          onRestore={(sid) => {
+            const hint = content.removed?.find((r) => r.id === sid);
+            const next = [...content.order];
+            const at = hint?.after === null ? 0 : hint && next.includes(hint.after) ? next.indexOf(hint.after) + 1 : next.length;
+            next.splice(at, 0, sid);
+            edit((c) => {
+              c.order = next;
+              c.removed = (c.removed ?? []).filter((r) => r.id !== sid);
+              if (!c.removed.length) delete c.removed;
+            });
+            goto(next.slice(0, next.indexOf(sid)).reduce((a, x) => a + content.scenes[x].dur, 0) + midOf(content.scenes[sid]));
           }}
           onReorder={(next) => {
             // keep showing the same slide at the same point after the move
@@ -796,6 +816,16 @@ const App: React.FC = () => {
       </div>
     </div>
   );
+};
+
+/**
+ * Where to show a slide when jumping to it: not its (often still empty) first frame, but the stop closest to its
+ * middle, so “Next” continues from there; without stops, the middle frame.
+ */
+const midOf = (sc: SceneContent) => {
+  const mid = sc.dur / 2;
+  const inner = sc.stops.filter((s) => s > 0 && s < sc.dur);
+  return inner.length ? inner.reduce((a, b) => (Math.abs(b - mid) < Math.abs(a - mid) ? b : a)) : Math.floor(mid);
 };
 
 const StopsInput: React.FC<{stops: number[]; onChange: (v: number[]) => void}> = ({

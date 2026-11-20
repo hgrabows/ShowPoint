@@ -40,6 +40,11 @@ Tasten: Leertaste / → / Enter / Klick = weiter · ← = zurück · `S` = Halte
 verschiebt die Folie (ein gelber Strich zeigt, wo sie landet), ein Klick springt zu ihr. Gespeichert wird sofort in
 `content.json` (`order`); die Folien selbst bleiben unverändert.
 
+**Folien entfernen:** 🗑 rechts in der Zeile (erscheint beim Darüberfahren). Die Folie verschwindet aus der
+Präsentation, Texte und Code bleiben aber erhalten: Unter der Liste steht „Entfernte Folien (n)“, dort fügt
+„↩ wieder einfügen“ sie an ihrer alten Stelle wieder ein. Endgültig löschen (auch den Code) geht über „Folie umbauen“.
+In `content.json` stehen entfernte Folien weiter unter `scenes`, aber nicht in `order`; `removed` merkt sich ihre Stelle.
+
 ## Sprache (Deutsch / Englisch)
 
 - Die Oberfläche lässt sich oben in der Leiste zwischen **DE** und **EN** umschalten. Voreinstellung ist die Sprache
