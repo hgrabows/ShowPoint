@@ -107,7 +107,8 @@ const Captions: React.FC<{items: Caption[]}> = ({items}) => {
         boxSizing: 'border-box',
       }}
     >
-      <span style={{opacity: Math.min(fadeIn, fadeOut)}}>{cur.text}</span>
+      {/* pre-line: a line break typed in the caption (Shift+Return) starts a new line; balance: even lines, no lone last word */}
+      <span style={{opacity: Math.min(fadeIn, fadeOut), whiteSpace: 'pre-line', textWrap: 'balance'}}>{cur.text}</span>
     </div>
   );
 };
