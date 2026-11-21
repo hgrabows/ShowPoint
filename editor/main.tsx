@@ -173,13 +173,24 @@ const App: React.FC = () => {
   const restorePending = useRef(false);
   const posKey = () => `showpoint-pos:${pres?.current ?? ''}`;
 
+  // Which running rebuild the user has closed the window of (survives page reloads during the rebuild).
+  const closedJob = () => {
+    try {
+      return sessionStorage.getItem('showpoint-rb-closed') ?? '';
+    } catch {
+      return '';
+    }
+  };
+
   const pollRebuild = useCallback(async () => {
     try {
       const st: RebuildState = await fetch('/api/rebuild').then((r) => r.json());
       setRb(st);
       // A rebuild found running (e.g. after a reload) opens its window once; closed, it stays closed – the badge
       // bottom left shows the progress, and a click on it opens the window again.
-      if (st.running && !rbWas.current && st.kind !== 'create') setRebuilding(true);
+      // Not if the user had closed (minimised) the window for this very job – e.g. before Claude changed slide code
+      // and the page reloaded.
+      if (st.running && !rbWas.current && st.kind !== 'create' && closedJob() !== String(st.id)) setRebuilding(true);
       // A new presentation is created in the background; its window only opens by itself once it is done.
       if (rbWas.current && !st.running && st.kind === 'create') setCreating(true);
       if (rbWas.current && !st.running && st.kind !== 'create') {
@@ -199,6 +210,15 @@ const App: React.FC = () => {
       // server is restarting
     }
   }, []);
+  useEffect(() => {
+    if (!rb?.running || rb.kind === 'create') return;
+    try {
+      if (rebuilding) sessionStorage.removeItem('showpoint-rb-closed');
+      else sessionStorage.setItem('showpoint-rb-closed', String(rb.id));
+    } catch {
+      // not remembered – the window may open again after a reload
+    }
+  }, [rebuilding, rb?.running, rb?.id, rb?.kind]);
   useEffect(() => {
     pollRebuild();
     const id = setInterval(pollRebuild, 1500);
