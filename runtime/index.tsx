@@ -8,6 +8,8 @@ import React, {createContext, forwardRef, useContext} from 'react';
 
 export {Player} from './Player';
 export type {PlayerRef} from './Player';
+export {BarChart, LineChart, PieChart, CHART_COLORS, parseNumbers} from './charts';
+export type {BarChartProps, LineChartProps, LineSeries, PieChartProps, Num} from './charts';
 
 /* ── Timeline ─────────────────────────────────────────────────────────────── */
 

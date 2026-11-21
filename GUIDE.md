@@ -211,6 +211,21 @@ Scenes import their building blocks from `'showpoint'` (source in `runtime/index
 | `AbsoluteFill` | `div` that fills its frame completely |
 | `Sequence from={…} durationInFrames={…}`, `Series` | shows content only within a time window; inside, frames count from 0 again |
 | `Img` | image; the renderer waits until it has loaded |
+| `BarChart`, `LineChart`, `PieChart` | charts that build up from frame `at` (details below) |
+
+**Charts.** Numbers and labels are best kept in `content.json` under `lists` (values as text, e.g. `"3.5"` or
+`"40 %"`), so they stay editable in the presenter:
+
+```tsx
+<BarChart x={90} y={200} w={900} h={650} labels={c.lists.labels} values={c.lists.values} unit=" ms" at={20} />
+<BarChart … horizontal highlight={2} />          {/* horizontal bars, third one emphasised */}
+<LineChart x={…} y={…} w={…} h={…} labels={c.lists.years}
+  series={[{name: c.t.t01, values: c.lists.a}, {name: c.t.t02, values: c.lists.b}]} at={20} />
+<PieChart x={…} y={…} w={…} h={…} labels={c.lists.labels} values={c.lists.values} center="128 GB" />
+```
+
+More props: `color`/`colors`, `max`, `stagger` (bars), `area`, `showValues`, `dur` (line, pie), `donut={false}` (pie),
+`decimals`, `fontSize`, `decimalComma` (German-style 3,5; switched on automatically if the data uses commas).
 
 ## Output as video
 

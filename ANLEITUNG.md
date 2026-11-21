@@ -211,6 +211,22 @@ Szenen importieren ihre Bausteine aus `'showpoint'` (Quelltext in `runtime/index
 | `AbsoluteFill` | `div`, das seinen Rahmen ganz ausfüllt |
 | `Sequence from={…} durationInFrames={…}`, `Series` | zeigt Inhalte nur in einem Zeitfenster; darin zählt das Bild wieder ab 0 |
 | `Img` | Bild; der Renderer wartet, bis es geladen ist |
+| `BarChart`, `LineChart`, `PieChart` | Diagramme, die sich ab Bild `at` aufbauen (Details unten) |
+
+**Diagramme.** Zahlen und Beschriftungen stehen am besten in `content.json` unter `lists` (Werte als Text, z. B. `"3,5"`
+oder `"40 %"`), dann sind sie im Präsentator änderbar:
+
+```tsx
+<BarChart x={90} y={200} w={900} h={650} labels={c.lists.labels} values={c.lists.werte} unit=" ms" at={20} />
+<BarChart … horizontal highlight={2} />          {/* Balken quer, dritter hervorgehoben */}
+<LineChart x={…} y={…} w={…} h={…} labels={c.lists.jahre}
+  series={[{name: c.t.t01, values: c.lists.a}, {name: c.t.t02, values: c.lists.b}]} at={20} />
+<PieChart x={…} y={…} w={…} h={…} labels={c.lists.labels} values={c.lists.werte} center="128 GB" decimalComma />
+```
+
+Weitere Eigenschaften: `color`/`colors`, `max`, `stagger` (Säulen), `area`, `showValues`, `dur` (Linie, Kreis),
+`donut={false}` (Kreis), `decimals`, `fontSize`. Ein Dezimalkomma in den Daten schaltet die Anzeige auf Komma um;
+sonst erzwingt `decimalComma` es.
 
 ## Als Video ausgeben
 
