@@ -262,7 +262,7 @@ const readOptional = (name: string) => {
   return fs.existsSync(p) ? fs.readFileSync(p, 'utf8').trim() : '';
 };
 
-const askSystem = (lang: Lang) => `You are helping with a presentation. Someone asks a question about the slide currently shown.
+const askSystem = (lang: Lang) => `You are helping with a presentation. Someone asks a question, usually about the slide currently shown, but it may refer to any other slide (e.g. an earlier one); the texts of all slides are below.
 Answer briefly, in ${LANG_NAME[lang]} (the language of the user interface), even if the slide or the sources are in another language. Base your answer on the slide and the sources below. Look up details and numbers there. Mark anything not found there as general knowledge, or say that the sources do not cover it. Do not invent numbers.
 Write plain prose without Markdown formatting.`;
 
@@ -404,22 +404,32 @@ async function ask(body: AskBody, res: import('node:http').ServerResponse, lang:
     .filter((q) => q.used)
     .map((q) => `## Source: ${q.name}\n${q.text}`)
     .join('\n\n');
-  const outline = content.order
-    .map((id: string, i: number) => `${i + 1}. ${content.scenes[id].title ?? id}`)
-    .join('\n');
+  // All slides with their full texts, so questions may refer to any slide (e.g. "on the slide before …").
+  type Sc = {name?: string; kicker?: string; title?: string; captions?: {text: string}[]; t?: Record<string, string>; lists?: Record<string, string[]>};
+  const slideText = (s: Sc | undefined) =>
+    [
+      s?.kicker ? `Kicker: ${s.kicker}` : '',
+      s?.title ? `Title: ${s.title}` : '',
+      s?.captions?.length ? `Spoken text:\n${s.captions.map((c) => `- ${c.text}`).join('\n')}` : '',
+      s?.t && Object.keys(s.t).length ? `Labels in the picture:\n${Object.values(s.t).map((x) => `- ${x}`).join('\n')}` : '',
+      ...Object.entries(s?.lists ?? {}).map(([k, l]) => `List "${k}":\n${l.map((x) => `- ${x}`).join('\n')}`),
+    ]
+      .filter(Boolean)
+      .join('\n');
+  const allSlides = content.order
+    .map((id: string, i: number) => {
+      const s: Sc = content.scenes[id];
+      return `### Slide ${i + 1}${s?.name ? ` (${s.name})` : ''}${id === body.sceneId ? ' – CURRENTLY SHOWN' : ''}\n${slideText(s)}`;
+    })
+    .join('\n\n');
   const slide = [
-    `Slide ${nr} of ${content.order.length}`,
-    sc?.kicker ? `Kicker: ${sc.kicker}` : '',
-    sc?.title ? `Title: ${sc.title}` : '',
-    sc?.captions?.length ? `Spoken text of the slide:\n${sc.captions.map((c: {text: string}) => `- ${c.text}`).join('\n')}` : '',
+    `Slide ${nr} of ${content.order.length}${sc?.title ? `: ${sc.title}` : ''}`,
     body.caption ? `Currently shown caption: ${body.caption}` : '',
-    sc ? `Labels in the picture:\n${Object.values(sc.t).map((x) => `- ${x}`).join('\n')}` : '',
-    ...Object.values(sc?.lists ?? {}).map((l) => (l as string[]).map((x) => `- ${x}`).join('\n')),
   ]
     .filter(Boolean)
     .join('\n');
   const extra = readOptional('begleittext.md');
-  const system = `${askSystem(lang)}${extra ? `\n\n## About this presentation\n${extra}` : ''}\n\n## Structure of the presentation\n${outline}\n\n## Current slide\n${slide}\n\n${notes}`;
+  const system = `${askSystem(lang)}${extra ? `\n\n## About this presentation\n${extra}` : ''}\n\n## All slides\n${allSlides}\n\n## Current slide\n${slide}\n\n${notes}`;
   const history = (body.history ?? []).slice(-8);
   const quote = String(body.quote ?? '').trim().slice(0, 1500);
   const question =
