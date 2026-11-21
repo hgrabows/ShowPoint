@@ -717,7 +717,7 @@ const App: React.FC = () => {
               draft={rbDraft}
               onStart={(instruction) => {
                 if (rb?.running) return window.alert(T.createBusy);
-                rebuildPost({instruction, sceneId: id});
+                rebuildPost({instruction, sceneId: id, frame: local});
               }}
               onUndo={() => rebuildPost({undo: true}).then(() => {
                 dirty.current = false;

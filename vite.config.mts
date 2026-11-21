@@ -744,7 +744,30 @@ const chartRule = `- Numbers and proportions as charts from 'showpoint': <BarCha
 const imageRule = `- Images: use only image files inside the presentation's src/bilder/ (the user supplies them; the server copies image paths named in a task there). Import them relative to the scene file, e.g. \`import foto from './bilder/foto.png'\`, and show them with \`<Img src={foto} style={{width: …, height: …, objectFit: 'contain'}} />\` (Img from 'showpoint', never a plain <img>, never paths outside the presentation). Keep labels as real text from c.t next to or on top of the image, not baked into it. Images may fade or move in like other elements; check size and position with the preview.`;
 const formulaRule = `- Formulas: always with \`<Formula tex={c.t.f1} x={…} y={…} at={…} fontSize={56} />\` from 'showpoint' (KaTeX; LaTeX text in c.t, steps of a calculation as \`steps={c.lists.…}\`, they appear one after the other), never as an image or pieced together from Unicode characters, sub/sup tags or SVG text. In content.json backslashes are doubled ("\\\\frac{a}{b}").`;
 
-function startRebuild(instruction: string, sceneId: string, lang: Lang) {
+/** Where in the slide the presenter stands: frame, section between stops, caption shown – so "this section" or "here" in a task is clear. */
+function positionNote(sc: {dur: number; stops?: number[]; captions?: {at: number; text: string}[]} | undefined, frame: number | null): string {
+  if (!sc || frame === null) return '';
+  const f = Math.max(0, Math.min(sc.dur - 1, Math.round(frame)));
+  const stops = [...new Set((sc.stops ?? []).filter((s) => s > 0 && s < sc.dur))].sort((a, b) => a - b);
+  const bounds = [0, ...stops, sc.dur];
+  const n = bounds.length - 1;
+  const atStop = stops.includes(f);
+  // paused exactly at a stop: the section that has just played up to it is the one being looked at
+  let k = bounds.findIndex((b, i) => i < n && f >= b && f < bounds[i + 1]);
+  if (atStop) k = bounds.indexOf(f) - 1;
+  const cap = [...(sc.captions ?? [])].filter((c) => c.at <= f).pop();
+  const lines = [
+    `Position of the presenter in this slide: frame ${f} of ${sc.dur} (${(f / 30).toFixed(1)} s)` +
+      (atStop ? `, paused at the stop at frame ${f}` : '') +
+      `. The slide has ${n} section${n === 1 ? '' : 's'} (the stretches between its stops; stops at ${stops.length ? stops.join(', ') : 'none'}).`,
+    `Current section: no. ${k + 1} of ${n}, frames ${bounds[k]}–${bounds[k + 1]}${atStop ? ' (it has just played up to this stop)' : ''}.`,
+    cap ? `Caption shown there: "${cap.text}"` : 'No caption is shown there.',
+    'If the task says "this section", "here", "now" or similar, it means this position.',
+  ];
+  return `\n${lines.join('\n')}`;
+}
+
+function startRebuild(instruction: string, sceneId: string, lang: Lang, frame: number | null = null) {
   if (!hasInhalt()) throw new Error(MSG[lang].noPresentation);
   const content = JSON.parse(fs.readFileSync(contentFile(), 'utf8'));
   const nr = content.order.indexOf(sceneId) + 1;
@@ -773,7 +796,7 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang) {
   const file = contentFile();
   const images = takeImages(instruction, real(inhaltSrc()), lang); // after the backup, so "Undo" removes them
   runClaude({
-    prompt: `Slide currently shown: no. ${nr} (scene ID "${sceneId}", title "${content.scenes[sceneId]?.title ?? ''}").\n\nTask:\n${instruction}${images}`,
+    prompt: `Slide currently shown: no. ${nr} (scene ID "${sceneId}", title "${content.scenes[sceneId]?.title ?? ''}").${positionNote(content.scenes[sceneId], frame)}\n\nTask:\n${instruction}${images}`,
     system: rebuildSystem(lang),
     tools: 'Read,Edit,Write,Glob,Grep',
     allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`, vorschauRule, paketToolRule],
@@ -1029,7 +1052,7 @@ export default defineConfig({
               } else {
                 const instruction = String(b.instruction ?? '').trim().slice(0, 8000);
                 if (!instruction) res.statusCode = 400;
-                else startRebuild(instruction, String(b.sceneId ?? ''), lang);
+                else startRebuild(instruction, String(b.sceneId ?? ''), lang, Number.isFinite(Number(b.frame)) ? Number(b.frame) : null);
               }
             } catch (e) {
               res.statusCode = 500;
