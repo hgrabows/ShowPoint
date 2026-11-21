@@ -316,3 +316,8 @@ function mulberry32(a: number): number {
 export const Composition: React.FC<Record<string, unknown>> = () => null;
 /** No effect, kept so older src/index.ts files still type-check. */
 export const registerRoot = (_root: React.ComponentType): void => {};
+
+/* ── Formulas ─────────────────────────────────────────────────────────────── */
+
+export {Formula} from './formula';
+export type {FormulaProps} from './formula';

@@ -1,0 +1,7 @@
+/* <Formula> places each line itself: no extra margins from KaTeX's display mode. */
+.sp-formula > .katex-display {
+  margin: 0;
+}
+.sp-formula .katex {
+  font-size: 1em;
+}

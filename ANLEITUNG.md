@@ -211,6 +211,7 @@ Szenen importieren ihre Bausteine aus `'showpoint'` (Quelltext in `runtime/index
 | `AbsoluteFill` | `div`, das seinen Rahmen ganz ausfüllt |
 | `Sequence from={…} durationInFrames={…}`, `Series` | zeigt Inhalte nur in einem Zeitfenster; darin zählt das Bild wieder ab 0 |
 | `Img` | Bild; der Renderer wartet, bis es geladen ist |
+| `Formula` | Formel aus LaTeX-Text (KaTeX), weich eingeblendet ab `at`: `<Formula tex={c.t.f1} x={90} y={250} at={20} fontSize={56} />`; Umformungsschritte nacheinander mit `steps={c.lists.schritte}` (Abstand `every`, Standard 45 Bilder); außerdem `w`, `align`, `color`, `display={false}` für Fließtext-Stil. In `content.json` Backslashes verdoppeln: `"\\frac{a}{b}"` |
 
 ## Als Video ausgeben
 

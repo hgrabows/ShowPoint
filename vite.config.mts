@@ -513,6 +513,7 @@ Rules:
 - Keep the language of the existing slide texts unless the task says otherwise.
 - Sources on the topic, if any, are in ${outside ? path.join(realDir, 'quellen') : rel(quellenDir())}/.
 ${imageRule}
+${formulaRule}
 ${vorschauHint(realDir)}
   After the rebuild, check at least the changed scenes; look at the images before reporting that you are done.
 ${extra ? `Special notes for this presentation:\n${extra}\n` : ''}Finally answer in a few sentences: what was changed, in which files, what the preview showed and what you could not check. Write your final answer in ${LANG_NAME[lang]}.`;
@@ -679,6 +680,7 @@ function takeImages(text: string, srcDir: string, lang: Lang): string {
   return lines.length ? `\n\nImages supplied with this task, already copied into the presentation (look at each with Read before placing it):\n${lines.join('\n')}` : '';
 }
 const imageRule = `- Images: use only image files inside the presentation's src/bilder/ (the user supplies them; the server copies image paths named in a task there). Import them relative to the scene file, e.g. \`import foto from './bilder/foto.png'\`, and show them with \`<Img src={foto} style={{width: …, height: …, objectFit: 'contain'}} />\` (Img from 'showpoint', never a plain <img>, never paths outside the presentation). Keep labels as real text from c.t next to or on top of the image, not baked into it. Images may fade or move in like other elements; check size and position with the preview.`;
+const formulaRule = `- Formulas: always with \`<Formula tex={c.t.f1} x={…} y={…} at={…} fontSize={56} />\` from 'showpoint' (KaTeX; LaTeX text in c.t, steps of a calculation as \`steps={c.lists.…}\`, they appear one after the other), never as an image or pieced together from Unicode characters, sub/sup tags or SVG text. In content.json backslashes are doubled ("\\\\frac{a}{b}").`;
 
 function startRebuild(instruction: string, sceneId: string, lang: Lang) {
   if (!hasInhalt()) throw new Error(MSG[lang].noPresentation);
@@ -749,8 +751,9 @@ Rules:
 - Nothing may overlap or stick out of the frame. Check widths and positions by calculation; as a rule of thumb a character needs about 0.55 × font size of width. Text in the picture at least 22 px, captions at most about 150 characters.
 - All visible texts come from c.t (keys t01, t02, …) or c.lists, never hard-coded – only then can they be edited in the presenter.
 - Elements appear one after another, matching the spoken text (captions[].at). Each caption stays about 4 to 6 seconds. Stops shortly before each next caption and at the end of the scene (dur − 13).
-- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
+- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, Formula, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
 ${imageRule}
+${formulaRule}
 - Only write in ${dir}. Write valid TypeScript (strict) carefully and import only what you use and what exists.
 ${vorschauHint(dir)}
   Check every scene this way at the end (several scene IDs per call are possible, at most 40 images).
