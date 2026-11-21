@@ -270,6 +270,13 @@ const readOptional = (name: string) => {
   return fs.existsSync(p) ? fs.readFileSync(p, 'utf8').trim() : '';
 };
 
+// Reasoning effort for Claude Code, separately for questions and for rebuilding/creating (.env); empty = default.
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+const effortArgs = (value: string | undefined) => {
+  const v = String(value ?? '').trim().toLowerCase();
+  return EFFORTS.includes(v) ? ['--effort', v] : [];
+};
+
 const askSystem = (lang: Lang) => `You are helping with a presentation. Someone asks a question, usually about the slide currently shown, but it may refer to any other slide (e.g. an earlier one); the texts of all slides are below.
 Answer briefly, in ${LANG_NAME[lang]} (the language of the user interface), even if the slide or the sources are in another language. Base your answer on the slide and the sources below. Look up details and numbers there. Mark anything not found there as general knowledge, or say that the sources do not cover it. Do not invent numbers.
 Write plain prose without Markdown formatting.`;
@@ -346,7 +353,7 @@ function askClaude(
   const child = spawn(
     'claude',
     // Questions may use the internet: web search and reading web pages. No other tools (no files, no shell).
-    ['-p', '--model', fileEnv.CLAUDE_MODEL || 'sonnet', '--system-prompt', `${system}\n\n${askWebNote}`,
+    ['-p', '--model', fileEnv.CLAUDE_MODEL || 'sonnet', ...effortArgs(fileEnv.CLAUDE_EFFORT_FRAGEN), '--system-prompt', `${system}\n\n${askWebNote}`,
       '--tools', 'WebSearch,WebFetch', '--allowedTools', 'WebSearch', 'WebFetch', '--strict-mcp-config',
       '--no-session-persistence', '--output-format', 'stream-json', '--include-partial-messages', '--verbose'],
     {cwd: os.tmpdir(), env},
@@ -571,7 +578,7 @@ function runClaude(o: {prompt: string; system: string; tools: string; allowed: s
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(CLAUDE|ANTHROPIC)/.test(k)));
   const child = spawn(
     'claude',
-    ['-p', '--model', fileEnv.CLAUDE_MODEL || 'sonnet', '--append-system-prompt', o.system,
+    ['-p', '--model', fileEnv.CLAUDE_MODEL || 'sonnet', ...effortArgs(fileEnv.CLAUDE_EFFORT_UMBAU), '--append-system-prompt', o.system,
       '--tools', o.tools,
       '--allowedTools', ...o.allowed, ...(o.extra ?? []),
       '--disallowedTools', 'Read(.env)', 'Read(.env.*)', `Read(/${path.join(root, '.env')})`, `Read(/${path.join(root, '.env')}.*)`,

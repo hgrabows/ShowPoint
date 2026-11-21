@@ -168,7 +168,7 @@ Der Editor überschreibt `content.json` beim Bearbeiten; eine Versionsverwaltung
 
 ### 4. Kleinigkeiten anpassen
 
-- `?`-Taste: Thema, Zielgruppe und Ton stehen in `src/begleittext.md`, das Nachschlagematerial im Ordner `quellen/`. Beides auf das neue Thema umstellen, sonst antwortet das Modell mit falschem Hintergrund. Im Dialog wählt man zwischen „Claude Code“ (Befehl `claude`, Modell in `.env` als `CLAUDE_MODEL`) und „LLM aus .env“. Der Zugang steht in `.env` (Vorlage: `.env.example`).
+- `?`-Taste: Thema, Zielgruppe und Ton stehen in `src/begleittext.md`, das Nachschlagematerial im Ordner `quellen/`. Beides auf das neue Thema umstellen, sonst antwortet das Modell mit falschem Hintergrund. Im Dialog wählt man zwischen „Claude Code“ (Befehl `claude`, Modell in `.env` als `CLAUDE_MODEL`, Denkaufwand als `CLAUDE_EFFORT_FRAGEN`) und „LLM aus .env“. Der Zugang steht in `.env` (Vorlage: `.env.example`).
   Mit „Claude Code“ darf das Modell bei Fragen **im Internet suchen und Webseiten lesen** (WebSearch, WebFetch) – etwa für aktuelle Fakten – und nennt dann die genutzten Seiten; im Dialog erscheint, wonach es sucht (🔎) und was es liest (🌐). Dateien lesen oder Befehle ausführen kann es dabei nicht. „LLM aus .env“ hat keinen Internetzugang.
 - „Folie umbauen“: Besonderheiten der Folien (Bausteine, Maße, Fakten) in `src/umbau-regeln.md` beschreiben.
 
@@ -299,7 +299,7 @@ eine halbe Minute.
 Knopf „＋ Neue Präsentation erzeugen …“ (rechts oben unter „Präsentation“): Ordner der neuen Präsentation angeben
 (neu oder leer, irgendwo auf der Festplatte) und den Prompt ausfüllen. Das Fenster ist mit der Vorlage aus
 `prompt.txt` (in diesem Ordner, frei änderbar; in der englischen Oberfläche `prompt.en.txt`) vorbelegt. Der Server kopiert das Gerüst aus `vorlage/` in den
-Ordner, hängt ihn unter `inhalte/` ein und startet Claude Code (Modell aus `.env`, `CLAUDE_MODEL`), das die Folien,
+Ordner, hängt ihn unter `inhalte/` ein und startet Claude Code (Modell aus `.env`, `CLAUDE_MODEL`; Denkaufwand `CLAUDE_EFFORT_UMBAU`), das die Folien,
 `content.json`, `begleittext.md`, `umbau-regeln.md` und `quellen/00-notizen.md` schreibt. Danach prüft der Server
 `content.json` und die Typen; bei Typfehlern bessert Claude bis zu zweimal nach. Der Auftrag läuft im Hintergrund
 (oft 10 bis 20 Minuten), die gezeigte Präsentation bleibt benutzbar; „Präsentation öffnen“ wechselt zur neuen.
@@ -315,7 +315,7 @@ Ordner, hängt ihn unter `inhalte/` ein und startet Claude Code (Modell aus `.en
 ## Folien aus dem Präsentator umbauen lassen
 
 Knopf „✎ Folie umbauen“ oder Taste `U`: Auftrag eintippen, ⌘/Strg + Enter. Der Server startet dafür Claude Code
-(Befehl `claude`, Modell aus `.env`, `CLAUDE_MODEL`) im Projektordner. Es darf lesen und nur Dateien im `src/` des Inhaltsordners ändern,
+(Befehl `claude`, Modell aus `.env`, `CLAUDE_MODEL`; Denkaufwand `CLAUDE_EFFORT_UMBAU`: `low` … `max`, leer = Standard) im Projektordner. Es darf lesen und nur Dateien im `src/` des Inhaltsordners ändern,
 aber nichts ausführen – außer dem Vorschau-Werkzeug. Vorher wird `src/` nach `.umbau/<Zeitstempel>/` gesichert (die letzten 10 bleiben); „Rückgängig“
 stellt den Stand vor dem letzten Umbau wieder her. Danach prüft der Server `content.json` und die Typen
 (`tsc --noEmit`) und zeigt das Ergebnis im Dialog. Während ein Umbau läuft, ist das Speichern im Editor gesperrt.

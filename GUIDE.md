@@ -168,7 +168,7 @@ The editor overwrites `content.json` when you edit; version control in the prese
 
 ### 4. Small adjustments
 
-- `?` key: topic, audience and tone are in `src/begleittext.md`, the reference material in the `quellen/` folder. Switch both to the new topic, otherwise the model answers with the wrong background. In the dialog you choose between "Claude Code" (command `claude`, model in `.env` as `CLAUDE_MODEL`) and "LLM from .env". The credentials are in `.env` (template: `.env.example`).
+- `?` key: topic, audience and tone are in `src/begleittext.md`, the reference material in the `quellen/` folder. Switch both to the new topic, otherwise the model answers with the wrong background. In the dialog you choose between "Claude Code" (command `claude`, model in `.env` as `CLAUDE_MODEL`, reasoning effort as `CLAUDE_EFFORT_FRAGEN`) and "LLM from .env". The credentials are in `.env` (template: `.env.example`).
   With "Claude Code" the model may **search the internet and read web pages** when answering (WebSearch, WebFetch) – e.g. for current facts – and then names the pages it used; the dialog shows what it searches for (🔎) and reads (🌐). It cannot read files or run commands. "LLM from .env" has no internet access.
 - "Rebuild slide": describe the specifics of the slides (building blocks, dimensions, facts) in `src/umbau-regeln.md`.
 
@@ -298,7 +298,7 @@ half a minute.
 Button "＋ New presentation …" (top right under "Presentation"): give the folder of the new presentation
 (new or empty, anywhere on disk) and fill in the prompt. The window is pre-filled with the template from
 `prompt.txt` (in this folder, freely editable; `prompt.en.txt` in the English interface). The server copies the skeleton from `vorlage/` into the
-folder, mounts it under `inhalte/` and starts Claude Code (model from `.env`, `CLAUDE_MODEL`), which writes the slides,
+folder, mounts it under `inhalte/` and starts Claude Code (model from `.env`, `CLAUDE_MODEL`; reasoning effort `CLAUDE_EFFORT_UMBAU`), which writes the slides,
 `content.json`, `begleittext.md`, `umbau-regeln.md` and `quellen/00-notizen.md` (notes). The server then checks
 `content.json` and the types; on type errors Claude fixes them up to two times. The job runs in the background
 (often 10 to 20 minutes), the presentation currently shown stays usable; "Open presentation" switches to the new one.
@@ -314,7 +314,7 @@ folder, mounts it under `inhalte/` and starts Claude Code (model from `.env`, `C
 ## Have the presenter rebuild slides
 
 Button "✎ Rebuild slide" or key `U`: type the request, ⌘/Ctrl + Enter. For this the server starts Claude Code
-(command `claude`, model from `.env`, `CLAUDE_MODEL`) in the project folder. It may read, and may change only files in the content folder's `src/`,
+(command `claude`, model from `.env`, `CLAUDE_MODEL`; reasoning effort `CLAUDE_EFFORT_UMBAU`: `low` … `max`, empty = default) in the project folder. It may read, and may change only files in the content folder's `src/`,
 but may not run anything – except the preview tool. Beforehand `src/` is backed up to `.umbau/<timestamp>/` ("umbau" = rebuild; the last 10 are kept); "Undo"
 restores the state before the last rebuild. Afterwards the server checks `content.json` and the types
 (`tsc --noEmit`) and shows the result in the dialog. While a rebuild is running, saving in the editor is locked.
