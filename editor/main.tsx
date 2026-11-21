@@ -25,7 +25,7 @@ body{margin:0;background:#0a0d18;color:#e8ecf8;font:14px -apple-system,BlinkMacS
 button{background:#1b2442;color:#e8ecf8;border:1px solid #2e3a63;border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer}
 button:hover{background:#26315a}
 button.primary{background:#8b6cff;border-color:#8b6cff;color:#fff;font-weight:600}
-.info{color:#9aa6c7;margin-left:auto;font-variant-numeric:tabular-nums;min-width:25em;text-align:right;white-space:nowrap}
+.info{color:#9aa6c7;margin-left:auto;font-variant-numeric:tabular-nums;min-width:31em;text-align:right;white-space:nowrap}
 .bar .primary{min-width:9.5em}
 .bar button{white-space:nowrap}
 .bar .fix-stop{width:10.5em}
@@ -791,7 +791,7 @@ const App: React.FC = () => {
             {rb?.running && rb.kind !== 'create' ? T.rebuildRunning : T.rebuildSlide}
           </button>
           <span className="info">
-            {T.info(idx + 1, content.order.length, local, sc.dur, saved)}
+            {T.info(idx + 1, content.order.length, ...sectionOf(sc, local), local, sc.dur, saved)}
           </span>
         </div>
         <div className="hint">{T.keys}</div>
@@ -916,6 +916,21 @@ const App: React.FC = () => {
       </div>
     </div>
   );
+};
+
+/**
+ * Section of a slide = stretch between two of its stops, counted from 1. Paused exactly at a stop, it is the
+ * section that has just played up to it (the same rule the rebuild uses when it tells Claude the position).
+ */
+const sectionOf = (sc: SceneContent, local: number): [number, number] => {
+  const stops = [...new Set(sc.stops.filter((s) => s > 0 && s < sc.dur))].sort((a, b) => a - b);
+  const bounds = [0, ...stops, sc.dur];
+  const n = bounds.length - 1;
+  const at = stops.indexOf(local);
+  if (at >= 0) return [at + 1, n];
+  let k = 0;
+  while (k < n - 1 && local >= bounds[k + 1]) k++;
+  return [k + 1, n];
 };
 
 /**

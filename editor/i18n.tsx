@@ -97,7 +97,8 @@ const de = {
   askSlide: '? Frage zur Folie',
   rebuildRunning: '✎ Umbau läuft …',
   rebuildSlide: '✎ Folie umbauen',
-  info: (scene: number, scenes: number, frame: number, dur: number, saved: string) => `Szene ${scene}/${scenes} · Bild ${frame}/${dur} · ${saved}`,
+  info: (scene: number, scenes: number, part: number, parts: number, frame: number, dur: number, saved: string) =>
+    `Szene ${scene}/${scenes} · Abschnitt ${part}/${parts} · Bild ${frame}/${dur} · ${saved}`,
   keys: (
     <>
       Weiter: <kbd>Leertaste</kbd> <kbd>→</kbd> <kbd>Enter</kbd> oder Klick ins Bild · Zurück: <kbd>←</kbd> · Haltepunkt ein/aus: <kbd>S</kbd> ·
@@ -258,7 +259,7 @@ const en: typeof de = {
   askSlide: '? Ask about slide',
   rebuildRunning: '✎ Rebuilding …',
   rebuildSlide: '✎ Rebuild slide',
-  info: (scene, scenes, frame, dur, saved) => `Scene ${scene}/${scenes} · Frame ${frame}/${dur} · ${saved}`,
+  info: (scene, scenes, part, parts, frame, dur, saved) => `Scene ${scene}/${scenes} · Section ${part}/${parts} · Frame ${frame}/${dur} · ${saved}`,
   keys: (
     <>
       Next: <kbd>Space</kbd> <kbd>→</kbd> <kbd>Enter</kbd> or click the slide · Back: <kbd>←</kbd> · Stop on/off: <kbd>S</kbd> · Fullscreen:{' '}
