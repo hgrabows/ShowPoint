@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {defineConfig} from 'vite';
 import {runtimeResolve} from './runtime/aliases.mjs';
+import {nonFreePackages} from './scripts/paket.mjs';
 
 const root = process.cwd();
 
@@ -35,6 +36,8 @@ const MSG = {
     llmEnvMissing: 'In .env fehlen LLM_BASE_URL, LLM_API_KEY oder LLM_MODEL.',
     llmError: (status: number, text: string) => `LLM-Fehler ${status}: ${text}`,
     previewLabel: 'Vorschau',
+    packageLabel: 'Paket installieren',
+    licenseNote: (list: string) => `⚠ Lizenzhinweis: Die Präsentation nutzt Pakete ohne freie Lizenz: ${list}. Für die eigene Nutzung in Ordnung – vor dem Weitergeben (auch als PDF oder Video) oder einer kommerziellen Nutzung die Lizenz prüfen. Übersicht: PAKETE.md im Ordner der Präsentation.`,
     allScenes: 'alle Szenen',
     contentDamaged: (msg: string) => `content.json ist beschädigt: ${msg}`,
     contentNoOrder: 'order/scenes fehlen',
@@ -82,6 +85,8 @@ const MSG = {
     llmEnvMissing: '.env is missing LLM_BASE_URL, LLM_API_KEY or LLM_MODEL.',
     llmError: (status: number, text: string) => `LLM error ${status}: ${text}`,
     previewLabel: 'Preview',
+    packageLabel: 'Install package',
+    licenseNote: (list: string) => `⚠ Licence notice: the presentation uses packages without a free licence: ${list}. Fine for your own use – before passing it on (also as PDF or video) or using it commercially, check the licence. Overview: PAKETE.md in the presentation folder.`,
     allScenes: 'all scenes',
     contentDamaged: (msg: string) => `content.json is damaged: ${msg}`,
     contentNoOrder: 'order/scenes missing',
@@ -255,6 +260,8 @@ const presentationInfo = () => ({
   title: hasInhalt() ? titleOf(inhaltDir()) : '',
   path: hasInhalt() ? real(inhaltDir()) : '',
   videoUrl: hasInhalt() ? `/@fs${path.join(inhaltSrc(), 'Video.tsx')}` : '',
+  // packages without a free licence: the presenter shows a notice
+  licenses: hasInhalt() ? nonFreePackages(real(inhaltDir())) : [],
   list: listPresentations(),
 });
 
@@ -464,7 +471,7 @@ async function ask(body: AskBody, res: import('node:http').ServerResponse, lang:
 // ── Rebuild: Claude Code rebuilds slides on request from the presenter ─────────────────────────────
 // Runs on as a job on the server, even if the page reloads because files changed.
 // check = check passed; checkfail = final check failed; checkretry = type errors, Claude is asked to fix them again.
-type LogLine = {kind: 'text' | 'tool' | 'error' | 'check' | 'checkfail' | 'checkretry'; text: string};
+type LogLine = {kind: 'text' | 'tool' | 'error' | 'check' | 'checkfail' | 'checkretry' | 'warn'; text: string};
 const job: {running: boolean; kind: 'rebuild' | 'create'; lang: Lang; created: string; createdPath: string; id: number; instruction: string; log: LogLine[]; backup: string; target: string; startedAt: number; endedAt: number} = {
   endedAt: 0,
   running: false,
@@ -515,6 +522,7 @@ Rules:
 ${imageRule}
 ${chartRule}
 ${formulaRule}
+${paketRule}
 ${vorschauHint(realDir)}
   After the rebuild, check at least the changed scenes; look at the images before reporting that you are done.
 ${extra ? `Special notes for this presentation:\n${extra}\n` : ''}Finally answer in a few sentences: what was changed, in which files, what the preview showed and what you could not check. Write your final answer in ${LANG_NAME[lang]}.`;
@@ -538,6 +546,7 @@ const jobStatus = () => ({
 // Preview tool for Claude: type check and images at every stop, as a small MCP server (scripts/vorschau-mcp.mjs).
 // Claude gets no Bash for it: the server fixes folder and command, Claude only chooses the scenes.
 const vorschauRule = 'mcp__showpoint__vorschau';
+const paketToolRule = 'mcp__showpoint__paket';
 const vorschauMcp = (dir: string) => [
   '--mcp-config',
   JSON.stringify({mcpServers: {showpoint: {command: process.execPath, args: [path.join(root, 'scripts', 'vorschau-mcp.mjs'), dir]}}}),
@@ -584,8 +593,9 @@ function runClaude(o: {prompt: string; system: string; tools: string; allowed: s
         else if (ev.type === 'assistant') {
           for (const b of ev.message?.content ?? []) {
             if (b.type !== 'tool_use') continue;
-            const target = b.name === vorschauRule ? `${(b.input?.scenes ?? []).join(', ') || t.allScenes}` : (b.input?.file_path ?? b.input?.pattern ?? b.input?.path ?? b.input?.url ?? '');
-            push('tool', `${b.name === vorschauRule ? t.previewLabel : b.name} ${String(target).replace(o.cwd + '/', '').replace(root + '/', '')}`.trim());
+            const target = b.name === vorschauRule ? `${(b.input?.scenes ?? []).join(', ') || t.allScenes}` : b.name === paketToolRule ? String(b.input?.name ?? '') : (b.input?.file_path ?? b.input?.pattern ?? b.input?.path ?? b.input?.url ?? '');
+            const label = b.name === vorschauRule ? t.previewLabel : b.name === paketToolRule ? t.packageLabel : b.name;
+            push('tool', `${label} ${String(target).replace(o.cwd + '/', '').replace(root + '/', '')}`.trim());
           }
         } else if (ev.type === 'result' && ev.is_error) {
           failed = true;
@@ -653,6 +663,12 @@ const pushTypeResult = (out: string) => {
   else push('check', t.typeOk);
 };
 
+/** Notice in the log if the presentation now uses packages without a free licence. */
+const pushLicenseNote = (dir: string) => {
+  const list = nonFreePackages(dir);
+  if (list.length) push('warn', MSG[job.lang].licenseNote(list.map((p) => `${p.name} (${p.license})`).join(', ')));
+};
+
 // Images named in a task by file path are copied into src/bilder/ of the presentation, so they become part of it
 // (presenter, PDF, video, other computers) and "Undo" removes them again. Returns a note for Claude's task text.
 const IMAGE_EXT = 'png|jpe?g|webp|gif|svg';
@@ -680,6 +696,7 @@ function takeImages(text: string, srcDir: string, lang: Lang): string {
   }
   return lines.length ? `\n\nImages supplied with this task, already copied into the presentation (look at each with Read before placing it):\n${lines.join('\n')}` : '';
 }
+const paketRule = `- Other libraries (maps, network graphs, physics, special charts …): only when the building blocks from 'showpoint' cannot do it reasonably. Install with the tool "paket" (input: name, e.g. "d3-geo"); it installs into the presentation's own node_modules, then import as usual. Prefer small, freely licensed packages (MIT, ISC, BSD, Apache-2.0); if the tool reports a licence warning, mention it in your final answer. Never install react, never use the library's own animation clock, timers or transitions: switch them off (e.g. animation: false, frameloop "never") and compute everything from useCurrentFrame(), otherwise jumping, stops, PDF and video will not match. Maps: prefer SVG with d3-geo and offline data (world-atlas / topojson) over tile maps from the internet. Check with "vorschau" that two different frames look different where they should.`;
 const chartRule = `- Numbers and proportions as charts from 'showpoint': <BarChart> (columns; horizontal for long labels; highlight = index to emphasise), <LineChart> (values or series = [{name, values}], area), <PieChart> (shares; donut, center text). Props: x, y, w, h in stage pixels, labels, values, at (start frame), unit (e.g. " %"), decimalComma for German-style numbers. Put labels and values into c.lists (values as strings like "3,5"), so they stay editable in the presenter. Never draw charts by hand when these fit.`;
 const imageRule = `- Images: use only image files inside the presentation's src/bilder/ (the user supplies them; the server copies image paths named in a task there). Import them relative to the scene file, e.g. \`import foto from './bilder/foto.png'\`, and show them with \`<Img src={foto} style={{width: …, height: …, objectFit: 'contain'}} />\` (Img from 'showpoint', never a plain <img>, never paths outside the presentation). Keep labels as real text from c.t next to or on top of the image, not baked into it. Images may fade or move in like other elements; check size and position with the preview.`;
 const formulaRule = `- Formulas: always with \`<Formula tex={c.t.f1} x={…} y={…} at={…} fontSize={56} />\` from 'showpoint' (KaTeX; LaTeX text in c.t, steps of a calculation as \`steps={c.lists.…}\`, they appear one after the other), never as an image or pieced together from Unicode characters, sub/sup tags or SVG text. In content.json backslashes are doubled ("\\\\frac{a}{b}").`;
@@ -715,7 +732,7 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang) {
     prompt: `Slide currently shown: no. ${nr} (scene ID "${sceneId}", title "${content.scenes[sceneId]?.title ?? ''}").\n\nTask:\n${instruction}${images}`,
     system: rebuildSystem(lang),
     tools: 'Read,Edit,Write,Glob,Grep',
-    allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`, vorschauRule],
+    allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`, vorschauRule, paketToolRule],
     extra: [...(outside ? ['--add-dir', realDir] : []), ...vorschauMcp(realDir)],
     cwd: root,
     done: () => {
@@ -723,6 +740,7 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang) {
       checkContent(file);
       typeCheck(null, (out) => {
         pushTypeResult(out);
+        pushLicenseNote(realDir);
         finishJob();
       });
     },
@@ -753,10 +771,11 @@ Rules:
 - Nothing may overlap or stick out of the frame. Check widths and positions by calculation; as a rule of thumb a character needs about 0.55 × font size of width. Text in the picture at least 22 px, captions at most about 150 characters.
 - All visible texts come from c.t (keys t01, t02, …) or c.lists, never hard-coded – only then can they be edited in the presenter.
 - Elements appear one after another, matching the spoken text (captions[].at). Each caption stays about 4 to 6 seconds. Stops shortly before each next caption and at the end of the scene (dur − 13).
-- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, Formula, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random, BarChart, LineChart, PieChart); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
+- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react plus packages installed with the tool "paket" (see below) (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, Formula, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random, BarChart, LineChart, PieChart); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
 ${imageRule}
 ${chartRule}
 ${formulaRule}
+${paketRule}
 - Only write in ${dir}. Write valid TypeScript (strict) carefully and import only what you use and what exists.
 ${vorschauHint(dir)}
   Check every scene this way at the end (several scene IDs per call are possible, at most 40 images).
@@ -775,7 +794,7 @@ function startCreate(dirInput: string, prompt: string, lang: Lang) {
   }
   if (!isPresentation(vorlageDir)) throw new Error(t.templateMissing);
 
-  fs.cpSync(vorlageDir, abs, {recursive: true, filter: (s) => path.resolve(s) !== vorlageEnDir});
+  fs.cpSync(vorlageDir, abs, {recursive: true, filter: (s) => ![vorlageEnDir, path.join(vorlageDir, 'beispiele'), path.join(vorlageDir, 'node_modules')].includes(path.resolve(s))});
   if (lang === 'en') {
     for (const f of vorlageEnFiles) {
       const from = path.join(vorlageEnDir, f);
@@ -818,7 +837,7 @@ function startCreate(dirInput: string, prompt: string, lang: Lang) {
     }
   }
   const allowed = [
-    `Read(/${dir}/**)`, `Edit(/${dir}/**)`, `Write(/${dir}/**)`, `Read(/${path.join(root, 'ANLEITUNG.md')})`, vorschauRule,
+    `Read(/${dir}/**)`, `Edit(/${dir}/**)`, `Write(/${dir}/**)`, `Read(/${path.join(root, 'ANLEITUNG.md')})`, vorschauRule, paketToolRule,
     ...readRules,
     ...[...hosts].map((h) => `WebFetch(domain:${h})`),
   ];
@@ -838,6 +857,7 @@ function startCreate(dirInput: string, prompt: string, lang: Lang) {
             return run(`The type check (tsc --noEmit, strict) reports these errors in the presentation you just created. Fix them and change nothing else. Paths start with ${only}, which is your working folder.\n\n${out.slice(0, 6000)}`, round + 1);
           }
           pushTypeResult(out);
+          pushLicenseNote(dir);
           finishJob();
         });
       },

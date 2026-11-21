@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {useFloat, useFollowLog} from './float';
 import {T} from './i18n';
 
-type Line = {kind: 'text' | 'tool' | 'error' | 'check' | 'checkfail' | 'checkretry'; text: string};
+type Line = {kind: 'text' | 'tool' | 'error' | 'check' | 'checkfail' | 'checkretry' | 'warn'; text: string};
 /** Log lines shown in red: errors, failed checks and type errors Claude is asked to fix again. */
 export const isBad = (l: Line) => l.kind === 'error' || l.kind === 'checkfail' || l.kind === 'checkretry';
 export type RebuildState = {running: boolean; kind?: 'rebuild' | 'create'; created: string; createdPath: string; startedAt?: number; id: number; instruction: string; log: Line[]; canUndo: boolean; seconds: number};
@@ -12,6 +12,7 @@ export const rebuildCss = `
 .rb textarea{font-size:1em;min-height:5.5em;max-height:14em}
 .rb-tool{color:#9aa6c7;font-size:.85em;font-family:ui-monospace,Menlo,monospace}
 .rb-ok{color:#34d399}
+.rb-warn{color:#ffb020;border-left:3px solid #ffb020;padding-left:10px}
 .rb .ask-in{flex-wrap:wrap}
 `;
 
@@ -72,7 +73,7 @@ export const Rebuild: React.FC<{
               ) : (
                 <div
                   key={i}
-                  className={isBad(l) ? 'ask-err ask-a' : l.kind === 'check' ? 'rb-ok ask-a' : 'ask-a'}
+                  className={isBad(l) ? 'ask-err ask-a' : l.kind === 'check' ? 'rb-ok ask-a' : l.kind === 'warn' ? 'rb-warn ask-a' : 'ask-a'}
                 >
                   {l.text}
                 </div>

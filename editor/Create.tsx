@@ -136,7 +136,7 @@ export const Create: React.FC<{
                     ▸ {l.text}
                   </div>
                 ) : (
-                  <div key={i} className={`cr-a ${isBad(l) ? 'ask-err' : l.kind === 'check' ? 'rb-ok' : ''}`}>
+                  <div key={i} className={`cr-a ${isBad(l) ? 'ask-err' : l.kind === 'check' ? 'rb-ok' : l.kind === 'warn' ? 'rb-warn' : ''}`}>
                     {l.text}
                   </div>
                 ),

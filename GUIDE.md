@@ -229,6 +229,32 @@ Scenes import their building blocks from `'showpoint'` (source in `runtime/index
 More props: `color`/`colors`, `max`, `stagger` (bars), `area`, `showValues`, `dur` (line, pie), `donut={false}` (pie),
 `decimals`, `fontSize`, `decimalComma` (German-style 3,5; switched on automatically if the data uses commas).
 
+## More packages (maps, graphs …)
+
+If the building blocks are not enough, Claude may install an npm package itself while rebuilding or creating (tool
+"paket", shown in the log as "Install package"). Name a package in the task ("use d3-geo") or let Claude choose
+("show a map of Europe"). By hand:
+
+```bash
+node scripts/paket.mjs <presentation folder> d3-geo
+```
+
+- The package goes into the presentation itself (`package.json`, `node_modules/` – listed in its `.gitignore`),
+  not into the presenter. After copying it to another computer, run `npm install` in the presentation folder there.
+- Exact version, no install scripts, at most 100 MB; missing TypeScript types come from `@types`. React comes with
+  the presenter.
+- **Licences:** packages without a free open-source licence are installed but marked: a yellow notice in the
+  presenter and in the log, an overview in `PAKETE.md` in the presentation folder. Fine for your own use; before
+  passing it on (also as PDF or video) or using it commercially, check the licence. With `PAKETE_NUR_FREI=1` in
+  `.env` only free licences (MIT, ISC, BSD, Apache-2.0 …) are accepted.
+- **Time:** every frame must follow from `useCurrentFrame()` alone. Switch off the library's own animations, timers
+  and transitions (e.g. `animation: false`, run a simulation to the end up front), otherwise jumping, stops, PDF and
+  video will not match.
+- **Maps:** best as SVG with `d3-geo` and offline data (`world-atlas`, `topojson-client`) – sharp in the PDF, no
+  internet, labels as real text. Tile maps from the web (Leaflet, OpenStreetMap) need internet while rendering and
+  the tile servers' terms of use.
+- "Undo" after a rebuild only restores `src/`; installed packages stay (they do no harm).
+
 ## Output as video
 
 ```bash

@@ -47,6 +47,7 @@ textarea:focus,input:focus{outline:none;border-color:#8b6cff}
 .pres-rm{margin-top:8px;margin-right:6px;padding:5px 10px;font-size:12px}
 select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;border-radius:8px;padding:8px;font:inherit}
 .pres-err{color:#f87171;font-size:12px;margin-top:6px;line-height:1.4}
+.lic-note{border-left:3px solid #ffb020;background:#1f1a0d;color:#ffd27a;padding:8px 12px;border-radius:0 8px 8px 0;font-size:13px;line-height:1.45}
 @keyframes jobspin{to{transform:rotate(360deg)}}
 .job{position:fixed;left:16px;bottom:16px;z-index:40;display:flex;align-items:center;gap:8px;max-width:min(560px,60vw);
   background:#1b2442;border:2px solid #ffb020;border-radius:999px;padding:8px 14px;box-shadow:0 8px 30px rgba(0,0,0,.6);white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -62,6 +63,7 @@ type Presentation = {
   title: string;
   path: string;
   videoUrl: string;
+  licenses?: {name: string; version: string; license: string}[];
   list: {dir: string; title: string; path: string; linked: boolean}[];
   error?: string;
 };
@@ -187,6 +189,10 @@ const App: React.FC = () => {
         fetch('/api/content')
           .then((r) => r.json())
           .then(setContent);
+        // a rebuild may have installed packages: refresh the licence notice
+        fetch('/api/presentation')
+          .then((r) => r.json())
+          .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses} : p)));
       }
       rbWas.current = st.running;
     } catch {
@@ -758,6 +764,11 @@ const App: React.FC = () => {
           </span>
         </div>
         <div className="hint">{T.keys}</div>
+        {pres?.licenses?.length ? (
+          <div className="lic-note" title={pres.licenses.map((l) => `${l.name}@${l.version}: ${l.license}`).join('\n')}>
+            {T.licenseNote(pres.licenses.map((l) => l.name).join(', '))}
+          </div>
+        ) : null}
       </div>
 
       <div className="panel">

@@ -230,6 +230,32 @@ Weitere Eigenschaften: `color`/`colors`, `max`, `stagger` (Säulen), `area`, `sh
 `donut={false}` (Kreis), `decimals`, `fontSize`. Ein Dezimalkomma in den Daten schaltet die Anzeige auf Komma um;
 sonst erzwingt `decimalComma` es.
 
+## Weitere Pakete (Karten, Graphen …)
+
+Reichen die Bausteine nicht, darf Claude beim Umbauen und Erstellen selbst ein npm-Paket installieren (Werkzeug
+„paket“, im Protokoll als „Paket installieren“). Man kann ein Paket im Auftrag nennen („nimm d3-geo“) oder Claude
+wählen lassen („zeige eine Karte Europas“). Von Hand geht es auch:
+
+```bash
+node scripts/paket.mjs <Ordner der Präsentation> d3-geo
+```
+
+- Das Paket landet in der Präsentation selbst (`package.json`, `node_modules/` – steht in deren `.gitignore`),
+  nicht im Präsentator. Nach dem Kopieren auf einen anderen Rechner dort im Ordner der Präsentation `npm install`.
+- Feste Version, keine Installationsskripte, höchstens 100 MB; fehlende TypeScript-Typen kommen von `@types`.
+  React bringt der Präsentator mit.
+- **Lizenzen:** Pakete ohne freie Open-Source-Lizenz werden installiert, aber markiert: gelber Hinweis im
+  Präsentator und im Protokoll, Übersicht in `PAKETE.md` im Ordner der Präsentation. Für die eigene Nutzung in
+  Ordnung; vor dem Weitergeben (auch als PDF oder Video) oder kommerzieller Nutzung die Lizenz prüfen. Mit
+  `PAKETE_NUR_FREI=1` in `.env` werden nur freie Lizenzen (MIT, ISC, BSD, Apache-2.0 …) angenommen.
+- **Zeit:** Jedes Bild muss allein aus `useCurrentFrame()` entstehen. Eigene Animationen, Timer und Übergänge der
+  Bibliothek gehören abgeschaltet (z. B. `animation: false`, Simulation vorab durchrechnen), sonst stimmen Springen,
+  Haltepunkte, PDF und Video nicht.
+- **Karten:** am besten als SVG mit `d3-geo` und Offline-Daten (`world-atlas`, `topojson-client`) – scharf im PDF,
+  ohne Internet, Beschriftung als echter Text. Kachelkarten aus dem Netz (Leaflet, OpenStreetMap) brauchen beim
+  Rendern Internet und die Nutzungsbedingungen der Kachel-Server.
+- „Rückgängig“ beim Umbauen setzt nur `src/` zurück; installierte Pakete bleiben (sie schaden nicht).
+
 ## Als Video ausgeben
 
 ```bash

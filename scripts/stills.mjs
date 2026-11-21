@@ -49,7 +49,9 @@ export async function openStage(dir, {scale = 1, pages = 1} = {}) {
     resolve: runtimeResolve,
     optimizeDeps: {
       include: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
-      noDiscovery: true,
+      // scan the slides up front, so packages of the presentation (also CommonJS ones) are prepared before the
+      // first picture – without a reload in the middle of rendering
+      entries: [path.join(src, '**/*.{ts,tsx,js,jsx}')],
     },
     plugins: [
       {

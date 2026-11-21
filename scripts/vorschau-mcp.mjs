@@ -1,11 +1,12 @@
-// Minimal MCP server (stdio, JSON-RPC) with exactly one tool "vorschau" (preview) for Claude Code.
-// The presentation folder is fixed at startup (argument); Claude only chooses the scenes.
-// That way Claude needs no Bash and cannot run anything else.
+// Minimal MCP server (stdio, JSON-RPC) with two tools for Claude Code: "vorschau" (preview) and "paket"
+// (install an npm package into the presentation). The presentation folder is fixed at startup (argument);
+// Claude only chooses scenes or a package name. That way Claude needs no Bash and cannot run anything else.
 import {execFile} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import {fileURLToPath} from 'node:url';
+import {installPackage} from './paket.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dir = process.argv[2];
@@ -19,6 +20,17 @@ const tool = {
     type: 'object',
     properties: {scenes: {type: 'array', items: {type: 'string'}, description: 'Scene IDs from content.json (order). Empty = all scenes.'}},
     required: ['scenes'],
+  },
+};
+
+const paketTool = {
+  name: 'paket',
+  description:
+    "Installs an npm package (e.g. 'd3-geo' or 'd3-geo@3.1.1') into this presentation's own node_modules, so slides can import it. Only for things the building blocks from 'showpoint' cannot do (maps, network graphs, special charts …). Prefer freely licensed packages (MIT, ISC, BSD, Apache-2.0); others are installed but marked. Max. 100 MB, exact version, no install scripts; react and showpoint are already there. Missing TypeScript types are added from @types when they exist.",
+  inputSchema: {
+    type: 'object',
+    properties: {name: {type: 'string', description: "Package name, optionally with version: 'name' or 'name@1.2.3'."}},
+    required: ['name'],
   },
 };
 
@@ -54,8 +66,12 @@ readline.createInterface({input: process.stdin}).on('line', async (line) => {
   if (msg.method === 'initialize') {
     return send({id: msg.id, result: {protocolVersion: msg.params?.protocolVersion ?? '2025-06-18', capabilities: {tools: {}}, serverInfo: {name: 'showpoint', version: '1.0.0'}}});
   }
-  if (msg.method === 'tools/list') return send({id: msg.id, result: {tools: [tool]}});
+  if (msg.method === 'tools/list') return send({id: msg.id, result: {tools: [tool, paketTool]}});
   if (msg.method === 'tools/call') {
+    if (msg.params?.name === 'paket') {
+      const r = await installPackage(dir, msg.params?.arguments?.name);
+      return send({id: msg.id, result: {content: [{type: 'text', text: r.text}], isError: !r.ok}});
+    }
     if (msg.params?.name !== 'vorschau') return send({id: msg.id, error: {code: -32602, message: 'Unknown tool'}});
     return send({id: msg.id, result: await vorschau(msg.params?.arguments?.scenes)});
   }

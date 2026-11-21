@@ -48,6 +48,8 @@ const de = {
   saved: 'gespeichert',
   saveError: 'Fehler beim Speichern',
   pdfFailed: (e: string) => `PDF-Export fehlgeschlagen:\n${e}`,
+  licenseNote: (names: string) =>
+    `⚠ Lizenz beachten: Diese Präsentation nutzt Pakete ohne freie Lizenz (${names}). Für die eigene Nutzung in Ordnung – vor dem Weitergeben (auch als PDF oder Video) oder einer kommerziellen Nutzung die Lizenz prüfen. Übersicht: PAKETE.md im Ordner der Präsentation.`,
   presentation: 'Präsentation',
   pathPrompt: 'Pfad zum Ordner der Präsentation (er enthält src/ mit Video.tsx und content.json):',
   pleaseChoose: '– bitte wählen –',
@@ -203,6 +205,8 @@ const en: typeof de = {
   saved: 'saved',
   saveError: 'Error while saving',
   pdfFailed: (e) => `PDF export failed:\n${e}`,
+  licenseNote: (names) =>
+    `⚠ Mind the licence: this presentation uses packages without a free licence (${names}). Fine for your own use – before passing it on (also as PDF or video) or using it commercially, check the licence. Overview: PAKETE.md in the presentation folder.`,
   presentation: 'Presentation',
   pathPrompt: 'Path to the presentation folder (it contains src/ with Video.tsx and content.json):',
   pleaseChoose: '– please choose –',

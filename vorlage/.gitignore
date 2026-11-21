@@ -2,3 +2,4 @@ out
 quellen/.cache
 .DS_Store
 .vorschau
+node_modules
