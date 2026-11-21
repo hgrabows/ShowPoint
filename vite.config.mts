@@ -472,7 +472,7 @@ async function ask(body: AskBody, res: import('node:http').ServerResponse, lang:
 // Runs on as a job on the server, even if the page reloads because files changed.
 // check = check passed; checkfail = final check failed; checkretry = type errors, Claude is asked to fix them again.
 type LogLine = {kind: 'text' | 'tool' | 'error' | 'check' | 'checkfail' | 'checkretry' | 'warn'; text: string};
-const job: {running: boolean; kind: 'rebuild' | 'create'; lang: Lang; created: string; createdPath: string; id: number; instruction: string; log: LogLine[]; backup: string; target: string; startedAt: number; endedAt: number} = {
+const job: {running: boolean; kind: 'rebuild' | 'create'; lang: Lang; created: string; createdPath: string; id: number; instruction: string; log: LogLine[]; backup: string; target: string; presentation: string; startedAt: number; endedAt: number} = {
   endedAt: 0,
   running: false,
   kind: 'rebuild',
@@ -484,6 +484,7 @@ const job: {running: boolean; kind: 'rebuild' | 'create'; lang: Lang; created: s
   log: [],
   backup: '',
   target: '',
+  presentation: '',
   startedAt: 0,
 };
 const backupDir = path.join(root, '.umbau');
@@ -491,7 +492,7 @@ const backupDir = path.join(root, '.umbau');
 const jobFile = path.join(backupDir, 'auftrag.json');
 try {
   const saved = JSON.parse(fs.readFileSync(jobFile, 'utf8'));
-  Object.assign(job, {kind: saved.kind, lang: saved.lang === 'en' ? 'en' : 'de', created: saved.created ?? '', createdPath: saved.createdPath ?? '', id: saved.id ?? 0, instruction: saved.instruction ?? '', log: saved.log ?? [], startedAt: saved.startedAt ?? 0, endedAt: saved.endedAt ?? 0});
+  Object.assign(job, {kind: saved.kind, lang: saved.lang === 'en' ? 'en' : 'de', created: saved.created ?? '', createdPath: saved.createdPath ?? '', id: saved.id ?? 0, instruction: saved.instruction ?? '', presentation: saved.presentation ?? '', log: saved.log ?? [], startedAt: saved.startedAt ?? 0, endedAt: saved.endedAt ?? 0});
 } catch {
   // no job saved yet
 }
@@ -537,6 +538,8 @@ const jobStatus = () => ({
   id: job.id,
   instruction: job.instruction,
   log: job.log,
+  // the presentation this job belongs to (real path): the presenter shows log and "Undo" only there
+  presentation: job.presentation,
   canUndo: !job.running && !!job.backup,
   startedAt: job.startedAt,
   endedAt: job.endedAt,
@@ -717,6 +720,7 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang) {
   job.startedAt = Date.now();
   job.backup = path.join(backupDir, stamp);
   job.target = inhaltSrc();
+  job.presentation = real(inhaltDir());
   fs.cpSync(job.target, path.join(job.backup, 'src'), {recursive: true});
   // keep only the last 10 backups
   const old = fs.readdirSync(backupDir).sort();
@@ -817,6 +821,7 @@ function startCreate(dirInput: string, prompt: string, lang: Lang) {
   job.startedAt = Date.now();
   job.backup = '';
   job.target = '';
+  job.presentation = dir;
 
   // Sources from the prompt: files get read permission, for links only their host is allowed.
   const files = new Set<string>();
@@ -868,6 +873,8 @@ function startCreate(dirInput: string, prompt: string, lang: Lang) {
 
 function undoRebuild(lang: Lang) {
   if (!job.backup || !fs.existsSync(job.backup)) return false;
+  // only for the presentation that was rebuilt (another one may be shown by now)
+  if (!hasInhalt() || real(inhaltDir()) !== job.presentation) return false;
   fs.rmSync(job.target, {recursive: true, force: true});
   fs.cpSync(path.join(job.backup, 'src'), job.target, {recursive: true});
   job.log.push({kind: 'check', text: MSG[lang].undone});

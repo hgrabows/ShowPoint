@@ -5,7 +5,7 @@ import {T} from './i18n';
 type Line = {kind: 'text' | 'tool' | 'error' | 'check' | 'checkfail' | 'checkretry' | 'warn'; text: string};
 /** Log lines shown in red: errors, failed checks and type errors Claude is asked to fix again. */
 export const isBad = (l: Line) => l.kind === 'error' || l.kind === 'checkfail' || l.kind === 'checkretry';
-export type RebuildState = {running: boolean; kind?: 'rebuild' | 'create'; created: string; createdPath: string; startedAt?: number; id: number; instruction: string; log: Line[]; canUndo: boolean; seconds: number};
+export type RebuildState = {running: boolean; kind?: 'rebuild' | 'create'; created: string; createdPath: string; startedAt?: number; id: number; instruction: string; log: Line[]; canUndo: boolean; seconds: number; presentation?: string};
 
 export const rebuildCss = `
 .rb{left:2.5%;right:auto}

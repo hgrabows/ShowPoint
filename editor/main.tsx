@@ -682,7 +682,7 @@ const App: React.FC = () => {
             <Rebuild
               sceneId={id}
               sceneName={`${idx + 1} · ${nameOf(id)}`}
-              state={rb?.kind === 'create' ? null : rb}
+              state={rb?.kind === 'create' || rb?.presentation !== pres?.path ? null : rb}
               draft={rbDraft}
               onStart={(instruction) => {
                 if (rb?.running) return window.alert(T.createBusy);
