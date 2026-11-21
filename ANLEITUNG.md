@@ -196,6 +196,16 @@ const REG: Record<string, React.FC<SceneProps>> = {
 Einschränkungen: Texte sind so nicht im Editor änderbar, und die Animation muss für 1920 × 1080 bei 30 Bildern pro Sekunde gebaut sein.
 Für ein anderes Format müssen Breite, Höhe und `fps` an zwei Stellen gleich geändert werden: im `<Player>` in `editor/main.tsx` und in `render/main.tsx`.
 
+## Abschnitte überspringen („Sprung“)
+
+Ein Abschnitt ist die Strecke zwischen zwei Haltepunkten einer Folie; die Anzeige unter dem Bild nennt ihn
+(„Abschnitt 2/6“). Rechts unter „Ablauf“ stehen alle Abschnitte der Folie mit Bildbereich und Untertitel; ein Klick
+springt an den Anfang. Mit dem Häkchen **Sprung** (oder Taste `J`) wird ein Abschnitt beim Weiterschalten nicht
+abgespielt: Am Haltepunkt davor zeigt der nächste Klick sofort das Ende des Abschnitts. In der Zeitleiste ist er
+schraffiert. Die Animation selbst bleibt unverändert, auch PDF und Video zeigen sie wie immer. `J` gilt für den
+Abschnitt an der aktuellen Stelle – am Haltepunkt für den, der als Nächstes käme. Gespeichert wird es in
+`content.json` als `skip` der Szene (Startbilder der übersprungenen Abschnitte).
+
 ## Bausteine der Laufzeit
 
 Szenen importieren ihre Bausteine aus `'showpoint'` (Quelltext in `runtime/index.tsx`):

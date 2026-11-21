@@ -33,6 +33,15 @@ button.primary{background:#8b6cff;border-color:#8b6cff;color:#fff;font-weight:60
 .tl{position:relative;height:34px;display:flex;border-radius:8px;overflow:hidden;cursor:pointer;background:#151c33}
 .seg{border-right:1px solid #0a0d18;font-size:11px;color:#9aa6c7;padding:9px 4px;white-space:nowrap;overflow:hidden}
 .seg.cur{background:#26315a;color:#fff}
+.skip{position:absolute;top:0;height:100%;pointer-events:none;background:repeating-linear-gradient(135deg,rgba(10,13,24,.7) 0 4px,rgba(255,176,32,.18) 4px 8px)}
+.sections{display:flex;flex-direction:column;gap:2px;margin:4px 0 10px}
+.sec-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;background:#151c33;font-size:12px;cursor:pointer}
+.sec-row.cur{background:#26315a}
+.sec-row.skipped .sec-text{opacity:.5;text-decoration:line-through}
+.sec-nr{color:#9aa6c7;min-width:1.4em;text-align:right;font-variant-numeric:tabular-nums}
+.sec-range{color:#5d6a92;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sec-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c9d1ec}
+.sec-row label{display:flex;align-items:center;gap:4px;margin:0;color:#9aa6c7;white-space:nowrap;cursor:pointer}
 .tick{position:absolute;top:0;width:2px;height:100%;background:#ffb020;pointer-events:none}
 .head{position:absolute;top:0;width:2px;height:100%;background:#fff;pointer-events:none}
 .panel{width:430px;flex-shrink:0;border-left:1px solid #2e3a63;background:#11162a;overflow-y:auto;padding:16px}
@@ -274,6 +283,19 @@ const App: React.FC = () => {
     return [...new Set(all)].filter((s) => s > 0 && s < total).sort((a, b) => a - b);
   }, [content, starts, total]);
   stopsRef.current = stops;
+  // Sections marked "jump": absolute [start, end) – advancing at their start jumps straight to their end.
+  const skips = useMemo(() => {
+    if (!content) return [];
+    return content.order.flatMap((sid, i) => {
+      const sc = content.scenes[sid];
+      const bounds = sectionBounds(sc);
+      return (sc.skip ?? [])
+        .filter((s) => bounds.includes(s) && s < sc.dur)
+        .map((s) => ({start: starts[i] + s, end: starts[i] + bounds[bounds.indexOf(s) + 1]}));
+    });
+  }, [content, starts]);
+  const skipsRef = useRef(skips);
+  skipsRef.current = skips;
 
   let idx = 0;
   starts.forEach((s, i) => {
@@ -345,6 +367,15 @@ const App: React.FC = () => {
           setFrame(hit);
           return;
         }
+        // running into a "jump" section that does not start at a stop (e.g. a new slide): straight to its end
+        const sk = skipsRef.current.find((k) => f >= k.start && f < k.end);
+        if (sk) {
+          if (stopsRef.current.includes(sk.end)) p.pause();
+          p.seekTo(sk.end);
+          last.current = sk.end;
+          setFrame(sk.end);
+          return;
+        }
       }
       last.current = f;
       setFrame(f);
@@ -385,10 +416,20 @@ const App: React.FC = () => {
       const next = stopsRef.current.find((s) => s > cur);
       if (next !== undefined) goto(next);
     } else {
+      // standing at the start of a "jump" section: show its end at once
+      const sk = skipsRef.current.find((k) => cur >= k.start && cur < k.end);
+      if (sk) {
+        if (stopsRef.current.includes(sk.end)) return goto(sk.end);
+        goto(sk.end);
+        last.current = sk.end;
+        p.play();
+        return;
+      }
       last.current = cur;
       p.play();
     }
   }, [goto]);
+
 
   const back = useCallback(() => {
     const p = player.current;
@@ -424,6 +465,30 @@ const App: React.FC = () => {
       sc.stops = sc.stops.includes(local)
         ? sc.stops.filter((s) => s !== local)
         : [...sc.stops, local].sort((a, b) => a - b);
+      cleanSkip(sc);
+    });
+  }, [content, edit]);
+
+  /** J: switch "jump" for the section at the current frame (at a stop: the one that comes next). */
+  const toggleSkip = useCallback(() => {
+    const p = player.current;
+    if (!p || !content) return;
+    const cur = p.getCurrentFrame();
+    const st = sceneStarts(content);
+    let i = 0;
+    st.forEach((s, k) => {
+      if (cur >= s) i = k;
+    });
+    const local = cur - st[i];
+    edit((c) => {
+      const sc = c.scenes[c.order[i]];
+      const bounds = sectionBounds(sc);
+      let k = 0;
+      while (k < bounds.length - 2 && local >= bounds[k + 1]) k++;
+      const start = bounds[k];
+      const skip = (sc.skip ?? []).filter((s) => bounds.includes(s));
+      sc.skip = skip.includes(start) ? skip.filter((s) => s !== start) : [...skip, start].sort((a, b) => a - b);
+      if (!sc.skip.length) delete sc.skip;
     });
   }, [content, edit]);
 
@@ -533,13 +598,15 @@ const App: React.FC = () => {
         back();
       } else if (e.key === 's' || e.key === 'S') {
         toggleStop();
+      } else if (e.key === 'j' || e.key === 'J') {
+        toggleSkip();
       } else if (e.key === 'f' || e.key === 'F') {
         fullscreen();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [advance, back, toggleStop, fullscreen, openAsk, selectedText, askAbout]);
+  }, [advance, back, toggleStop, toggleSkip, fullscreen, openAsk, selectedText, askAbout]);
 
   const chooser = pres ? (
     <div className="pres">
@@ -759,6 +826,9 @@ const App: React.FC = () => {
               {i + 1} {nameOf(sid)}
             </div>
           ))}
+          {skips.map((k) => (
+            <div key={`j${k.start}`} className="skip" title={T.skipTitle} style={{left: `${(k.start / total) * 100}%`, width: `${((k.end - k.start) / total) * 100}%`}} />
+          ))}
           {stops.map((s) => (
             <div key={s} className="tick" style={{left: `${(s / total) * 100}%`}} />
           ))}
@@ -910,12 +980,60 @@ const App: React.FC = () => {
         <StopsInput
           key={id + sc.stops.join(',')}
           stops={sc.stops}
-          onChange={(v) => scene((s) => (s.stops = v))}
+          onChange={(v) => scene((s) => {
+            s.stops = v;
+            cleanSkip(s);
+          })}
         />
+        <label>{T.sectionsLabel}</label>
+        <div className="sections">
+          {sectionBounds(sc).slice(0, -1).map((b, k) => {
+            const end = sectionBounds(sc)[k + 1];
+            const on = (sc.skip ?? []).includes(b);
+            const cap = [...(sc.captions ?? [])].filter((c) => c.at <= Math.max(b, end - 1) && c.at < end).pop();
+            return (
+              <div
+                key={b}
+                className={`sec-row${sectionOf(sc, local)[0] === k + 1 ? ' cur' : ''}${on ? ' skipped' : ''}`}
+                title={T.sectionRowTitle}
+                onClick={() => goto((starts[idx] ?? 0) + b)}
+              >
+                <span className="sec-nr">{k + 1}</span>
+                <span className="sec-range">{b}–{end}</span>
+                <span className="sec-text">{cap?.text ?? ''}</span>
+                <label onClick={(e) => e.stopPropagation()} title={T.skipTitle}>
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() =>
+                      scene((s) => {
+                        const skip = (s.skip ?? []).filter((x) => sectionBounds(s).includes(x));
+                        s.skip = on ? skip.filter((x) => x !== b) : [...skip, b].sort((x, y) => x - y);
+                        if (!s.skip.length) delete s.skip;
+                      })
+                    }
+                  />
+                  {T.skipLabel}
+                </label>
+              </div>
+            );
+          })}
+        </div>
         <Libraries builtins={pres?.builtins ?? []} packages={pres?.packages ?? []} />
       </div>
     </div>
   );
+};
+
+/** Start frames of a slide's sections plus its end: [0, stop1, stop2, …, dur]. */
+const sectionBounds = (sc: SceneContent) => [0, ...[...new Set(sc.stops.filter((s) => s > 0 && s < sc.dur))].sort((a, b) => a - b), sc.dur];
+
+/** Drop "jump" marks whose section no longer exists (its stop was removed). */
+const cleanSkip = (sc: SceneContent) => {
+  if (!sc.skip) return;
+  const bounds = sectionBounds(sc);
+  sc.skip = sc.skip.filter((s) => bounds.includes(s) && s < sc.dur);
+  if (!sc.skip.length) delete sc.skip;
 };
 
 /**

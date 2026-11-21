@@ -196,6 +196,15 @@ const REG: Record<string, React.FC<SceneProps>> = {
 Limitations: texts cannot be edited in the editor this way, and the animation must be built for 1920 × 1080 at 30 frames per second.
 For a different format, width, height and `fps` must be changed identically in two places: in the `<Player>` in `editor/main.tsx` and in `render/main.tsx`.
 
+## Skipping sections ("Jump")
+
+A section is the stretch between two stops of a slide; the line under the picture names it ("Section 2/6"). Under
+"Timing" on the right all sections of the slide are listed with frame range and caption; a click goes to its start.
+With the **Jump** checkbox (or key `J`) a section is not played when advancing: at the stop before it, the next click
+shows the end of the section at once. In the timeline it is hatched. The animation itself is unchanged; PDF and video
+show it as always. `J` applies to the section at the current position – at a stop, to the one that comes next. It is
+stored in `content.json` as `skip` of the scene (first frames of the skipped sections).
+
 ## Runtime building blocks
 
 Scenes import their building blocks from `'showpoint'` (source in `runtime/index.tsx`):

@@ -16,6 +16,8 @@ export type SceneContent = {
   title?: string;
   captions?: Caption[];
   stops: number[];
+  /** Sections skipped when advancing ("jump"), given by their first frame: 0 or one of the stops. */
+  skip?: number[];
   t: Record<string, string>;
   lists: Record<string, string[]>;
 };

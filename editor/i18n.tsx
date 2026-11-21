@@ -101,9 +101,9 @@ const de = {
     `Szene ${scene}/${scenes} · Abschnitt ${part}/${parts} · Bild ${frame}/${dur} · ${saved}`,
   keys: (
     <>
-      Weiter: <kbd>Leertaste</kbd> <kbd>→</kbd> <kbd>Enter</kbd> oder Klick ins Bild · Zurück: <kbd>←</kbd> · Haltepunkt ein/aus: <kbd>S</kbd> ·
+      Weiter: <kbd>Leertaste</kbd> <kbd>→</kbd> <kbd>Enter</kbd> oder Klick ins Bild · Zurück: <kbd>←</kbd> · Haltepunkt ein/aus: <kbd>S</kbd> · Abschnitt überspringen ein/aus: <kbd>J</kbd> ·
       Vollbild: <kbd>F</kbd> · Frage ans LLM: <kbd>?</kbd> (Text vorher markieren = gezielt dazu fragen) · Folie umbauen lassen: <kbd>U</kbd> ·
-      gelbe Striche = Haltepunkte · Klick in die Leiste springt dorthin
+      gelbe Striche = Haltepunkte · schraffiert = wird übersprungen · Klick in die Leiste springt dorthin
     </>
   ),
   liveEdit: 'Änderungen erscheinen sofort und werden automatisch gespeichert.',
@@ -117,6 +117,10 @@ const de = {
   timing: 'Ablauf',
   durLabel: 'Dauer der Szene in Bildern (30 pro Sekunde)',
   stopsLabel: 'Haltepunkte (Bildnummern in dieser Szene, mit Komma getrennt)',
+  sectionsLabel: 'Abschnitte (Klick springt hin; Sprung = beim Weiterschalten überspringen, Taste J)',
+  sectionRowTitle: 'Zum Anfang dieses Abschnitts springen',
+  skipLabel: 'Sprung',
+  skipTitle: 'Sprung: Beim Weiterschalten wird dieser Abschnitt nicht abgespielt, sondern sofort sein Ende gezeigt (Taste J).',
 
   // Slides.tsx
   slides: 'Folien',
@@ -262,8 +266,8 @@ const en: typeof de = {
   info: (scene, scenes, part, parts, frame, dur, saved) => `Scene ${scene}/${scenes} · Section ${part}/${parts} · Frame ${frame}/${dur} · ${saved}`,
   keys: (
     <>
-      Next: <kbd>Space</kbd> <kbd>→</kbd> <kbd>Enter</kbd> or click the slide · Back: <kbd>←</kbd> · Stop on/off: <kbd>S</kbd> · Fullscreen:{' '}
-      <kbd>F</kbd> · Ask the LLM: <kbd>?</kbd> (mark text first = ask about exactly that) · Rebuild slide: <kbd>U</kbd> · yellow ticks = stops ·
+      Next: <kbd>Space</kbd> <kbd>→</kbd> <kbd>Enter</kbd> or click the slide · Back: <kbd>←</kbd> · Stop on/off: <kbd>S</kbd> · Skip section on/off: <kbd>J</kbd> · Fullscreen:{' '}
+      <kbd>F</kbd> · Ask the LLM: <kbd>?</kbd> (mark text first = ask about exactly that) · Rebuild slide: <kbd>U</kbd> · yellow ticks = stops · hatched = skipped ·
       click the bar to jump there
     </>
   ),
@@ -278,6 +282,10 @@ const en: typeof de = {
   timing: 'Timing',
   durLabel: 'Scene duration in frames (30 per second)',
   stopsLabel: 'Stops (frame numbers within this scene, comma-separated)',
+  sectionsLabel: 'Sections (click jumps there; Jump = skip when advancing, key J)',
+  sectionRowTitle: 'Go to the start of this section',
+  skipLabel: 'Jump',
+  skipTitle: 'Jump: when advancing, this section is not played – its end is shown at once (key J).',
 
   slides: 'Slides',
   slidesHint: 'drag = reorder · click = jump',
