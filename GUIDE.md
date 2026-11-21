@@ -198,8 +198,8 @@ For a different format, width, height and `fps` must be changed identically in t
 
 ## Timeline
 
-The timeline under the picture has two parts: **left** all slides of the presentation (numbers, name on hover),
-**right** the sections of the current slide across the full width – with stops (yellow), jump hatching and the
+The timeline under the picture has two parts: **left** all slides of the presentation (three quarters of the width; numbers, name on hover),
+**right** (one quarter) the sections of the current slide – with stops (yellow), jump hatching and the
 playhead. A click into either bar goes to that position. This keeps room for the stops even with many slides.
 
 ## Skipping sections ("Jump")

@@ -32,7 +32,7 @@ button.primary{background:#8b6cff;border-color:#8b6cff;color:#fff;font-weight:60
 .bar .fix-rb{width:11em}
 .tlrow{display:flex;gap:8px}
 .tl{position:relative;height:34px;display:flex;border-radius:8px;overflow:hidden;cursor:pointer;background:#151c33;min-width:0}
-.tl.ov{flex:1 1 0}
+.tl.ov{flex:3 1 0}
 .tl.det{flex:1 1 0}
 .tl .seg{text-align:center;padding:9px 1px}
 .seg{text-overflow:ellipsis}

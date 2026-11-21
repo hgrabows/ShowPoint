@@ -198,8 +198,8 @@ Für ein anderes Format müssen Breite, Höhe und `fps` an zwei Stellen gleich g
 
 ## Zeitleiste
 
-Die Zeitleiste unter dem Bild ist zweigeteilt: **links** alle Folien der Präsentation (Nummern, Name beim Darüberfahren),
-**rechts** die Abschnitte der aktuellen Folie über die volle Breite – mit Haltepunkten (gelb), Sprung-Schraffur und
+Die Zeitleiste unter dem Bild ist zweigeteilt: **links** alle Folien der Präsentation (drei Viertel der Breite; Nummern, Name beim Darüberfahren),
+**rechts** (ein Viertel) die Abschnitte der aktuellen Folie – mit Haltepunkten (gelb), Sprung-Schraffur und
 Abspielkopf. Ein Klick in eine der beiden Leisten springt an diese Stelle. So bleibt auch bei vielen Folien genug Platz
 für die Haltepunkte.
 
