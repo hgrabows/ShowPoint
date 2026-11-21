@@ -198,7 +198,7 @@ Für ein anderes Format müssen Breite, Höhe und `fps` an zwei Stellen gleich g
 
 ## Zeitleiste
 
-Die Zeitleiste unter dem Bild ist zweigeteilt: **links** alle Folien der Präsentation (drei Viertel der Breite; Nummern, Name beim Darüberfahren),
+Die Zeitleiste unter dem Bild ist zweigeteilt: **links** alle Folien der Präsentation (drei Viertel der Breite; Name beim Darüberfahren; bei sehr vielen Folien stehen die Nummern nur noch wie bei einem Lineal an jeder 2., 5., 10. … Folie und an der aktuellen),
 **rechts** (ein Viertel) die Abschnitte der aktuellen Folie – mit Haltepunkten (gelb), Sprung-Schraffur und
 Abspielkopf. Ein Klick in eine der beiden Leisten springt an diese Stelle. So bleibt auch bei vielen Folien genug Platz
 für die Haltepunkte.

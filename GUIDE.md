@@ -198,7 +198,7 @@ For a different format, width, height and `fps` must be changed identically in t
 
 ## Timeline
 
-The timeline under the picture has two parts: **left** all slides of the presentation (three quarters of the width; numbers, name on hover),
+The timeline under the picture has two parts: **left** all slides of the presentation (three quarters of the width; name on hover; with very many slides the numbers appear like on a ruler, at every 2nd, 5th, 10th … slide and at the current one),
 **right** (one quarter) the sections of the current slide – with stops (yellow), jump hatching and the
 playhead. A click into either bar goes to that position. This keeps room for the stops even with many slides.
 
