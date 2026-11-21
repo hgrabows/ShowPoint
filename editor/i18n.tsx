@@ -119,6 +119,7 @@ const de = {
   stopsLabel: 'Haltepunkte (Bildnummern in dieser Szene, mit Komma getrennt)',
   sectionsLabel: 'Abschnitte (Klick springt hin; Sprung = beim Weiterschalten überspringen, Taste J)',
   sectionRowTitle: 'Zum Anfang dieses Abschnitts springen',
+  sectionSeg: (k: number, n: number, a: number, b: number) => `Abschnitt ${k}/${n} · Bild ${a}–${b}`,
   skipLabel: 'Sprung',
   skipTitle: 'Sprung: Beim Weiterschalten wird dieser Abschnitt nicht abgespielt, sondern sofort sein Ende gezeigt (Taste J).',
 
@@ -284,6 +285,7 @@ const en: typeof de = {
   stopsLabel: 'Stops (frame numbers within this scene, comma-separated)',
   sectionsLabel: 'Sections (click jumps there; Jump = skip when advancing, key J)',
   sectionRowTitle: 'Go to the start of this section',
+  sectionSeg: (k: number, n: number, a: number, b: number) => `Section ${k}/${n} · frames ${a}–${b}`,
   skipLabel: 'Jump',
   skipTitle: 'Jump: when advancing, this section is not played – its end is shown at once (key J).',
 

@@ -30,7 +30,12 @@ button.primary{background:#8b6cff;border-color:#8b6cff;color:#fff;font-weight:60
 .bar button{white-space:nowrap}
 .bar .fix-stop{width:10.5em}
 .bar .fix-rb{width:11em}
-.tl{position:relative;height:34px;display:flex;border-radius:8px;overflow:hidden;cursor:pointer;background:#151c33}
+.tlrow{display:flex;gap:8px}
+.tl{position:relative;height:34px;display:flex;border-radius:8px;overflow:hidden;cursor:pointer;background:#151c33;min-width:0}
+.tl.ov{flex:1 1 0}
+.tl.det{flex:1 1 0}
+.tl .seg{text-align:center;padding:9px 1px}
+.seg{text-overflow:ellipsis}
 .seg{border-right:1px solid #0a0d18;font-size:11px;color:#9aa6c7;padding:9px 4px;white-space:nowrap;overflow:hidden}
 .seg.cur{background:#26315a;color:#fff}
 .skip{position:absolute;top:0;height:100%;pointer-events:none;background:repeating-linear-gradient(135deg,rgba(10,13,24,.7) 0 4px,rgba(255,176,32,.18) 4px 8px)}
@@ -810,29 +815,66 @@ const App: React.FC = () => {
             </button>
           ) : null}
         </div>
-        <div
-          className="tl"
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            goto(Math.round(((e.clientX - r.left) / r.width) * (total - 1)));
-          }}
-        >
-          {content.order.map((sid, i) => (
-            <div
-              key={sid}
-              className={`seg${i === idx ? ' cur' : ''}`}
-              style={{flex: `${content.scenes[sid].dur} 0 0`}}
-            >
-              {i + 1} {nameOf(sid)}
-            </div>
-          ))}
-          {skips.map((k) => (
-            <div key={`j${k.start}`} className="skip" title={T.skipTitle} style={{left: `${(k.start / total) * 100}%`, width: `${((k.end - k.start) / total) * 100}%`}} />
-          ))}
-          {stops.map((s) => (
-            <div key={s} className="tick" style={{left: `${(s / total) * 100}%`}} />
-          ))}
-          <div className="head" style={{left: `${(frame / total) * 100}%`}} />
+        <div className="tlrow">
+          {/* left: all slides (overview); right: the sections of the current slide (detail) */}
+          <div
+            className="tl ov"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              goto(Math.round(((e.clientX - r.left) / r.width) * (total - 1)));
+            }}
+          >
+            {content.order.map((sid, i) => (
+              <div
+                key={sid}
+                className={`seg${i === idx ? ' cur' : ''}`}
+                title={`${i + 1} · ${nameOf(sid)}`}
+                style={{flex: `${content.scenes[sid].dur} 0 0`}}
+              >
+                {i + 1}
+              </div>
+            ))}
+            <div className="head" style={{left: `${(frame / total) * 100}%`}} />
+          </div>
+          <div
+            className="tl det"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              goto(starts[idx] + Math.round(((e.clientX - r.left) / r.width) * (sc.dur - 1)));
+            }}
+          >
+            {sectionBounds(sc)
+              .slice(0, -1)
+              .map((b, k, arr) => {
+                const end = sectionBounds(sc)[k + 1];
+                return (
+                  <div
+                    key={b}
+                    className={`seg${k + 1 === sectionOf(sc, local)[0] ? ' cur' : ''}`}
+                    title={T.sectionSeg(k + 1, arr.length, b, end)}
+                    style={{flex: `${end - b} 0 0`}}
+                  >
+                    {k + 1}
+                  </div>
+                );
+              })}
+            {skips
+              .filter((k) => k.start >= starts[idx] && k.start < starts[idx] + sc.dur)
+              .map((k) => (
+                <div
+                  key={`j${k.start}`}
+                  className="skip"
+                  title={T.skipTitle}
+                  style={{left: `${((k.start - starts[idx]) / sc.dur) * 100}%`, width: `${((k.end - k.start) / sc.dur) * 100}%`}}
+                />
+              ))}
+            {[...new Set(sc.stops)]
+              .filter((s) => s > 0 && s < sc.dur)
+              .map((s) => (
+                <div key={s} className="tick" style={{left: `${(s / sc.dur) * 100}%`}} />
+              ))}
+            <div className="head" style={{left: `${(local / sc.dur) * 100}%`}} />
+          </div>
         </div>
         <div className="bar">
           <button onClick={back}>{T.back}</button>

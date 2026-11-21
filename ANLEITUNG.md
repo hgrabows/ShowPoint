@@ -196,6 +196,13 @@ const REG: Record<string, React.FC<SceneProps>> = {
 Einschränkungen: Texte sind so nicht im Editor änderbar, und die Animation muss für 1920 × 1080 bei 30 Bildern pro Sekunde gebaut sein.
 Für ein anderes Format müssen Breite, Höhe und `fps` an zwei Stellen gleich geändert werden: im `<Player>` in `editor/main.tsx` und in `render/main.tsx`.
 
+## Zeitleiste
+
+Die Zeitleiste unter dem Bild ist zweigeteilt: **links** alle Folien der Präsentation (Nummern, Name beim Darüberfahren),
+**rechts** die Abschnitte der aktuellen Folie über die volle Breite – mit Haltepunkten (gelb), Sprung-Schraffur und
+Abspielkopf. Ein Klick in eine der beiden Leisten springt an diese Stelle. So bleibt auch bei vielen Folien genug Platz
+für die Haltepunkte.
+
 ## Abschnitte überspringen („Sprung“)
 
 Ein Abschnitt ist die Strecke zwischen zwei Haltepunkten einer Folie; die Anzeige unter dem Bild nennt ihn

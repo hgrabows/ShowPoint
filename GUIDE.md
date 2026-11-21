@@ -196,6 +196,12 @@ const REG: Record<string, React.FC<SceneProps>> = {
 Limitations: texts cannot be edited in the editor this way, and the animation must be built for 1920 × 1080 at 30 frames per second.
 For a different format, width, height and `fps` must be changed identically in two places: in the `<Player>` in `editor/main.tsx` and in `render/main.tsx`.
 
+## Timeline
+
+The timeline under the picture has two parts: **left** all slides of the presentation (numbers, name on hover),
+**right** the sections of the current slide across the full width – with stops (yellow), jump hatching and the
+playhead. A click into either bar goes to that position. This keeps room for the stops even with many slides.
+
 ## Skipping sections ("Jump")
 
 A section is the stretch between two stops of a slide; the line under the picture names it ("Section 2/6"). Under
