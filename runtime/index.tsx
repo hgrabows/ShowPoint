@@ -8,6 +8,8 @@ import React, {createContext, forwardRef, useContext} from 'react';
 
 export {Player} from './Player';
 export type {PlayerRef} from './Player';
+export {ThreeCanvas, THREE} from './three';
+export type {ThreeContext} from './three';
 
 /* ── Timeline ─────────────────────────────────────────────────────────────── */
 

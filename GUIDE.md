@@ -211,6 +211,7 @@ Scenes import their building blocks from `'showpoint'` (source in `runtime/index
 | `AbsoluteFill` | `div` that fills its frame completely |
 | `Sequence from={…} durationInFrames={…}`, `Series` | shows content only within a time window; inside, frames count from 0 again |
 | `Img` | image; the renderer waits until it has loaded |
+| `ThreeCanvas x y w h setup={…} update={(ctx, frame, fps) => …}`, `THREE` | 3D scene with Three.js: `setup` builds scene, lights and camera once, `update` sets everything from the frame number alone. Example: `vorlage/beispiele/three-beispiel.tsx`. Text drawn in 3D cannot be selected, so put labels next to it as normal text |
 
 ## Output as video
 

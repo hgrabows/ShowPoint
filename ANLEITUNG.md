@@ -211,6 +211,7 @@ Szenen importieren ihre Bausteine aus `'showpoint'` (Quelltext in `runtime/index
 | `AbsoluteFill` | `div`, das seinen Rahmen ganz ausfüllt |
 | `Sequence from={…} durationInFrames={…}`, `Series` | zeigt Inhalte nur in einem Zeitfenster; darin zählt das Bild wieder ab 0 |
 | `Img` | Bild; der Renderer wartet, bis es geladen ist |
+| `ThreeCanvas x y w h setup={…} update={(ctx, frame, fps) => …}`, `THREE` | 3D-Szene mit Three.js: `setup` baut Szene, Licht und Kamera einmal, `update` setzt alles nur aus der Bildnummer. Beispiel: `vorlage/beispiele/three-beispiel.tsx`. Text in 3D ist nicht markierbar, Beschriftungen daher als normalen Text daneben setzen |
 
 ## Als Video ausgeben
 
