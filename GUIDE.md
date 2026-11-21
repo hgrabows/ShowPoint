@@ -198,8 +198,8 @@ For a different format, width, height and `fps` must be changed identically in t
 
 ## Timeline
 
-The timeline under the picture has two parts: **left** all slides of the presentation (three quarters of the width; name on hover; with very many slides the numbers appear like on a ruler, at every 2nd, 5th, 10th … slide and at the current one),
-**right** (one quarter) the sections of the current slide – with stops (yellow), jump hatching and the
+The timeline under the picture has two parts. **Left** are all slides of the presentation (three quarters of the width; name on hover). Widths follow the slide durations, but every slide gets at least room for its number – about 50 slides fit on a normal screen. Only when even that is not enough, the numbers appear like on a ruler, at every 2nd, 5th, 10th … slide and at the current one.
+**Right** (one quarter) are the sections of the current slide – with stops (yellow), jump hatching and the
 playhead. A click into either bar goes to that position. This keeps room for the stops even with many slides.
 
 ## Skipping sections ("Jump")

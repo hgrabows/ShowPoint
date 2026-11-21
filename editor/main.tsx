@@ -36,7 +36,7 @@ button.primary{background:#8b6cff;border-color:#8b6cff;color:#fff;font-weight:60
 .tl.det{flex:1 1 0}
 .tl .seg{text-align:center;padding:9px 1px}
 .tl.ov .seg{position:relative;overflow:visible;padding:0}
-.tl.ov .seg span{position:absolute;left:50%;top:9px;transform:translateX(-50%);pointer-events:none}
+.tl.ov .seg span{position:absolute;left:50%;top:10px;font-size:10px;transform:translateX(-50%);pointer-events:none}
 .tl.ov .seg.cur span{color:#fff;font-weight:600}
 .seg{text-overflow:ellipsis}
 .seg{border-right:1px solid #0a0d18;font-size:11px;color:#9aa6c7;padding:9px 4px;white-space:nowrap;overflow:hidden}
@@ -302,7 +302,7 @@ const App: React.FC = () => {
         .map((s) => ({start: starts[i] + s, end: starts[i] + bounds[bounds.indexOf(s) + 1]}));
     });
   }, [content, starts]);
-  // Width of the slide overview bar, so its numbers are only drawn where they fit (see ovLabels).
+  // Width of the slide overview bar, for its layout (see ovLayout).
   const [ovWidth, setOvWidth] = useState(0);
   const ovObserver = useRef<ResizeObserver | null>(null);
   const ovRef = useCallback((el: HTMLDivElement | null) => {
@@ -746,7 +746,7 @@ const App: React.FC = () => {
   const sc: SceneContent = content.scenes[id];
   const local = frame - starts[idx];
   const onStop = stops.includes(frame);
-  const ovShown = ovLabels(content.order.map((sid) => content.scenes[sid].dur), starts, total, ovWidth, idx);
+  const ov = ovLayout(content.order.map((sid) => content.scenes[sid].dur), ovWidth, idx);
   const caption = [...(sc.captions ?? [])].reverse().find((cp) => local >= cp.at)?.text ?? '';
   const scene = (fn: (s: SceneContent) => void) => edit((c) => fn(c.scenes[id]));
 
@@ -835,7 +835,11 @@ const App: React.FC = () => {
             ref={ovRef}
             onClick={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
-              goto(Math.round(((e.clientX - r.left) / r.width) * (total - 1)));
+              const x = (e.clientX - r.left) / r.width;
+              let i = ov.left.findIndex((l, k) => x < l + ov.width[k]);
+              if (i < 0) i = ov.left.length - 1;
+              const d = content.scenes[content.order[i]].dur;
+              goto(starts[i] + Math.min(d - 1, Math.max(0, Math.round(((x - ov.left[i]) / ov.width[i]) * d))));
             }}
           >
             {content.order.map((sid, i) => (
@@ -843,12 +847,12 @@ const App: React.FC = () => {
                 key={sid}
                 className={`seg${i === idx ? ' cur' : ''}`}
                 title={`${i + 1} · ${nameOf(sid)}`}
-                style={{flex: `${content.scenes[sid].dur} 0 0`}}
+                style={{flex: `${ov.width[i]} 0 0`}}
               >
-                {ovShown[i] ? <span>{i + 1}</span> : null}
+                {ov.shown[i] ? <span>{i + 1}</span> : null}
               </div>
             ))}
-            <div className="head" style={{left: `${(frame / total) * 100}%`}} />
+            <div className="head" style={{left: `${(ov.left[idx] + (local / sc.dur) * ov.width[idx]) * 100}%`}} />
           </div>
           <div
             className="tl det"
@@ -1083,28 +1087,46 @@ const App: React.FC = () => {
 
 /** Start frames of a slide's sections plus its end: [0, stop1, stop2, …, dur]. */
 /**
- * Which slide numbers the overview bar shows: all of them while they fit; with many slides only every 5th/10th/…
- * (like a ruler) plus the current slide, and none so close to another that they would overlap.
+ * Layout of the slide overview bar: widths follow the slide durations, but every slide gets at least the room for its
+ * number (short slides would otherwise be a few pixels wide). Only when even that does not fit, the numbers appear
+ * like on a ruler – every 2nd/5th/10th/… slide plus the current one, none overlapping another.
+ * The exact timing of the current slide is shown in the section bar next to it.
  */
-const ovLabels = (durs: number[], starts: number[], total: number, width: number, cur: number): boolean[] => {
-  const NEED = 22; // px for a number like "88" with a little space
-  const px = (i: number) => (durs[i] / total) * width;
-  const centre = (i: number) => ((starts[i] + durs[i] / 2) / total) * width;
-  if (!width || durs.every((_, i) => px(i) >= NEED)) return durs.map(() => true);
-  const avg = width / durs.length;
-  const step = [2, 5, 10, 20, 50, 100, 200].find((s) => s * avg >= NEED * 1.3) ?? 500;
-  const shown = durs.map(() => false);
-  const taken: number[] = [centre(cur)];
-  shown[cur] = true;
-  durs.forEach((_, i) => {
-    if (i === cur || (i + 1) % step !== 0 && i !== 0) return;
-    const c = centre(i);
-    if (taken.every((t) => Math.abs(t - c) >= NEED)) {
-      shown[i] = true;
-      taken.push(c);
-    }
-  });
-  return shown;
+const ovLayout = (durs: number[], width: number, cur: number) => {
+  const W = width || 1000;
+  const n = durs.length;
+  const MIN = 15; // px: a two-digit number (10 px font) with a little space
+  const min = Math.min(MIN, W / n);
+  // proportional widths; slides below the minimum are fixed at it, the rest share what is left (repeat until stable)
+  const fixed = durs.map(() => false);
+  let w: number[] = [];
+  for (let round = 0; round <= n; round++) {
+    const room = W - fixed.filter(Boolean).length * min;
+    const free = durs.reduce((acc, d, i) => acc + (fixed[i] ? 0 : d), 0);
+    w = durs.map((d, i) => (fixed[i] ? min : (d / free) * room));
+    const more = w.map((x, i) => !fixed[i] && x < min);
+    if (!more.some(Boolean)) break;
+    more.forEach((m, i) => m && (fixed[i] = true));
+  }
+  const left: number[] = [];
+  w.reduce((acc, x, i) => ((left[i] = acc), acc + x), 0);
+  const need = (i: number) => String(i + 1).length * 5.8 + 3;
+  const centre = (i: number) => left[i] + w[i] / 2;
+  let shown = durs.map(() => true);
+  if (width && durs.some((_, i) => w[i] < need(i))) {
+    const step = [2, 5, 10, 20, 50, 100, 200].find((st) => st * (W / n) >= 22 * 1.3) ?? 500;
+    shown = durs.map(() => false);
+    const taken: number[] = [centre(cur)];
+    shown[cur] = true;
+    durs.forEach((_, i) => {
+      if (i === cur || ((i + 1) % step !== 0 && i !== 0)) return;
+      if (taken.every((t) => Math.abs(t - centre(i)) >= 22)) {
+        shown[i] = true;
+        taken.push(centre(i));
+      }
+    });
+  }
+  return {left: left.map((x) => x / W), width: w.map((x) => x / W), shown};
 };
 
 const sectionBounds = (sc: SceneContent) => [0, ...[...new Set(sc.stops.filter((s) => s > 0 && s < sc.dur))].sort((a, b) => a - b), sc.dur];
