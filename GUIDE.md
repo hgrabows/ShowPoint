@@ -212,6 +212,7 @@ Scenes import their building blocks from `'showpoint'` (source in `runtime/index
 | `Sequence from={…} durationInFrames={…}`, `Series` | shows content only within a time window; inside, frames count from 0 again |
 | `Img` | image; the renderer waits until it has loaded |
 | `BarChart`, `LineChart`, `PieChart` | charts that build up from frame `at` (details below) |
+| `Formula` | formula from LaTeX text (KaTeX), fading in from `at`: `<Formula tex={c.t.f1} x={90} y={250} at={20} fontSize={56} />`; steps of a calculation one after the other with `steps={c.lists.steps}` (spacing `every`, default 45 frames); also `w`, `align`, `color`, `display={false}` for inline style. In `content.json` double the backslashes: `"\\frac{a}{b}"` |
 
 **Charts.** Numbers and labels are best kept in `content.json` under `lists` (values as text, e.g. `"3.5"` or
 `"40 %"`), so they stay editable in the presenter:

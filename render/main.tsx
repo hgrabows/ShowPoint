@@ -46,6 +46,8 @@ const nextPaint = () => new Promise<void>((r) => requestAnimationFrame(() => req
 window.showFrame = async (frame) => {
   window.renderInfo.error = '';
   flushSync(() => draw(frame));
+  // force layout so that web fonts used by the new frame (e.g. KaTeX) start loading before we wait for them
+  document.body.getBoundingClientRect();
   await document.fonts.ready;
   await Promise.all(
     [...document.images].filter((img) => !img.complete).map((img) => new Promise((r) => {
