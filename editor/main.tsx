@@ -17,6 +17,8 @@ body{margin:0;background:#0a0d18;color:#e8ecf8;font:14px -apple-system,BlinkMacS
 .screen{position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:16/9;max-height:calc(100vh - 150px);cursor:pointer;align-self:center;width:100%}
 .screen:fullscreen{border-radius:0;max-height:none;aspect-ratio:auto;width:100vw;height:100vh}
 .screen:fullscreen.idle{cursor:none}
+.run-dot{position:absolute;top:14px;right:14px;opacity:.6;pointer-events:none;z-index:5}
+.screen:fullscreen .run-dot{top:22px;right:22px}
 .screen,.screen *{user-select:text;-webkit-user-select:text}
 .screen ::selection{background:rgba(255,176,32,.55);color:#fff}
 .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -691,6 +693,7 @@ const App: React.FC = () => {
             fps={30}
             style={{width: '100%', height: '100%'}}
           />
+          {playing ? <RunDot frame={frame} stops={stops} total={total} /> : null}
           {asking ? (
             <Ask
               key={id}
@@ -912,6 +915,25 @@ const App: React.FC = () => {
         <Libraries builtins={pres?.builtins ?? []} packages={pres?.packages ?? []} />
       </div>
     </div>
+  );
+};
+
+/**
+ * Small mark top right while the animation runs, only in the presenter (not in PDF or video): a dot with a thin ring
+ * that fills up until the next stop. No mark = standing at a stop, the next key press starts the next step.
+ */
+const RunDot: React.FC<{frame: number; stops: number[]; total: number}> = ({frame, stops, total}) => {
+  const prev = [0, ...stops].filter((s) => s <= frame).pop() ?? 0;
+  const next = stops.find((s) => s > frame) ?? total - 1;
+  const p = Math.max(0, Math.min(1, (frame - prev) / Math.max(1, next - prev)));
+  const r = 9;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg className="run-dot" width={24} height={24} viewBox="0 0 24 24" aria-hidden>
+      <circle cx={12} cy={12} r={r} fill="none" stroke="rgba(255,255,255,.18)" strokeWidth={2} />
+      <circle cx={12} cy={12} r={r} fill="none" stroke="#ffb020" strokeWidth={2} strokeDasharray={`${c * p} ${c}`} transform="rotate(-90 12 12)" />
+      <circle cx={12} cy={12} r={3.5} fill="#ffb020" />
+    </svg>
   );
 };
 
