@@ -47,6 +47,12 @@ textarea:focus,input:focus{outline:none;border-color:#8b6cff}
 .pres-rm{margin-top:8px;margin-right:6px;padding:5px 10px;font-size:12px}
 select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;border-radius:8px;padding:8px;font:inherit}
 .pres-err{color:#f87171;font-size:12px;margin-top:6px;line-height:1.4}
+.libs{margin-top:22px;padding-top:10px;border-top:1px solid #2e3a63;font-size:12px;color:#7d89ad}
+.libs summary{cursor:pointer}
+.libs-row{display:flex;gap:8px;margin-top:6px;line-height:1.45}
+.libs-k{flex:none;width:7.5em;color:#5d6a92}
+.libs-warn{color:#ffb020}
+.libs-hint{margin-top:6px;color:#5d6a92}
 .lic-note{border-left:3px solid #ffb020;background:#1f1a0d;color:#ffd27a;padding:8px 12px;border-radius:0 8px 8px 0;font-size:13px;line-height:1.45}
 @keyframes jobspin{to{transform:rotate(360deg)}}
 .job{position:fixed;left:16px;bottom:16px;z-index:40;display:flex;align-items:center;gap:8px;max-width:min(560px,60vw);
@@ -64,6 +70,8 @@ type Presentation = {
   path: string;
   videoUrl: string;
   licenses?: {name: string; version: string; license: string}[];
+  packages?: {name: string; version: string; license: string; free: boolean}[];
+  builtins?: string[];
   list: {dir: string; title: string; path: string; linked: boolean}[];
   error?: string;
 };
@@ -203,7 +211,7 @@ const App: React.FC = () => {
         // a rebuild may have installed packages: refresh the licence notice
         fetch('/api/presentation')
           .then((r) => r.json())
-          .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses} : p)));
+          .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses, packages: p.packages, builtins: p.builtins} : p)));
       }
       rbWas.current = st.running;
     } catch {
@@ -901,8 +909,42 @@ const App: React.FC = () => {
           stops={sc.stops}
           onChange={(v) => scene((s) => (s.stops = v))}
         />
+        <Libraries builtins={pres?.builtins ?? []} packages={pres?.packages ?? []} />
       </div>
     </div>
+  );
+};
+
+/** Bottom of the side panel, unobtrusive: which libraries the slides really use (built in and installed). */
+const Libraries: React.FC<{builtins: string[]; packages: NonNullable<Presentation['packages']>}> = ({builtins, packages}) => {
+  if (!builtins.length && !packages.length) return null;
+  return (
+    <details className="libs">
+      <summary>{T.libsSummary(builtins.length + packages.length)}</summary>
+      {builtins.length ? (
+        <div className="libs-row">
+          <span className="libs-k">{T.libsBuiltin}</span>
+          <span>{builtins.map((b) => T.builtinName[b as keyof typeof T.builtinName] ?? b).join(', ')}</span>
+        </div>
+      ) : null}
+      {packages.length ? (
+        <div className="libs-row">
+          <span className="libs-k">{T.libsInstalled}</span>
+          <span>
+            {packages.map((p, i) => (
+              <React.Fragment key={p.name}>
+                {i ? ', ' : ''}
+                <span title={p.license} className={p.free ? '' : 'libs-warn'}>
+                  {p.free ? '' : '⚠ '}
+                  {p.name} {p.version}
+                </span>
+              </React.Fragment>
+            ))}
+          </span>
+        </div>
+      ) : null}
+      <div className="libs-hint">{T.libsHint}</div>
+    </details>
   );
 };
 

@@ -105,6 +105,25 @@ export function installedLicences(dir) {
   return found;
 }
 
+/** Packages the presentation installed itself (its package.json), with version and licence; @types are left out. */
+export function presentationPackages(dir) {
+  let deps = {};
+  try {
+    deps = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).dependencies ?? {};
+  } catch {
+    return [];
+  }
+  const all = new Map(installedLicences(dir).map((p) => [p.name, p]));
+  return Object.keys(deps)
+    .filter((n) => !n.startsWith('@types/'))
+    .sort()
+    .map((n) => {
+      const p = all.get(n);
+      const license = p?.license ?? 'unknown';
+      return {name: n, version: p?.version ?? deps[n], license, free: licenseOk(license)};
+    });
+}
+
 /** Installed packages of the presentation without a free open-source licence (for the notice in the presenter). */
 export function nonFreePackages(dir) {
   if (!fs.existsSync(path.join(dir, 'package.json'))) return [];

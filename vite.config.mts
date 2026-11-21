@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {defineConfig} from 'vite';
 import {runtimeResolve} from './runtime/aliases.mjs';
-import {nonFreePackages} from './scripts/paket.mjs';
+import {nonFreePackages, presentationPackages} from './scripts/paket.mjs';
 
 const root = process.cwd();
 
@@ -255,6 +255,36 @@ const pickFolder = (prompt: string, lang: Lang) =>
     );
   });
 
+// Built-in building blocks with a library behind them, recognised by the names imported from 'showpoint'.
+const BUILTINS: {key: string; names: RegExp}[] = [
+  {key: 'three', names: /\b(ThreeCanvas|THREE)\b/},
+  {key: 'katex', names: /\bFormula\b/},
+  {key: 'charts', names: /\b(BarChart|LineChart|PieChart)\b/},
+];
+function builtinsUsed(srcDir: string): string[] {
+  const imported: string[] = [];
+  const walk = (d: string) => {
+    let entries: fs.Dirent[] = [];
+    try {
+      entries = fs.readdirSync(d, {withFileTypes: true});
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (/\.(tsx?|jsx?)$/.test(e.name)) {
+        const text = fs.readFileSync(p, 'utf8');
+        for (const m of text.matchAll(/import\s*\{([^}]*)\}\s*from\s*['"](?:showpoint|remotion)['"]/g)) imported.push(m[1]);
+      }
+    }
+  };
+  walk(srcDir);
+  const all = imported.join(',');
+  return BUILTINS.filter((b) => b.names.test(all)).map((b) => b.key);
+}
+
 const presentationInfo = () => ({
   current: hasInhalt() ? inhaltRel : '',
   title: hasInhalt() ? titleOf(inhaltDir()) : '',
@@ -262,6 +292,9 @@ const presentationInfo = () => ({
   videoUrl: hasInhalt() ? `/@fs${path.join(inhaltSrc(), 'Video.tsx')}` : '',
   // packages without a free licence: the presenter shows a notice
   licenses: hasInhalt() ? nonFreePackages(real(inhaltDir())) : [],
+  // what the slides actually use: packages installed into the presentation, and built-in building blocks
+  packages: hasInhalt() ? presentationPackages(real(inhaltDir())) : [],
+  builtins: hasInhalt() ? builtinsUsed(inhaltSrc()) : [],
   list: listPresentations(),
 });
 
