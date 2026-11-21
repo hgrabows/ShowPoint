@@ -2,7 +2,7 @@
 
 *English version: [GUIDE.md](GUIDE.md)*
 
-Der Präsentator ist ein kleiner Vite-Editor (`editor/`), der eine Remotion-Präsentation im Browser abspielt,
+Der Präsentator ist ein kleiner Vite-Editor (`editor/`), der eine Präsentation aus animierten React-Szenen im Browser abspielt,
 an Haltepunkten stoppt und per Leertaste, Pfeiltaste oder Klick weiterschaltet. Dieser Ordner enthält **nur den
 Präsentator**. Jede Präsentation liegt in einem eigenen Ordner irgendwo auf der Festplatte und wird im Präsentator
 unter „Präsentation“ gewählt.
@@ -63,8 +63,7 @@ Der Inhalt muss nur diese Schnittstelle erfüllen (Typen dazu in `editor/types.t
 
 | Datei im Inhaltsordner | Pflicht | Aufgabe |
 |---|---|---|
-| `src/Video.tsx` | ja | exportiert `Video`, eine Remotion-Komponente mit der Eigenschaft `{content}` |
-| `src/index.ts`, `src/Root.tsx` | nur zum Rendern | registrieren die Komposition für `npm run render` |
+| `src/Video.tsx` | ja | exportiert `Video`, eine React-Komponente mit der Eigenschaft `{content}` |
 | `src/content.json` | ja | `title` (Name der Präsentation), `order`, `scenes` – je Szene `name` (Kurzname für die Leiste), `dur`, `stops`, `t`, `lists`, optional `kicker`, `title`, `captions` |
 | `src/begleittext.md` | nein | Thema, Zielgruppe, Ton für die `?`-Taste |
 | `src/umbau-regeln.md` | nein | Besonderheiten dieser Folien für „Folie umbauen“ |
@@ -89,15 +88,16 @@ Welche Präsentation gezeigt wird, wählt man im Präsentator rechts oben unter 
 | `src/Video.tsx` | Tabelle `REG`: ordnet jeder Szenen-ID aus `content.json` eine React-Komponente zu und reiht sie hintereinander. |
 | `src/scenesA.tsx`, `scenesB.tsx`, `scenesC.tsx` | Die Szenen selbst. |
 | `src/ui.tsx` | Bausteine für Szenen (`Scene`, `Appear`, `Box`, `Arrow`, Farben `C` …) und die Typen `SceneContent`, `SceneProps`. |
-| `src/Root.tsx`, `src/index.ts` | Komposition für das Rendern als Video (`npm run render`). |
-| `scripts/render.mjs`, `scripts/pdf.mjs`, `scripts/vorschau*.mjs`, `remotion.config.ts` | Präsentator: rendert die gewählte Präsentation als Video bzw. PDF; sorgt dafür, dass sie die hier installierten Pakete findet. |
+| `runtime/` | Laufzeit: die Bausteine, die Szenen aus `'showpoint'` importieren (siehe unten), und der Player. |
+| `render/`, `scripts/stills.mjs` | Renderer: öffnet die Präsentation in einem unsichtbaren Chrome und fotografiert einzelne Bilder. |
+| `scripts/render.mjs`, `scripts/pdf.mjs`, `scripts/vorschau*.mjs` | Präsentator: rendert die gewählte Präsentation als Video bzw. PDF und erzeugt die Vorschaubilder für Claude. |
 | `editor/main.tsx` | Oberfläche des Präsentators. Die Anzeigenamen der Szenen kommen aus `content.json` (`name`). |
 | `vite.config.mts` | Server: `/api/content` (lesen/speichern), `/api/ask` (die `?`-Taste), `/api/rebuild` (Folie umbauen), `/api/create` (neue Präsentation); Zugänge aus `.env`. |
 | `prompt.txt`, `prompt.en.txt`, `vorlage/` | Vorlage für den Prompt (deutsch/englisch) und Gerüst (Bausteine, Beispiel-Szene) einer neuen Präsentation; `vorlage/en/` enthält die englischen Fassungen der Texte. |
 
 ## Weg A: neue Szenen einladen (empfohlen)
 
-So passt ein neu erzeugtes Remotion vollständig in den Präsentator, mit editierbaren Texten und Haltepunkten.
+So passen neu erzeugte Szenen vollständig in den Präsentator, mit editierbaren Texten und Haltepunkten.
 
 ### 1. Szenen-Datei nach `src/` legen
 
@@ -168,14 +168,13 @@ Der Editor überschreibt `content.json` beim Bearbeiten; eine Versionsverwaltung
 
 ### 4. Kleinigkeiten anpassen
 
-- `src/Root.tsx`: die Kompositions-ID anpassen (nur eine Komposition anlegen, sie wird beim Rendern automatisch genommen).
 - `?`-Taste: Thema, Zielgruppe und Ton stehen in `src/begleittext.md`, das Nachschlagematerial im Ordner `quellen/`. Beides auf das neue Thema umstellen, sonst antwortet das Modell mit falschem Hintergrund. Im Dialog wählt man zwischen „Claude Code“ (Befehl `claude`, Modell in `.env` als `CLAUDE_MODEL`) und „LLM aus .env“. Der Zugang steht in `.env` (Vorlage: `.env.example`).
   Mit „Claude Code“ darf das Modell bei Fragen **im Internet suchen und Webseiten lesen** (WebSearch, WebFetch) – etwa für aktuelle Fakten – und nennt dann die genutzten Seiten; im Dialog erscheint, wonach es sucht (🔎) und was es liest (🌐). Dateien lesen oder Befehle ausführen kann es dabei nicht. „LLM aus .env“ hat keinen Internetzugang.
 - „Folie umbauen“: Besonderheiten der Folien (Bausteine, Maße, Fakten) in `src/umbau-regeln.md` beschreiben.
 
-## Weg B: eine fertige fremde Komposition unverändert einladen
+## Weg B: eine fertige fremde Animation unverändert einladen
 
-Liegt schon eine fertige Remotion-Komposition vor (eine Komponente mit fester Länge), kann sie als eine einzige Szene laufen:
+Liegt schon eine fertige Animation vor (eine Komponente mit fester Länge, die ihre Bewegung aus `useCurrentFrame()` ableitet), kann sie als eine einzige Szene laufen:
 
 ```tsx
 // src/Video.tsx
@@ -193,9 +192,25 @@ const REG: Record<string, React.FC<SceneProps>> = {
 }
 ```
 
-`dur` ist die Länge der Komposition in Bildern. Haltepunkte setzt man danach im Editor mit `S`.
-Einschränkungen: Texte sind so nicht im Editor änderbar, und die Komposition muss für 1920 × 1080 bei 30 Bildern pro Sekunde gebaut sein.
-Für ein anderes Format müssen Breite, Höhe und `fps` an zwei Stellen gleich geändert werden: im `<Player>` in `editor/main.tsx` und in `src/Root.tsx`.
+`dur` ist die Länge der Animation in Bildern. Haltepunkte setzt man danach im Editor mit `S`.
+Einschränkungen: Texte sind so nicht im Editor änderbar, und die Animation muss für 1920 × 1080 bei 30 Bildern pro Sekunde gebaut sein.
+Für ein anderes Format müssen Breite, Höhe und `fps` an zwei Stellen gleich geändert werden: im `<Player>` in `editor/main.tsx` und in `render/main.tsx`.
+
+## Bausteine der Laufzeit
+
+Szenen importieren ihre Bausteine aus `'showpoint'` (Quelltext in `runtime/index.tsx`):
+
+| Baustein | Aufgabe |
+|---|---|
+| `useCurrentFrame()` | aktuelles Bild, gezählt ab Beginn der Szene bzw. der umgebenden `Sequence` |
+| `useVideoConfig()` | `{fps, width, height, durationInFrames}` – 30, 1920, 1080 und die Gesamtlänge |
+| `interpolate(x, [a, b], [von, bis], {extrapolateLeft, extrapolateRight, easing})` | rechnet ein Bild in einen Wert um (Lage, Deckkraft …); `'clamp'` hält die Endwerte |
+| `spring({frame, fps, config: {damping, stiffness, mass}})` | Federbewegung von 0 nach 1; `damping: 200` = weich ohne Überschwingen |
+| `Easing.inOut(Easing.cubic)`, `Easing.bezier(…)` … | Beschleunigungskurven für `interpolate` |
+| `random('schlüssel')` | Zufallszahl, die für denselben Schlüssel immer gleich ist |
+| `AbsoluteFill` | `div`, das seinen Rahmen ganz ausfüllt |
+| `Sequence from={…} durationInFrames={…}`, `Series` | zeigt Inhalte nur in einem Zeitfenster; darin zählt das Bild wieder ab 0 |
+| `Img` | Bild; der Renderer wartet, bis es geladen ist |
 
 ## Als Video ausgeben
 
@@ -204,8 +219,8 @@ npm run render
 ```
 
 Rendert die im Präsentator gewählte Präsentation nach `out/<titel>.mp4` **in deren Ordner**
-(z. B. `<Ordner der Präsentation>/out/<titel>.mp4`). Weitere Remotion-Optionen lassen sich
-anhängen, z. B. `npm run render -- --frames=0-90`.
+(z. B. `<Ordner der Präsentation>/out/<titel>.mp4`). Nur einen Ausschnitt: `npm run render -- --frames=0-90`.
+Braucht Google Chrome und `ffmpeg` (macOS: `brew install ffmpeg`). Gerendert wird in mehreren Tabs parallel.
 
 ## Als PDF ausgeben
 
@@ -221,9 +236,9 @@ eine halbe Minute.
 
 ## Stolpersteine
 
-- Remotion Studio lieber nicht benutzen: Ziehen in der Vorschau schreibt Skalierung und Drehung in den Code.
-- Folien dürfen nur Pakete verwenden, die hier im Präsentator installiert sind (`remotion`, `react`); ein eigenes `node_modules` im Ordner der Präsentation wird nicht gebraucht.
-- `@vitejs/plugin-react` nicht nachinstallieren – es verträgt sich wegen Babel nicht mit `@remotion/cli`; Vite läuft hier ohne das Plugin.
+- Folien dürfen nur `showpoint` und `react` importieren; ein eigenes `node_modules` im Ordner der Präsentation wird nicht gebraucht.
+- Ältere Präsentationen, die noch aus `'remotion'` importieren, laufen unverändert: Der Name führt ebenfalls zur Laufzeit hier. `src/Root.tsx` und `src/index.ts` werden nicht mehr gebraucht und dürfen bleiben.
+- PDF, Video und Vorschau brauchen Google Chrome (oder ein per `npx playwright install chromium` geladenes Chromium).
 - Die Vite-Konfiguration muss `vite.config.mts` heißen.
 - `.env` enthält den LLM-Schlüssel und steht in `.gitignore`; nicht weitergeben.
 
@@ -271,7 +286,7 @@ Bilder (Screenshots, Fotos, Logos) lassen sich per Auftrag einbinden – bei „
 - Der Server erkennt Bildpfade im Auftrag (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.svg`; beginnend mit `/` oder `~`)
   und kopiert die Dateien vor dem Start nach `src/bilder/` der Präsentation. **Pfade mit Leerzeichen in
   Anführungszeichen setzen.** Nicht gefundene Pfade erscheinen als Fehler im Protokoll.
-- Claude sieht sich das Bild an, bindet es per `import` mit Remotions `<Img>` ein und prüft die Lage mit der Vorschau.
+- Claude sieht sich das Bild an, bindet es per `import` mit `<Img>` aus `'showpoint'` ein und prüft die Lage mit der Vorschau.
   Beschriftungen bleiben echter, änderbarer Text.
 - Das Bild ist damit Teil der Präsentation: Es erscheint im Präsentator, im PDF und im Video und funktioniert auch
   auf anderen Rechnern. „Rückgängig“ nimmt es wieder heraus.

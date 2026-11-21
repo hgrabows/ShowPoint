@@ -1,5 +1,5 @@
 import React from 'react';
-import {AbsoluteFill} from 'remotion';
+import {AbsoluteFill} from 'showpoint';
 import {Appear, Arrow, Box, C, Label, Scene, SceneProps, Sub, Svg} from './ui';
 
 /* 1 ─ Title */

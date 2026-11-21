@@ -6,7 +6,7 @@ import {
   spring,
   useCurrentFrame,
   useVideoConfig,
-} from 'remotion';
+} from 'showpoint';
 
 export const C = {
   bg: '#0B1020',

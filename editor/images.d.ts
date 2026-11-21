@@ -1,5 +1,5 @@
 // Image imports in slides (e.g. `import foto from './bilder/foto.png'`) resolve to the image URL,
-// both in the presenter (Vite) and when rendering (Remotion/webpack).
+// both in the presenter (Vite) and when rendering (scripts/stills.mjs).
 declare module '*.png' {
   const src: string;
   export default src;

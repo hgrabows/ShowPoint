@@ -1,5 +1,5 @@
 import React from 'react';
-import {AbsoluteFill, Series} from 'remotion';
+import {AbsoluteFill, Series} from 'showpoint';
 import {SceneContent, SceneProps} from './ui';
 import {Beispiel, Title} from './scenes';
 

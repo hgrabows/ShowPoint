@@ -9,7 +9,12 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "preserveSymlinks": true
+    "preserveSymlinks": true,
+    "allowJs": true,
+    "paths": {
+      "showpoint": ["./runtime/index.tsx"],
+      "remotion": ["./runtime/index.tsx"]
+    }
   },
-  "include": ["editor", "inhalte"]
+  "include": ["editor", "runtime", "render", "vorlage/src", "inhalte"]
 }

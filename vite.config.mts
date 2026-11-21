@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {defineConfig} from 'vite';
+import {runtimeResolve} from './runtime/aliases.mjs';
 
 const root = process.cwd();
 
@@ -503,7 +504,7 @@ const rebuildSystem = (lang: Lang) => {
   const outside = realDir !== root && !realDir.startsWith(root + path.sep);
   const src = outside ? path.join(realDir, 'src') : rel(inhaltSrc());
   const extra = readOptional('umbau-regeln.md');
-  return `You are rebuilding slides of a Remotion presentation, triggered from the presenter. Nobody can answer follow-up questions: make sensible assumptions and state them at the end.
+  return `You are rebuilding slides of a ShowPoint presentation (React components animated per frame), triggered from the presenter. Nobody can answer follow-up questions: make sensible assumptions and state them at the end.
 Rules:
 - First read ${path.join(root, 'ANLEITUNG.md')} (structure, interface between presenter and content), then the affected files in ${src}/.
 - Only change files in ${src}/. Texts, durations and stops are in ${src}/content.json (valid JSON, keep the same structure).
@@ -677,7 +678,7 @@ function takeImages(text: string, srcDir: string, lang: Lang): string {
   }
   return lines.length ? `\n\nImages supplied with this task, already copied into the presentation (look at each with Read before placing it):\n${lines.join('\n')}` : '';
 }
-const imageRule = `- Images: use only image files inside the presentation's src/bilder/ (the user supplies them; the server copies image paths named in a task there). Import them relative to the scene file, e.g. \`import foto from './bilder/foto.png'\`, and show them with \`<Img src={foto} style={{width: …, height: …, objectFit: 'contain'}} />\` (Img from 'remotion', never a plain <img>, never paths outside the presentation). Keep labels as real text from c.t next to or on top of the image, not baked into it. Images may fade or move in like other elements; check size and position with the preview.`;
+const imageRule = `- Images: use only image files inside the presentation's src/bilder/ (the user supplies them; the server copies image paths named in a task there). Import them relative to the scene file, e.g. \`import foto from './bilder/foto.png'\`, and show them with \`<Img src={foto} style={{width: …, height: …, objectFit: 'contain'}} />\` (Img from 'showpoint', never a plain <img>, never paths outside the presentation). Keep labels as real text from c.t next to or on top of the image, not baked into it. Images may fade or move in like other elements; check size and position with the preview.`;
 
 function startRebuild(instruction: string, sceneId: string, lang: Lang) {
   if (!hasInhalt()) throw new Error(MSG[lang].noPresentation);
@@ -730,7 +731,7 @@ const vorlageDir = path.join(root, 'vorlage');
 const vorlageEnDir = path.join(vorlageDir, 'en');
 const vorlageEnFiles = ['README.md', 'src/begleittext.md', 'src/content.json', 'src/umbau-regeln.md'];
 
-const createSystem = (dir: string, lang: Lang) => `You are creating a complete Remotion presentation for the "presenter", triggered from its user interface. Nobody can answer follow-up questions: make sensible assumptions and state them at the end.
+const createSystem = (dir: string, lang: Lang) => `You are creating a complete ShowPoint presentation (React components animated per frame) for the "presenter", triggered from its user interface. Nobody can answer follow-up questions: make sensible assumptions and state them at the end.
 The folder of the new presentation is ${dir} (your working folder). It already contains a working scaffold with two placeholder scenes.
 
 Language: write all slide texts, captions, notes, begleittext.md, umbau-regeln.md, README.md and quellen/00-notizen.md in the language the task (the user's request) is written in; if that is unclear, use ${LANG_NAME[lang]}. Write your final answer in ${LANG_NAME[lang]}.
@@ -748,9 +749,8 @@ Rules:
 - Nothing may overlap or stick out of the frame. Check widths and positions by calculation; as a rule of thumb a character needs about 0.55 × font size of width. Text in the picture at least 22 px, captions at most about 150 characters.
 - All visible texts come from c.t (keys t01, t02, …) or c.lists, never hard-coded – only then can they be edited in the presenter.
 - Elements appear one after another, matching the spoken text (captions[].at). Each caption stays about 4 to 6 seconds. Stops shortly before each next caption and at the end of the scene (dur − 13).
-- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages remotion and react; images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
+- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
 ${imageRule}
-- The composition ID in src/Root.tsx stays as it is.
 - Only write in ${dir}. Write valid TypeScript (strict) carefully and import only what you use and what exists.
 ${vorschauHint(dir)}
   Check every scene this way at the end (several scene IDs per call are possible, at most 40 images).
@@ -878,7 +878,7 @@ function startPdf(lang: Lang) {
 export default defineConfig({
   root: 'editor',
   server: {port: 5173, strictPort: true, fs: {allow: ['..']}},
-  resolve: {preserveSymlinks: true},
+  resolve: runtimeResolve,
   plugins: [
     {
       name: 'content-api',

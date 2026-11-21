@@ -1,7 +1,7 @@
 /**
  * The interface between the presenter and the content.
  * A content folder provides:
- *   src/Video.tsx     – exports `Video`, a Remotion component with the prop {content}
+ *   src/Video.tsx     – exports `Video`, a React component with the prop {content}
  *   src/content.json  – data in the shape `Content`
  *   src/begleittext.md, src/umbau-regeln.md (optional) – notes for questions and for rebuilds
  *   quellen/          – (optional) files the model reads when answering questions

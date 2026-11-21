@@ -15,8 +15,7 @@ const fail = (msg) => {
 };
 if (!dirArg) fail('Usage: node scripts/vorschau.mjs <presentation folder> [scene ID …]');
 const dir = fs.realpathSync(path.resolve(dirArg));
-const entry = path.join(dir, 'src', 'index.ts');
-if (!fs.existsSync(entry)) fail(`${entry} is missing – is ${dir} a presentation folder?`);
+if (!fs.existsSync(path.join(dir, 'src', 'Video.tsx'))) fail(`${path.join(dir, 'src', 'Video.tsx')} is missing – is ${dir} a presentation folder?`);
 
 // 1. content.json
 let content;
@@ -67,8 +66,7 @@ if (tsc) fail(`Type check reports errors (fix them first, then call again):\n${t
 console.log(`Type check passed${link ? '' : ' (note: the presentation is not linked under inhalte/, only the presenter was checked)'}.`);
 
 // 3. Images at every stop
-const {bundle} = await import('@remotion/bundler');
-const {openBrowser, renderStill, getCompositions} = await import('@remotion/renderer');
+const {openStage} = await import('./stills.mjs');
 const shots = [];
 let start = 0;
 for (const id of content.order) {
@@ -85,25 +83,25 @@ if (shots.length > MAX) fail(`That would be ${shots.length} images. Please give 
 const out = path.join(dir, '.vorschau');
 fs.rmSync(out, {recursive: true, force: true});
 fs.mkdirSync(out, {recursive: true});
-const serveUrl = await bundle({
-  entryPoint: entry,
-  webpackOverride: (config) => ({...config, resolve: {...config.resolve, modules: [path.join(root, 'node_modules'), 'node_modules']}}),
-});
-const [composition] = await getCompositions(serveUrl);
-const browser = await openBrowser('chrome');
+let stage;
+try {
+  stage = await openStage(dir, {scale: 0.5});
+} catch (e) {
+  fail(`The presentation could not be loaded:\n${String(e.message).slice(0, 3000)}`);
+}
 const errors = [];
 try {
   for (const s of shots) {
     const file = path.join(out, `${s.id}-${String(s.local).padStart(4, '0')}.jpg`);
     try {
-      await renderStill({composition, serveUrl, frame: s.frame, output: file, imageFormat: 'jpeg', jpegQuality: 80, scale: 0.5, puppeteerInstance: browser});
+      await stage.shot(s.frame, file, {quality: 80});
       console.log(`Scene ${s.id}, frame ${s.local}${s.last ? ' (final frame)' : ' (stop)'}: ${file}`);
     } catch (e) {
-      errors.push(`Scene ${s.id}, frame ${s.local}: ${String(e.message).split('\n')[0]}`);
+      errors.push(`Scene ${s.id}, frame ${s.local}: ${String(e.message).split('\n').slice(0, 3).join(' / ')}`);
     }
   }
 } finally {
-  await browser.close({silent: true});
+  await stage.close();
 }
 if (errors.length) fail(`Rendering failed:\n${errors.join('\n')}`);
 console.log(`\n${shots.length} images (960×540, half the size of the 1920×1080 stage). Look at them and check: nothing overlaps, nothing sticks out of the frame or into the caption box, text easy to read.`);

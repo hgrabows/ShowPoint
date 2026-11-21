@@ -1,7 +1,7 @@
 import {T, LangSwitch, langCss} from './i18n';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {Player, PlayerRef} from '@remotion/player';
+import {Player, PlayerRef} from '../runtime';
 import {Content, SceneContent, sceneStarts, totalFrames} from './types';
 import {Ask, askCss} from './Ask';
 import {Rebuild, RebuildState, rebuildCss} from './Rebuild';
@@ -656,9 +656,6 @@ const App: React.FC = () => {
             compositionHeight={1080}
             fps={30}
             style={{width: '100%', height: '100%'}}
-            clickToPlay={false}
-            doubleClickToFullscreen={false}
-            spaceKeyToPlayOrPause={false}
           />
           {asking ? (
             <Ask

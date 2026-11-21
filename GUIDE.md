@@ -2,7 +2,7 @@
 
 *Deutsche Fassung: [ANLEITUNG.md](ANLEITUNG.md)*
 
-The presenter is a small Vite editor (`editor/`) that plays a Remotion presentation in the browser, pauses at
+The presenter is a small Vite editor (`editor/`) that plays a presentation of animated React scenes in the browser, pauses at
 stops and advances with the space bar, an arrow key or a click. This folder contains **only the presenter**. Each
 presentation lives in its own folder anywhere on disk and is chosen in the presenter under "Presentation".
 
@@ -63,8 +63,7 @@ The content only has to satisfy this interface (types in `editor/types.ts`):
 
 | File in the content folder | Required | Purpose |
 |---|---|---|
-| `src/Video.tsx` | yes | exports `Video`, a Remotion component with the prop `{content}` |
-| `src/index.ts`, `src/Root.tsx` | only for rendering | register the composition for `npm run render` |
+| `src/Video.tsx` | yes | exports `Video`, a React component with the prop `{content}` |
 | `src/content.json` | yes | `title` (name of the presentation), `order`, `scenes` – per scene `name` (short name for the bar), `dur`, `stops`, `t`, `lists`, optionally `kicker`, `title`, `captions` |
 | `src/begleittext.md` (accompanying notes) | no | topic, audience, tone for the `?` key |
 | `src/umbau-regeln.md` (rebuild rules) | no | specifics of these slides for "Rebuild slide" |
@@ -89,15 +88,16 @@ Which presentation is shown is chosen in the presenter at the top right under "P
 | `src/Video.tsx` | Table `REG`: maps each scene ID from `content.json` to a React component and puts them in sequence. |
 | `src/scenesA.tsx`, `scenesB.tsx`, `scenesC.tsx` | The scenes themselves. |
 | `src/ui.tsx` | Building blocks for scenes (`Scene`, `Appear`, `Box`, `Arrow`, colors `C` …) and the types `SceneContent`, `SceneProps`. |
-| `src/Root.tsx`, `src/index.ts` | Composition for rendering as a video (`npm run render`). |
-| `scripts/render.mjs`, `scripts/pdf.mjs`, `scripts/vorschau*.mjs`, `remotion.config.ts` | Presenter: renders the chosen presentation as video or PDF; makes sure it finds the packages installed here. |
+| `runtime/` | Runtime: the building blocks scenes import from `'showpoint'` (see below) and the player. |
+| `render/`, `scripts/stills.mjs` | Renderer: opens the presentation in a hidden Chrome and takes pictures of single frames. |
+| `scripts/render.mjs`, `scripts/pdf.mjs`, `scripts/vorschau*.mjs` | Presenter: renders the chosen presentation as video or PDF and makes the preview images for Claude. |
 | `editor/main.tsx` | The presenter's user interface. The display names of the scenes come from `content.json` (`name`). |
 | `vite.config.mts` | Server: `/api/content` (read/save), `/api/ask` (the `?` key), `/api/rebuild` (rebuild slide), `/api/create` (new presentation); credentials from `.env`. |
 | `prompt.txt`, `prompt.en.txt`, `vorlage/` | Prompt template (German/English) and skeleton (building blocks, example scene) for a new presentation; `vorlage/` means "template", `vorlage/en/` holds the English versions of its texts. |
 
 ## Route A: bring in new scenes (recommended)
 
-This way a newly generated Remotion project fits into the presenter completely, with editable texts and stops.
+This way newly generated scenes fit into the presenter completely, with editable texts and stops.
 
 ### 1. Put the scene file into `src/`
 
@@ -168,14 +168,13 @@ The editor overwrites `content.json` when you edit; version control in the prese
 
 ### 4. Small adjustments
 
-- `src/Root.tsx`: adjust the composition ID (create only one composition; it is picked automatically when rendering).
 - `?` key: topic, audience and tone are in `src/begleittext.md`, the reference material in the `quellen/` folder. Switch both to the new topic, otherwise the model answers with the wrong background. In the dialog you choose between "Claude Code" (command `claude`, model in `.env` as `CLAUDE_MODEL`) and "LLM from .env". The credentials are in `.env` (template: `.env.example`).
   With "Claude Code" the model may **search the internet and read web pages** when answering (WebSearch, WebFetch) – e.g. for current facts – and then names the pages it used; the dialog shows what it searches for (🔎) and reads (🌐). It cannot read files or run commands. "LLM from .env" has no internet access.
 - "Rebuild slide": describe the specifics of the slides (building blocks, dimensions, facts) in `src/umbau-regeln.md`.
 
-## Route B: bring in a finished third-party composition unchanged
+## Route B: bring in a finished third-party animation unchanged
 
-If you already have a finished Remotion composition (a component with a fixed length), it can run as a single scene:
+If you already have a finished animation (a component with a fixed length that derives its motion from `useCurrentFrame()`), it can run as a single scene:
 
 ```tsx
 // src/Video.tsx
@@ -193,9 +192,25 @@ const REG: Record<string, React.FC<SceneProps>> = {
 }
 ```
 
-`dur` is the length of the composition in frames. Set stops afterwards in the editor with `S`.
-Limitations: texts cannot be edited in the editor this way, and the composition must be built for 1920 × 1080 at 30 frames per second.
-For a different format, width, height and `fps` must be changed identically in two places: in the `<Player>` in `editor/main.tsx` and in `src/Root.tsx`.
+`dur` is the length of the animation in frames. Set stops afterwards in the editor with `S`.
+Limitations: texts cannot be edited in the editor this way, and the animation must be built for 1920 × 1080 at 30 frames per second.
+For a different format, width, height and `fps` must be changed identically in two places: in the `<Player>` in `editor/main.tsx` and in `render/main.tsx`.
+
+## Runtime building blocks
+
+Scenes import their building blocks from `'showpoint'` (source in `runtime/index.tsx`):
+
+| Building block | Purpose |
+|---|---|
+| `useCurrentFrame()` | current frame, counted from the start of the scene or the enclosing `Sequence` |
+| `useVideoConfig()` | `{fps, width, height, durationInFrames}` – 30, 1920, 1080 and the total length |
+| `interpolate(x, [a, b], [from, to], {extrapolateLeft, extrapolateRight, easing})` | turns a frame into a value (position, opacity …); `'clamp'` holds the end values |
+| `spring({frame, fps, config: {damping, stiffness, mass}})` | spring motion from 0 to 1; `damping: 200` = smooth without overshoot |
+| `Easing.inOut(Easing.cubic)`, `Easing.bezier(…)` … | easing curves for `interpolate` |
+| `random('key')` | random number that is always the same for the same key |
+| `AbsoluteFill` | `div` that fills its frame completely |
+| `Sequence from={…} durationInFrames={…}`, `Series` | shows content only within a time window; inside, frames count from 0 again |
+| `Img` | image; the renderer waits until it has loaded |
 
 ## Output as video
 
@@ -204,8 +219,8 @@ npm run render
 ```
 
 Renders the presentation chosen in the presenter to `out/<title>.mp4` **in its folder**
-(e.g. `<presentation folder>/out/<title>.mp4`). Further Remotion options can be
-appended, e.g. `npm run render -- --frames=0-90`.
+(e.g. `<presentation folder>/out/<title>.mp4`). Only a part: `npm run render -- --frames=0-90`.
+Needs Google Chrome and `ffmpeg` (macOS: `brew install ffmpeg`). Frames are rendered in several tabs in parallel.
 
 ## Output as PDF
 
@@ -221,9 +236,9 @@ half a minute.
 
 ## Pitfalls
 
-- Better not to use Remotion Studio: dragging in the preview writes scaling and rotation into the code.
-- Slides may only use packages installed here in the presenter (`remotion`, `react`); a separate `node_modules` in the presentation's folder is not needed.
-- Do not install `@vitejs/plugin-react` – because of Babel it does not get along with `@remotion/cli`; Vite runs here without the plugin.
+- Slides may only import `showpoint` and `react`; a separate `node_modules` in the presentation's folder is not needed.
+- Older presentations that still import from `'remotion'` run unchanged: that name leads to the runtime here as well. `src/Root.tsx` and `src/index.ts` are no longer needed and may stay.
+- PDF, video and preview need Google Chrome (or a Chromium loaded with `npx playwright install chromium`).
 - The Vite configuration must be named `vite.config.mts`.
 - `.env` contains the LLM key and is in `.gitignore`; do not share it.
 
@@ -271,7 +286,7 @@ Images (screenshots, photos, logos) can be added through a task – in “Rebuil
 - The server detects image paths in the task (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.svg`; starting with `/` or `~`)
   and copies the files into `src/bilder/` (images) of the presentation before starting. **Put paths with spaces in
   quotes.** Paths that cannot be found show up as errors in the log.
-- Claude looks at the image, embeds it via `import` with Remotion's `<Img>` and checks its position with the preview.
+- Claude looks at the image, embeds it via `import` with `<Img>` from `'showpoint'` and checks its position with the preview.
   Labels stay real, editable text.
 - The image is then part of the presentation: it shows in the presenter, the PDF and the video, and works on other
   computers too. “Undo” takes it out again.

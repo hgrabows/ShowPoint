@@ -1,7 +1,7 @@
 # ShowPoint
 
 **Slides you can ask questions.** ShowPoint is an alternative to PowerPoint, NotebookLM-style study tools and
-classic e-learning: presentations are animated [Remotion](https://www.remotion.dev) scenes that play in the browser,
+classic e-learning: presentations are animated React scenes that play in the browser,
 pause at stops, answer questions about what is on screen – and can be rebuilt or created from scratch by Claude Code.
 
 > Full guide: [GUIDE.md](GUIDE.md) (German version: [ANLEITUNG.md](ANLEITUNG.md)).
@@ -29,7 +29,7 @@ Presenter and content are separate: each presentation lives in its own folder an
 
 ## Quick start
 
-Requirements: Node.js 20+, and the [Claude Code](https://claude.com/claude-code) CLI (`claude`) signed in, for
+Requirements: Node.js 20+, Google Chrome (for PDF, video and the preview), `ffmpeg` for video, and the [Claude Code](https://claude.com/claude-code) CLI (`claude`) signed in, for
 asking with Claude, rebuilding and creating. For the alternative LLM, copy `.env.example` to `.env` and fill it in.
 
 ```bash
@@ -47,6 +47,5 @@ Open <http://localhost:5173>, then choose or create a presentation at the top ri
 No license has been chosen yet: the code is public to read, but all rights are reserved for now. If you would like
 to use or adapt ShowPoint, please open an issue.
 
-ShowPoint builds on [Remotion](https://www.remotion.dev), which has its own license: free for individuals,
-non-profits and companies with up to three employees; larger companies need a
-[Remotion company license](https://www.remotion.dev/license).
+ShowPoint has its own small animation runtime (`runtime/`) and depends only on React, Vite and Playwright
+(for PDF and video), all under permissive licenses.
