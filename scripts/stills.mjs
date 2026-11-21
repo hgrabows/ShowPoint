@@ -17,7 +17,9 @@ async function launchBrowser() {
   // installed Google Chrome first, then a Chromium that Playwright may have downloaded, then Edge
   for (const opts of [{channel: 'chrome'}, {}, {channel: 'msedge'}]) {
     try {
-      return await chromium.launch({...opts, headless: true});
+      // 3D slides (runtime/three.tsx) need WebGL: on machines without a usable GPU, allow Chrome's software
+      // fallback (SwiftShader). With a GPU this changes nothing.
+      return await chromium.launch({...opts, headless: true, args: ['--enable-unsafe-swiftshader']});
     } catch (e) {
       errors.push(String(e.message).split('\n')[0]);
     }

@@ -213,6 +213,7 @@ Scenes import their building blocks from `'showpoint'` (source in `runtime/index
 | `Img` | image; the renderer waits until it has loaded |
 | `BarChart`, `LineChart`, `PieChart` | charts that build up from frame `at` (details below) |
 | `Formula` | formula from LaTeX text (KaTeX), fading in from `at`: `<Formula tex={c.t.f1} x={90} y={250} at={20} fontSize={56} />`; steps of a calculation one after the other with `steps={c.lists.steps}` (spacing `every`, default 45 frames); also `w`, `align`, `color`, `display={false}` for inline style. In `content.json` double the backslashes: `"\\frac{a}{b}"` |
+| `ThreeCanvas x y w h setup={…} update={(ctx, frame, fps) => …}`, `THREE` | 3D scene with Three.js: `setup` builds scene, lights and camera once, `update` sets everything from the frame number alone. Example: `vorlage/beispiele/three-beispiel.tsx`. Text drawn in 3D cannot be selected, so put labels next to it as normal text |
 
 **Charts.** Numbers and labels are best kept in `content.json` under `lists` (values as text, e.g. `"3.5"` or
 `"40 %"`), so they stay editable in the presenter:

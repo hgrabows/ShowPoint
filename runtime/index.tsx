@@ -10,6 +10,8 @@ export {Player} from './Player';
 export type {PlayerRef} from './Player';
 export {BarChart, LineChart, PieChart, CHART_COLORS, parseNumbers} from './charts';
 export type {BarChartProps, LineChartProps, LineSeries, PieChartProps, Num} from './charts';
+export {ThreeCanvas, THREE} from './three';
+export type {ThreeContext} from './three';
 
 /* ── Timeline ─────────────────────────────────────────────────────────────── */
 
