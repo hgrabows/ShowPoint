@@ -12,6 +12,8 @@ export {BarChart, LineChart, PieChart, CHART_COLORS, parseNumbers} from './chart
 export type {BarChartProps, LineChartProps, LineSeries, PieChartProps, Num} from './charts';
 export {ThreeCanvas, THREE} from './three';
 export type {ThreeContext} from './three';
+export {Model3D} from './model3d';
+export type {Model3DObjects} from './model3d';
 
 /* ── Timeline ─────────────────────────────────────────────────────────────── */
 

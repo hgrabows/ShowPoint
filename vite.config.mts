@@ -56,6 +56,8 @@ const MSG = {
     imageNotFound: (f: string) => `Bild nicht gefunden: ${f}`,
     imageCopied: (name: string) => `Bild übernommen → src/bilder/${name}`,
     specCopied: (name: string) => `Vorgabe übernommen → vorgaben/${name}`,
+    modelCopied: (name: string) => `3D-Modell übernommen → src/modelle/${name}`,
+    modelNotFound: (f: string) => `3D-Modell nicht gefunden: ${f}`,
     specNotFound: (f: string) => `Vorgabe nicht gefunden: ${f}`,
     plantumlLabel: 'PlantUML zeichnen',
     undone: 'Rückgängig gemacht: der Inhalt ist wieder auf dem Stand vor diesem Umbau.',
@@ -109,6 +111,8 @@ const MSG = {
     imageNotFound: (f: string) => `Image not found: ${f}`,
     imageCopied: (name: string) => `Image added → src/bilder/${name}`,
     specCopied: (name: string) => `Specification added → vorgaben/${name}`,
+    modelCopied: (name: string) => `3D model added → src/modelle/${name}`,
+    modelNotFound: (f: string) => `3D model not found: ${f}`,
     specNotFound: (f: string) => `Specification not found: ${f}`,
     plantumlLabel: 'Draw PlantUML',
     undone: 'Undone: the content is back to the state before this rebuild.',
@@ -265,7 +269,7 @@ const pickFolder = (prompt: string, lang: Lang) =>
 
 // Built-in building blocks with a library behind them, recognised by the names imported from 'showpoint'.
 const BUILTINS: {key: string; names: RegExp}[] = [
-  {key: 'three', names: /\b(ThreeCanvas|THREE)\b/},
+  {key: 'three', names: /\b(ThreeCanvas|THREE|Model3D)\b/},
   {key: 'katex', names: /\bFormula\b/},
   {key: 'mermaid', names: /\bMermaid\b/},
   {key: 'charts', names: /\b(BarChart|LineChart|PieChart)\b/},
@@ -694,6 +698,7 @@ ${imageRule}
 ${chartRule}
 ${formulaRule}
 ${mermaidRule}
+${modelRule}
 ${plantumlRule}
 ${paketRule}
 ${linkRule}
@@ -911,30 +916,76 @@ function takeSpecs(text: string, presDir: string, lang: Lang): string {
   return lines.length ? `\n\nSpecifications supplied with this task, copied into the presentation (they apply from now on – read them before you start):\n${lines.join('\n')}` : '';
 }
 
-function takeImages(text: string, srcDir: string, lang: Lang): string {
-  const found = new Set<string>();
-  for (const m of text.matchAll(new RegExp(`["„“'‚]((?:~|/)[^"“”'\\n]+\\.(?:${IMAGE_EXT}))["“”'‘]`, 'gi'))) found.add(m[1]);
-  for (const m of text.matchAll(new RegExp(`(?:^|[\\s(])((?:~|/)[^\\s"'“”<>()]*\\.(?:${IMAGE_EXT}))`, 'gim'))) found.add(m[1]);
-  const dest = path.join(srcDir, 'bilder');
-  const lines: string[] = [];
-  for (const f of found) {
-    const from = path.resolve(expandHome(f));
-    if (!fs.existsSync(from) || !fs.statSync(from).isFile()) {
-      // a path with spaces is also found cut off at the first space – only report the full one
-      if (![...found].some((g) => g !== f && g.includes(f))) push('error', MSG[lang].imageNotFound(f));
-      continue;
-    }
-    const ext = path.extname(from).toLowerCase();
-    const stem = path.basename(from, path.extname(from)).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'bild';
-    fs.mkdirSync(dest, {recursive: true});
-    let name = `${stem}${ext}`;
-    for (let i = 2; fs.existsSync(path.join(dest, name)) && !fs.readFileSync(path.join(dest, name)).equals(fs.readFileSync(from)); i++) name = `${stem}-${i}${ext}`;
-    fs.copyFileSync(from, path.join(dest, name));
-    push('tool', MSG[lang].imageCopied(name));
-    lines.push(`- ${f} → ${path.join(dest, name)} (in the code: src/bilder/${name})`);
+/**
+ * Files a task brings along (named by path in the task text): which kinds are taken over, and into which folder of
+ * the presentation's src/. A further kind is one more entry here (plus a rule that tells Claude how to use it).
+ */
+const TAKEN: {ext: string; folder: string; copied: (lang: Lang, name: string) => string; missing: (lang: Lang, f: string) => string; heading: string; describe?: (file: string) => string}[] = [
+  {
+    ext: IMAGE_EXT,
+    folder: 'bilder',
+    copied: (lang, name) => MSG[lang].imageCopied(name),
+    missing: (lang, f) => MSG[lang].imageNotFound(f),
+    heading: 'Images supplied with this task, already copied into the presentation (look at each with Read before placing it):',
+  },
+  {
+    ext: 'glb',
+    folder: 'modelle',
+    copied: (lang, name) => MSG[lang].modelCopied(name),
+    missing: (lang, f) => MSG[lang].modelNotFound(f),
+    heading: '3D models supplied with this task, already copied into the presentation (binary files – do not Read them; show them with <Model3D>):',
+    describe: glbSummary,
+  },
+];
+/** What a .glb file contains, read from its JSON part: names of the parts, animations, size – so Claude can address parts by name. */
+function glbSummary(file: string): string {
+  try {
+    const buf = fs.readFileSync(file);
+    if (buf.readUInt32LE(0) !== 0x46546c67) return ' – not a valid .glb file';
+    const len = buf.readUInt32LE(12);
+    const json = JSON.parse(buf.subarray(20, 20 + len).toString('utf8'));
+    const names = (json.nodes ?? []).map((n: {name?: string}) => n.name).filter(Boolean) as string[];
+    const anims = (json.animations ?? []).map((a: {name?: string}, i: number) => a.name || `#${i + 1}`) as string[];
+    const draco = (json.extensionsRequired ?? []).includes('KHR_draco_mesh_compression');
+    return (
+      ` – ${(buf.length / 1e6).toFixed(1)} MB, ${(json.meshes ?? []).length} meshes` +
+      (names.length ? `, parts: ${names.slice(0, 40).join(', ')}${names.length > 40 ? ' …' : ''}` : '') +
+      (anims.length ? `; animations: ${anims.slice(0, 10).join(', ')}` : '; no animations') +
+      (draco ? '; WARNING: Draco-compressed – Model3D cannot load it, tell the user to export without compression' : '')
+    );
+  } catch {
+    return '';
   }
-  return lines.length ? `\n\nImages supplied with this task, already copied into the presentation (look at each with Read before placing it):\n${lines.join('\n')}` : '';
 }
+function takeImages(text: string, srcDir: string, lang: Lang): string {
+  let out = '';
+  for (const kind of TAKEN) {
+    const found = new Set<string>();
+    for (const m of text.matchAll(new RegExp(`["„“'‚]((?:~|/)[^"“”'\\n]+\\.(?:${kind.ext}))["“”'‘]`, 'gi'))) found.add(m[1]);
+    for (const m of text.matchAll(new RegExp(`(?:^|[\\s(])((?:~|/)[^\\s"'“”<>()]*\\.(?:${kind.ext}))`, 'gim'))) found.add(m[1]);
+    const dest = path.join(srcDir, kind.folder);
+    const lines: string[] = [];
+    for (const f of found) {
+      const from = path.resolve(expandHome(f));
+      if (!fs.existsSync(from) || !fs.statSync(from).isFile()) {
+        // a path with spaces is also found cut off at the first space – only report the full one
+        if (![...found].some((g) => g !== f && g.includes(f))) push('error', kind.missing(lang, f));
+        continue;
+      }
+      const ext = path.extname(from).toLowerCase();
+      const stem = path.basename(from, path.extname(from)).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'datei';
+      fs.mkdirSync(dest, {recursive: true});
+      let name = `${stem}${ext}`;
+      for (let i = 2; fs.existsSync(path.join(dest, name)) && !fs.readFileSync(path.join(dest, name)).equals(fs.readFileSync(from)); i++) name = `${stem}-${i}${ext}`;
+      fs.copyFileSync(from, path.join(dest, name));
+      push('tool', kind.copied(lang, name));
+      lines.push(`- ${f} → ${path.join(dest, name)} (in the code: src/${kind.folder}/${name})${kind.describe?.(path.join(dest, name)) ?? ''}`);
+    }
+    if (lines.length) out += `\n\n${kind.heading}\n${lines.join('\n')}`;
+  }
+  return out;
+}
+const modelRule = `- 3D models: only .glb files inside the presentation's src/modelle/ (the user supplies them, e.g. exported from Blender; the server copies .glb paths named in a task there). \`import haus from './modelle/haus.glb'\` and \`<Model3D src={haus} x={…} y={…} w={…} h={…} at={…} angle={-30} tilt={15} spin={20} zoom={1} />\` from 'showpoint': the model is centred, scaled to fit and lit; spin = degrees per second from the frame, animations stored in the file play from frame \`at\`. For more (show single parts one after another, turn to a certain view at a stop) pass \`update={(ctx, frame, fps) => { … }}\` and set everything from the frame alone: ctx.objects.model.getObjectByName('…').visible, ctx.objects.pivot.rotation, ctx.camera. You cannot open a .glb – use the part names given with the task, and check the result with "vorschau" (two different frames). Labels as normal text next to the canvas, not in 3D. Simple 3D shapes without a file: <ThreeCanvas> as before.`;
 const paketRule = `- Other libraries (maps, network graphs, physics, special charts …): only when the building blocks from 'showpoint' cannot do it reasonably. Install with the tool "paket" (input: name, e.g. "d3-geo"); it installs into the presentation's own node_modules, then import as usual. Prefer small, freely licensed packages (MIT, ISC, BSD, Apache-2.0); if the tool reports a licence warning, mention it in your final answer. Never install react, never use the library's own animation clock, timers or transitions: switch them off (e.g. animation: false, frameloop "never") and compute everything from useCurrentFrame(), otherwise jumping, stops, PDF and video will not match. Maps: prefer SVG with d3-geo and offline data (world-atlas / topojson) over tile maps from the internet. Check with "vorschau" that two different frames look different where they should.`;
 const chartRule = `- Numbers and proportions as charts from 'showpoint': <BarChart> (columns; horizontal for long labels; highlight = index to emphasise), <LineChart> (values or series = [{name, values}], area), <PieChart> (shares; donut, center text). Props: x, y, w, h in stage pixels, labels, values, at (start frame), unit (e.g. " %"), decimalComma for German-style numbers. Put labels and values into c.lists (values as strings like "3,5"), so they stay editable in the presenter. Never draw charts by hand when these fit.`;
 const imageRule = `- Images: use only image files inside the presentation's src/bilder/ (the user supplies them; the server copies image paths named in a task there). Import them relative to the scene file, e.g. \`import foto from './bilder/foto.png'\`, and show them with \`<Img src={foto} style={{width: …, height: …, objectFit: 'contain'}} />\` (Img from 'showpoint', never a plain <img>, never paths outside the presentation). Keep labels as real text from c.t next to or on top of the image, not baked into it. Images may fade or move in like other elements; check size and position with the preview.`;
@@ -1033,11 +1084,12 @@ Rules:
 - Nothing may overlap or stick out of the frame. Check widths and positions by calculation; as a rule of thumb a character needs about 0.55 × font size of width. Text in the picture at least 22 px, captions at most about 150 characters.
 - All visible texts come from c.t (keys t01, t02, …) or c.lists, never hard-coded – only then can they be edited in the presenter.
 - Elements appear one after another, matching the spoken text (captions[].at). Each caption stays about 4 to 6 seconds. Stops shortly before each next caption and at the end of the scene (dur − 13).
-- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react plus packages installed with the tool "paket" (see below) (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, Formula, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random, BarChart, LineChart, PieChart, Mermaid); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
+- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react plus packages installed with the tool "paket" (see below) (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, Formula, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random, BarChart, LineChart, PieChart, Mermaid, ThreeCanvas, Model3D); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
 ${imageRule}
 ${chartRule}
 ${formulaRule}
 ${mermaidRule}
+${modelRule}
 ${plantumlRule}
 ${paketRule}
 ${linkRule}
@@ -1170,6 +1222,7 @@ export default defineConfig({
   // preview images and installed packages of a presentation are no reason to reload the presenter
   server: {port: 5173, strictPort: true, open: true, fs: {allow: ['..']}, watch: {ignored: ['**/.vorschau/**', '**/inhalte/*/node_modules/**', '**/.umbau/**']}},
   resolve: runtimeResolve,
+  assetsInclude: ['**/*.glb'], // 3D models are files to load, like images
   // mermaid is loaded with import() only when a slide uses it: bundle it up front, so its first use never makes
   // Vite re-optimise the dependencies and abort the page load
   optimizeDeps: {include: ['mermaid']},

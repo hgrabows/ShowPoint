@@ -233,6 +233,7 @@ Szenen importieren ihre Bausteine aus `'showpoint'` (Quelltext in `runtime/index
 | `BarChart`, `LineChart`, `PieChart` | Diagramme, die sich ab Bild `at` aufbauen (Details unten) |
 | `Formula` | Formel aus LaTeX-Text (KaTeX), weich eingeblendet ab `at`: `<Formula tex={c.t.f1} x={90} y={250} at={20} fontSize={56} />`; Umformungsschritte nacheinander mit `steps={c.lists.schritte}` (Abstand `every`, Standard 45 Bilder); außerdem `w`, `align`, `color`, `display={false}` für Fließtext-Stil. In `content.json` Backslashes verdoppeln: `"\\frac{a}{b}"` |
 | `ThreeCanvas x y w h setup={…} update={(ctx, frame, fps) => …}`, `THREE` | 3D-Szene mit Three.js: `setup` baut Szene, Licht und Kamera einmal, `update` setzt alles nur aus der Bildnummer. Beispiel: `vorlage/beispiele/three-beispiel.tsx`. Text in 3D ist nicht markierbar, Beschriftungen daher als normalen Text daneben setzen |
+| `Model3D src={haus} x y w h at angle tilt spin zoom update={…}` | 3D-Modell aus einer `.glb`-Datei (`import haus from './modelle/haus.glb'`): wird zentriert, eingepasst und beleuchtet; `spin` = Grad pro Sekunde aus der Bildnummer, in der Datei gespeicherte Animationen laufen ab Bild `at` mit. Mit `update` einzelne Teile per Namen ein-/ausblenden oder die Ansicht steuern. Beispiel: `vorlage/beispiele/modell-beispiel.tsx` |
 | `Mermaid code={…} x y w h` | Fluss-, Sequenz-, Zustands- und Klassendiagramme aus Mermaid-Text, eingepasst in den Rahmen und im Folienstil gefärbt. Einblenden: ganz ab `at`, mit `every={30}` Schritt für Schritt (Knoten in der Reihenfolge ihrer ersten Nennung, jede Kante mit dem späteren ihrer Knoten; im Sequenzdiagramm erst die Teilnehmer, dann Nachrichten und Notizen von oben nach unten) oder selbst gesteuert mit `reveal={Zahl sichtbarer Schritte}` bzw. `progress={0..1}`. Außerdem `fontSize` (Standard 20), `maxScale`, `themeVariables`. Mermaid wird erst geladen, wenn eine Folie es benutzt. Syntaxfehler erscheinen als roter Kasten. Beispiel: `vorlage/beispiele/mermaid-beispiel.tsx` |
 | `waitFor('name')` | für eigene Bausteine, die asynchron zeichnen: `const done = waitFor('name')` vor dem Start, `done()` sobald das Ergebnis im DOM steht. Vorschau, PDF und Video warten darauf (höchstens 30 s, dann Fehlermeldung mit dem Namen) |
 
@@ -363,6 +364,20 @@ Bilder (Screenshots, Fotos, Logos) lassen sich per Auftrag einbinden – bei „
 - Das Bild ist damit Teil der Präsentation: Es erscheint im Präsentator, im PDF und im Video und funktioniert auch
   auf anderen Rechnern. „Rückgängig“ nimmt es wieder heraus.
 - Bilder selbst erzeugen kann Claude nicht; Grafiken zeichnet es als SVG/HTML (scharf und animierbar).
+
+## 3D-Modelle einbinden (`.glb`)
+
+Ein 3D-Modell – etwa in Blender gebaut – wird als `.glb` exportiert (Blender: Datei → Exportieren → glTF 2.0, Format
+„glTF Binary (.glb)“, ohne Draco-Kompression) und per Auftrag eingebunden: den Pfad der Datei in den Auftrag schreiben,
+bei „Folie umbauen“ oder „Neue Präsentation“. Der Server kopiert sie nach `src/modelle/` und nennt Claude die Namen der
+Teile und der Animationen aus der Datei; Claude zeigt das Modell mit dem Baustein `Model3D`.
+
+- Das Modell bleibt echtes 3D: drehen, kippen, heranzoomen, Teile nacheinander einblenden – alles aus der Bildnummer,
+  also passend zu Haltepunkten, PDF und Video. Sinnvoll benannte Teile in Blender („Dach“, „Erdgeschoss“) helfen dabei.
+- Blender wird dafür nicht gebraucht, weder beim Präsentieren noch beim Umbauen. Geändert wird das Modell in Blender
+  und neu exportiert; die neue Datei wieder im Auftrag nennen.
+- Nur `.glb` (eine Datei mit allem darin). Für ein starres, fertig gerendertes Bild stattdessen ein PNG mit
+  transparentem Hintergrund als Bild einbinden.
 
 ## Vorgaben für die Darstellung (`vorgaben/`)
 

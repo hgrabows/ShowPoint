@@ -24,3 +24,8 @@ declare module '*.svg' {
   const src: string;
   export default src;
 }
+// 3D models (binary glTF), shown with <Model3D src={…} /> from 'showpoint'
+declare module '*.glb' {
+  const src: string;
+  export default src;
+}

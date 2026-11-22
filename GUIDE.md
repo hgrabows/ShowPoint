@@ -231,6 +231,7 @@ Scenes import their building blocks from `'showpoint'` (source in `runtime/index
 | `BarChart`, `LineChart`, `PieChart` | charts that build up from frame `at` (details below) |
 | `Formula` | formula from LaTeX text (KaTeX), fading in from `at`: `<Formula tex={c.t.f1} x={90} y={250} at={20} fontSize={56} />`; steps of a calculation one after the other with `steps={c.lists.steps}` (spacing `every`, default 45 frames); also `w`, `align`, `color`, `display={false}` for inline style. In `content.json` double the backslashes: `"\\frac{a}{b}"` |
 | `ThreeCanvas x y w h setup={…} update={(ctx, frame, fps) => …}`, `THREE` | 3D scene with Three.js: `setup` builds scene, lights and camera once, `update` sets everything from the frame number alone. Example: `vorlage/beispiele/three-beispiel.tsx`. Text drawn in 3D cannot be selected, so put labels next to it as normal text |
+| `Model3D src={haus} x y w h at angle tilt spin zoom update={…}` | 3D model from a `.glb` file (`import haus from './modelle/haus.glb'`): centred, scaled to fit and lit; `spin` = degrees per second from the frame, animations stored in the file play from frame `at`. With `update`, show or hide single parts by name or control the view. Example: `vorlage/beispiele/modell-beispiel.tsx` |
 | `Mermaid code={…} x y w h` | flowcharts, sequence, state and class diagrams from Mermaid text, fitted into the box and coloured like the slides. Appearing: as a whole from `at`, step by step with `every={30}` (nodes in the order of their first mention, each edge with the later of its two nodes; in sequence diagrams the participants first, then messages and notes from top to bottom) or under your own control with `reveal={number of visible steps}` or `progress={0..1}`. Also `fontSize` (default 20), `maxScale`, `themeVariables`. Mermaid is only loaded when a slide uses it. Syntax errors show as a red box. Example: `vorlage/beispiele/mermaid-beispiel.tsx` |
 | `waitFor('name')` | for your own building blocks that draw asynchronously: `const done = waitFor('name')` before starting, `done()` once the result is in the DOM. Preview, PDF and video wait for it (at most 30 s, then an error naming it) |
 
@@ -360,6 +361,20 @@ Images (screenshots, photos, logos) can be added through a task – in “Rebuil
 - The image is then part of the presentation: it shows in the presenter, the PDF and the video, and works on other
   computers too. “Undo” takes it out again.
 - Claude cannot generate images itself; it draws graphics as SVG/HTML (sharp and animatable).
+
+## Adding 3D models (`.glb`)
+
+A 3D model – built in Blender, for example – is exported as `.glb` (Blender: File → Export → glTF 2.0, format "glTF
+Binary (.glb)", without Draco compression) and added through a task: write the path of the file into the task, in
+"Rebuild slide" or "New presentation". The server copies it to `src/modelle/` ("modelle" = models) and tells Claude the
+names of the parts and animations in the file; Claude shows the model with the building block `Model3D`.
+
+- The model stays real 3D: turn, tilt, zoom, show parts one after another – all from the frame number, so it matches
+  stops, PDF and video. Sensibly named parts in Blender ("Roof", "GroundFloor") help with that.
+- Blender is not needed for this, neither for presenting nor for rebuilding. The model is changed in Blender and
+  exported again; name the new file in a task again.
+- Only `.glb` (one file with everything in it). For a fixed, fully rendered picture add a PNG with a transparent
+  background as an image instead.
 
 ## Specifications for how things are drawn (`vorgaben/`)
 
