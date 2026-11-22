@@ -17,6 +17,8 @@ export type Design = {
     border: string;
     /** Small recessed area (e.g. a document symbol). */
     inset: string;
+    /** Behind the slides: what shows through while one slide fades out and the next fades in. */
+    stage: string;
   };
   text: {
     normal: string;

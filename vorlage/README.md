@@ -1,6 +1,6 @@
 # Präsentation
 
-- `src/` – Folien (`scenes*.tsx`, Bausteine in `ui.tsx`), Texte und Ablauf (`content.json`),
+- `src/` – Folien (`scenes*.tsx`, Bausteine in `ui.tsx`), Aussehen (`design.json`), Texte und Ablauf (`content.json`),
   Hinweise für Fragen (`begleittext.md`) und Umbau (`umbau-regeln.md`)
 - `quellen/` – Material (.md, .txt, .pdf), in dem das Modell bei Fragen nachliest
 - `out/` – gerendertes Video

@@ -14,6 +14,7 @@ export const NIGHT = {
     panel2: '#1B2442',
     border: '#2E3A63',
     inset: '#0F1A33',
+    stage: '#000000',
   },
   text: {normal: '#E8ECF8', muted: '#9AA6C7', heading: '#E8ECF8', kicker: '#8B6CFF', onAccent: '#0B1020'},
   accent: ['#38BDF8', '#8B6CFF', '#FFB020', '#34D399', '#F87171', '#FB923C', '#A3E635', '#F472B6'],
@@ -132,7 +133,7 @@ export function resolveDesign(input) {
   return {
     name: str(input.name, ''),
     dark,
-    surface: {bg, background: str(s.background, bg), panel, panel2, border, inset: str(s.inset, mix(bg, panel, 0.5))},
+    surface: {bg, background: str(s.background, bg), panel, panel2, border, inset: str(s.inset, mix(bg, panel, 0.5)), stage: str(s.stage, dark ? '#000000' : bg)},
     text: {normal, muted, heading: str(t.heading, normal), kicker: str(t.kicker, pick(1)), onAccent: str(t.onAccent, dark ? bg : '#FFFFFF')},
     accent: palette,
     status: {good, bad, note},

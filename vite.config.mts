@@ -783,6 +783,8 @@ function saveOwnDesign(nameIn: string, overwrite: boolean, lang: Lang): {exists?
   if (fs.existsSync(file) && !overwrite) return {exists: true};
   fs.mkdirSync(ownDesignsDir, {recursive: true});
   fs.writeFileSync(file, formatDesign({...(json as Record<string, unknown>), name}));
+  // the presentation now carries this design under its new name ("Design: <name>" in the presenter)
+  if ((json as {name?: string}).name !== name) fs.writeFileSync(path.join(srcDir, 'design.json'), formatDesign({...(json as Record<string, unknown>), name}));
   fs.rmSync(file.replace(/\.json$/, '.jpg'), {force: true});
   // a house font belongs to the design: its files travel with it
   const fonts = fontDirOf(file) as string;

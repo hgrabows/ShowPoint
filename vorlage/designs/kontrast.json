@@ -1,7 +1,7 @@
 {
   "name": "Kontrast",
   "dark": false,
-  "surface": {"bg": "#FFFFFF", "background": "#FFFFFF", "panel": "#FFFFFF", "panel2": "#EEF1F5", "border": "#111827", "inset": "#EEF1F5"},
+  "surface": {"bg": "#FFFFFF", "background": "#FFFFFF", "panel": "#FFFFFF", "panel2": "#EEF1F5", "border": "#111827", "inset": "#EEF1F5", "stage": "#FFFFFF"},
   "text": {"normal": "#000000", "muted": "#2F3848", "heading": "#000000", "kicker": "#0047AB", "onAccent": "#FFFFFF"},
   "accent": ["#0047AB", "#6B21C8", "#A34A00", "#0A6B37", "#C01818", "#B33A00", "#0B6477", "#9A1AA6"],
   "status": {"good": "#0A6B37", "bad": "#C01818", "note": "#A34A00"},
