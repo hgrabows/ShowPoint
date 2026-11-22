@@ -91,6 +91,7 @@ type Presentation = {
   licenses?: {name: string; version: string; license: string}[];
   packages?: {name: string; version: string; license: string; free: boolean}[];
   builtins?: string[];
+  specs?: {file: string; title: string}[];
   list: {dir: string; title: string; path: string; linked: boolean}[];
   error?: string;
 };
@@ -230,7 +231,7 @@ const App: React.FC = () => {
         // a rebuild may have installed packages: refresh the licence notice
         fetch('/api/presentation')
           .then((r) => r.json())
-          .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses, packages: p.packages, builtins: p.builtins} : p)));
+          .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses, packages: p.packages, builtins: p.builtins, specs: p.specs} : p)));
       }
       rbWas.current = st.running;
     } catch {
@@ -1079,7 +1080,7 @@ const App: React.FC = () => {
             );
           })}
         </div>
-        <Libraries builtins={pres?.builtins ?? []} packages={pres?.packages ?? []} />
+        <Libraries builtins={pres?.builtins ?? []} packages={pres?.packages ?? []} specs={pres?.specs ?? []} />
       </div>
     </div>
   );
@@ -1174,11 +1175,11 @@ const RunDot: React.FC<{frame: number; stops: number[]; total: number}> = ({fram
 };
 
 /** Bottom of the side panel, unobtrusive: which libraries the slides really use (built in and installed). */
-const Libraries: React.FC<{builtins: string[]; packages: NonNullable<Presentation['packages']>}> = ({builtins, packages}) => {
-  if (!builtins.length && !packages.length) return null;
+const Libraries: React.FC<{builtins: string[]; packages: NonNullable<Presentation['packages']>; specs: NonNullable<Presentation['specs']>}> = ({builtins, packages, specs}) => {
+  if (!builtins.length && !packages.length && !specs.length) return null;
   return (
     <details className="libs">
-      <summary>{T.libsSummary(builtins.length + packages.length)}</summary>
+      <summary>{T.libsSummary(builtins.length + packages.length, specs.length)}</summary>
       {builtins.length ? (
         <div className="libs-row">
           <span className="libs-k">{T.libsBuiltin}</span>
@@ -1201,7 +1202,23 @@ const Libraries: React.FC<{builtins: string[]; packages: NonNullable<Presentatio
           </span>
         </div>
       ) : null}
-      <div className="libs-hint">{T.libsHint}</div>
+      {specs.length ? (
+        <div className="libs-row">
+          <span className="libs-k">{T.libsSpecs}</span>
+          <span>
+            {specs.map((sp, i) => (
+              <React.Fragment key={sp.file}>
+                {i ? ', ' : ''}
+                <span title={`vorgaben/${sp.file}`}>{sp.title}</span>
+              </React.Fragment>
+            ))}
+          </span>
+        </div>
+      ) : null}
+      <div className="libs-hint">
+        {T.libsHint}
+        {specs.length ? ` ${T.libsSpecsHint}` : ''}
+      </div>
     </details>
   );
 };

@@ -1,12 +1,13 @@
-// Minimal MCP server (stdio, JSON-RPC) with two tools for Claude Code: "vorschau" (preview) and "paket"
-// (install an npm package into the presentation). The presentation folder is fixed at startup (argument);
-// Claude only chooses scenes or a package name. That way Claude needs no Bash and cannot run anything else.
+// Minimal MCP server (stdio, JSON-RPC) with three tools for Claude Code: "vorschau" (preview), "paket"
+// (install an npm package into the presentation) and "plantuml" (render a PlantUML diagram of the presentation). The presentation folder is fixed at startup (argument);
+// Claude only chooses scenes, a package name or a diagram name. That way Claude needs no Bash and cannot run anything else.
 import {execFile} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import {fileURLToPath} from 'node:url';
 import {installPackage} from './paket.mjs';
+import {renderDiagram} from './plantuml.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dir = process.argv[2];
@@ -30,6 +31,17 @@ const paketTool = {
   inputSchema: {
     type: 'object',
     properties: {name: {type: 'string', description: "Package name, optionally with version: 'name' or 'name@1.2.3'."}},
+    required: ['name'],
+  },
+};
+
+const plantumlTool = {
+  name: 'plantuml',
+  description:
+    "Renders a PlantUML diagram of this presentation: reads src/diagramme/<name>.puml (write it first) and writes src/diagramme/<name>.svg next to it, in the colours of the dark slides. Runs locally, no network; !include and URLs are not available. Returns the size of the picture and how to import it, or the PlantUML error with its line. Call it again after every change of the .puml file.",
+  inputSchema: {
+    type: 'object',
+    properties: {name: {type: 'string', description: "Diagram name without folder and ending, e.g. 'schema' for src/diagramme/schema.puml."}},
     required: ['name'],
   },
 };
@@ -66,10 +78,14 @@ readline.createInterface({input: process.stdin}).on('line', async (line) => {
   if (msg.method === 'initialize') {
     return send({id: msg.id, result: {protocolVersion: msg.params?.protocolVersion ?? '2025-06-18', capabilities: {tools: {}}, serverInfo: {name: 'showpoint', version: '1.0.0'}}});
   }
-  if (msg.method === 'tools/list') return send({id: msg.id, result: {tools: [tool, paketTool]}});
+  if (msg.method === 'tools/list') return send({id: msg.id, result: {tools: [tool, paketTool, plantumlTool]}});
   if (msg.method === 'tools/call') {
     if (msg.params?.name === 'paket') {
       const r = await installPackage(dir, msg.params?.arguments?.name);
+      return send({id: msg.id, result: {content: [{type: 'text', text: r.text}], isError: !r.ok}});
+    }
+    if (msg.params?.name === 'plantuml') {
+      const r = await renderDiagram(dir, msg.params?.arguments?.name);
       return send({id: msg.id, result: {content: [{type: 'text', text: r.text}], isError: !r.ok}});
     }
     if (msg.params?.name !== 'vorschau') return send({id: msg.id, error: {code: -32602, message: 'Unknown tool'}});

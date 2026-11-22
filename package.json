@@ -6,7 +6,8 @@
   "scripts": {
     "edit": "vite",
     "render": "node scripts/render.mjs",
-    "pdf": "node scripts/pdf.mjs"
+    "pdf": "node scripts/pdf.mjs",
+    "plantuml": "node scripts/plantuml.mjs --setup"
   },
   "dependencies": {
     "@types/react-dom": "^19.3.0",

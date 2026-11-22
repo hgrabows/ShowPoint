@@ -55,6 +55,9 @@ const MSG = {
     sourceNotFound: (f: string) => `Quelle nicht gefunden: ${f}`,
     imageNotFound: (f: string) => `Bild nicht gefunden: ${f}`,
     imageCopied: (name: string) => `Bild übernommen → src/bilder/${name}`,
+    specCopied: (name: string) => `Vorgabe übernommen → vorgaben/${name}`,
+    specNotFound: (f: string) => `Vorgabe nicht gefunden: ${f}`,
+    plantumlLabel: 'PlantUML zeichnen',
     undone: 'Rückgängig gemacht: der Inhalt ist wieder auf dem Stand vor diesem Umbau.',
     noPdf: 'Noch kein PDF erzeugt.',
     pdfFailed: (code: number | null) => `PDF-Export fehlgeschlagen (Code ${code}).`,
@@ -104,6 +107,9 @@ const MSG = {
     sourceNotFound: (f: string) => `Source not found: ${f}`,
     imageNotFound: (f: string) => `Image not found: ${f}`,
     imageCopied: (name: string) => `Image added → src/bilder/${name}`,
+    specCopied: (name: string) => `Specification added → vorgaben/${name}`,
+    specNotFound: (f: string) => `Specification not found: ${f}`,
+    plantumlLabel: 'Draw PlantUML',
     undone: 'Undone: the content is back to the state before this rebuild.',
     noPdf: 'No PDF created yet.',
     pdfFailed: (code: number | null) => `PDF export failed (code ${code}).`,
@@ -283,7 +289,14 @@ function builtinsUsed(srcDir: string): string[] {
   };
   walk(srcDir);
   const all = imported.join(',');
-  return BUILTINS.filter((b) => b.names.test(all)).map((b) => b.key);
+  const used = BUILTINS.filter((b) => b.names.test(all)).map((b) => b.key);
+  // PlantUML is a tool, not an import: recognised by its diagram texts
+  try {
+    if (fs.readdirSync(path.join(srcDir, 'diagramme')).some((f) => /\.puml$/i.test(f))) used.push('plantuml');
+  } catch {
+    // no diagrams
+  }
+  return used;
 }
 
 const presentationInfo = () => ({
@@ -296,6 +309,8 @@ const presentationInfo = () => ({
   // what the slides actually use: packages installed into the presentation, and built-in building blocks
   packages: hasInhalt() ? presentationPackages(real(inhaltDir())) : [],
   builtins: hasInhalt() ? builtinsUsed(inhaltSrc()) : [],
+  // specifications in vorgaben/: how things are to be drawn in this presentation
+  specs: hasInhalt() ? specList(real(inhaltDir())).map(({file, title}) => ({file, title})) : [],
   list: listPresentations(),
 });
 
@@ -585,8 +600,10 @@ ${imageRule}
 ${chartRule}
 ${formulaRule}
 ${mermaidRule}
+${plantumlRule}
 ${paketRule}
 ${linkRule}
+${specRule(realDir)}
 ${vorschauHint(realDir)}
   After the rebuild, check at least the changed scenes; look at the images before reporting that you are done.
 ${extra ? `Special notes for this presentation:\n${extra}\n` : ''}Finally answer in a few sentences: what was changed, in which files, what the preview showed and what you could not check. Write your final answer in ${LANG_NAME[lang]}.`;
@@ -613,6 +630,7 @@ const jobStatus = () => ({
 // Claude gets no Bash for it: the server fixes folder and command, Claude only chooses the scenes.
 const vorschauRule = 'mcp__showpoint__vorschau';
 const paketToolRule = 'mcp__showpoint__paket';
+const plantumlToolRule = 'mcp__showpoint__plantuml';
 const vorschauMcp = (dir: string) => [
   '--mcp-config',
   JSON.stringify({mcpServers: {showpoint: {command: process.execPath, args: [path.join(root, 'scripts', 'vorschau-mcp.mjs'), dir]}}}),
@@ -659,8 +677,8 @@ function runClaude(o: {prompt: string; system: string; tools: string; allowed: s
         else if (ev.type === 'assistant') {
           for (const b of ev.message?.content ?? []) {
             if (b.type !== 'tool_use') continue;
-            const target = b.name === vorschauRule ? `${(b.input?.scenes ?? []).join(', ') || t.allScenes}` : b.name === paketToolRule ? String(b.input?.name ?? '') : (b.input?.file_path ?? b.input?.pattern ?? b.input?.path ?? b.input?.url ?? '');
-            const label = b.name === vorschauRule ? t.previewLabel : b.name === paketToolRule ? t.packageLabel : b.name;
+            const target = b.name === vorschauRule ? `${(b.input?.scenes ?? []).join(', ') || t.allScenes}` : b.name === paketToolRule || b.name === plantumlToolRule ? String(b.input?.name ?? '') : (b.input?.file_path ?? b.input?.pattern ?? b.input?.path ?? b.input?.url ?? '');
+            const label = b.name === vorschauRule ? t.previewLabel : b.name === paketToolRule ? t.packageLabel : b.name === plantumlToolRule ? t.plantumlLabel : b.name;
             push('tool', `${label} ${String(target).replace(o.cwd + '/', '').replace(root + '/', '')}`.trim());
           }
         } else if (ev.type === 'result' && ev.is_error) {
@@ -738,6 +756,67 @@ const pushLicenseNote = (dir: string) => {
 // Images named in a task by file path are copied into src/bilder/ of the presentation, so they become part of it
 // (presenter, PDF, video, other computers) and "Undo" removes them again. Returns a note for Claude's task text.
 const IMAGE_EXT = 'png|jpe?g|webp|gif|svg';
+/**
+ * Specifications of a presentation: Markdown/text files in <presentation>/vorgaben/ that say how something is to be
+ * drawn there (e.g. ER diagrams in a certain PlantUML style). They travel with the presentation. Claude gets the list
+ * with every task and reads the ones a slide needs.
+ */
+function specList(presDir: string): {file: string; title: string; summary: string}[] {
+  const dir = path.join(presDir, 'vorgaben');
+  let names: string[] = [];
+  try {
+    names = fs.readdirSync(dir).filter((n) => /\.(md|txt)$/i.test(n) && !n.startsWith('.')).sort();
+  } catch {
+    return [];
+  }
+  return names.map((file) => {
+    let text = '';
+    try {
+      text = fs.readFileSync(path.join(dir, file), 'utf8').slice(0, 4000);
+    } catch {
+      // unreadable: listed by name only
+    }
+    const lines = text.split(/\r?\n/).map((l) => l.trim());
+    const title = (lines.find((l) => /^#\s+/.test(l)) ?? '').replace(/^#\s+/, '') || file;
+    // first real paragraph after the title as a short description
+    const summary = (lines.find((l) => l && !/^(#|>|```|---|\||-\s|\*\s)/.test(l)) ?? '').replace(/[*_`]/g, '').slice(0, 220);
+    return {file, title, summary};
+  });
+}
+const specRule = (presDir: string) => {
+  const specs = specList(presDir);
+  if (!specs.length) return '';
+  return `- Specifications of this presentation (${path.join(presDir, 'vorgaben')}/): they say how certain things are drawn here and are binding. Before you create or change something a specification covers, read that file completely (Read) and follow it – notation, structure, conventions, also when the task does not mention it. They take precedence over the general hints on how to draw, but not over the technical rules (files you may write, everything from useCurrentFrame(), texts from content.json, nothing sticking out). Do not change these files.
+${specs.map((sp) => `  · vorgaben/${sp.file} – ${sp.title}${sp.summary ? `: ${sp.summary}` : ''}`).join('\n')}`;
+};
+const plantumlRule = `- PlantUML (ER diagrams and other notations Mermaid or the building blocks cannot draw properly, or whenever a specification or the task asks for PlantUML): write the diagram text to src/diagramme/<name>.puml (create the folder by writing the file), call the tool "plantuml" with that name – it writes <name>.svg next to it, already in the colours of the slides – and show it with \`import schema from './diagramme/<name>.svg'\` and \`<Img src={schema} style={{position: 'absolute', left: …, top: …, width: …, height: …, objectFit: 'contain'}} />\` (keep the aspect ratio the tool reports). Do not set colours or skinparams yourself unless a specification says so; no !include, no URLs. The diagram appears as a whole (fade it in with opacity from the frame); for a step-by-step build-up use several diagrams (schema1, schema2 …) shown one after the other at the same place. Text in the diagram is fixed (not editable in the presenter): keep the .puml file as the source and never edit the .svg. If the tool says PlantUML is not installed, do not imitate the diagram by hand: say so in your final answer.`;
+
+/** Copies specification files named in a task (a line with "Vorgabe", "Vorlage", "Spezifikation", "spec", "template" … and a path to a .md/.txt file) into the presentation's vorgaben/. */
+function takeSpecs(text: string, presDir: string, lang: Lang): string {
+  const dest = path.join(presDir, 'vorgaben');
+  const lines: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (!/\b(vorgaben?|vorlagen?|spezifikation(en)?|specs?|specifications?|guidelines?|templates?|darstellungsregeln?)\b/i.test(line)) continue;
+    const found = new Set<string>();
+    for (const m of line.matchAll(/["„“'‚]((?:~|\/)[^"“”'\n]+\.(?:md|txt))["“”'‘]/gi)) found.add(m[1]);
+    for (const m of line.matchAll(/(?:^|[\s(:])((?:~|\/)[^\s"'“”<>()]*\.(?:md|txt))/gi)) found.add(m[1]);
+    for (const f of found) {
+      const from = path.resolve(expandHome(f));
+      if (!fs.existsSync(from) || !fs.statSync(from).isFile()) {
+        if (![...found].some((g) => g !== f && g.includes(f))) push('error', MSG[lang].specNotFound(f));
+        continue;
+      }
+      if (path.dirname(from) === dest) continue; // already there
+      const name = path.basename(from).replace(/[^\w.\-äöüÄÖÜß]+/g, '-');
+      fs.mkdirSync(dest, {recursive: true});
+      fs.copyFileSync(from, path.join(dest, name)); // same name: the newer copy replaces the old one
+      push('tool', MSG[lang].specCopied(name));
+      lines.push(`- ${f} → vorgaben/${name}`);
+    }
+  }
+  return lines.length ? `\n\nSpecifications supplied with this task, copied into the presentation (they apply from now on – read them before you start):\n${lines.join('\n')}` : '';
+}
+
 function takeImages(text: string, srcDir: string, lang: Lang): string {
   const found = new Set<string>();
   for (const m of text.matchAll(new RegExp(`["„“'‚]((?:~|/)[^"“”'\\n]+\\.(?:${IMAGE_EXT}))["“”'‘]`, 'gi'))) found.add(m[1]);
@@ -821,11 +900,12 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang, frame: n
   const file = contentFile();
   const images = takeImages(instruction, real(inhaltSrc()), lang); // after the backup, so "Undo" removes them
   const hosts = linkHosts(instruction); // links in the task may be read, nothing else from the web
+  const specs = takeSpecs(instruction, realDir, lang); // into vorgaben/ – they stay, also after "Undo"
   runClaude({
-    prompt: `Slide currently shown: no. ${nr} (scene ID "${sceneId}", title "${content.scenes[sceneId]?.title ?? ''}").${positionNote(content.scenes[sceneId], frame)}\n\nTask:\n${instruction}${images}`,
+    prompt: `Slide currently shown: no. ${nr} (scene ID "${sceneId}", title "${content.scenes[sceneId]?.title ?? ''}").${positionNote(content.scenes[sceneId], frame)}\n\nTask:\n${instruction}${images}${specs}`,
     system: rebuildSystem(lang),
     tools: `Read,Edit,Write,Glob,Grep${hosts.size ? ',WebFetch' : ''}`,
-    allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`, vorschauRule, paketToolRule, ...[...hosts].map((h) => `WebFetch(domain:${h})`)],
+    allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`, vorschauRule, paketToolRule, plantumlToolRule, ...[...hosts].map((h) => `WebFetch(domain:${h})`)],
     extra: [...(outside ? ['--add-dir', realDir] : []), ...vorschauMcp(realDir)],
     cwd: root,
     done: () => {
@@ -869,8 +949,10 @@ ${imageRule}
 ${chartRule}
 ${formulaRule}
 ${mermaidRule}
+${plantumlRule}
 ${paketRule}
 ${linkRule}
+${specRule(dir)}
 - Only write in ${dir}. Write valid TypeScript (strict) carefully and import only what you use and what exists.
 ${vorschauHint(dir)}
   Check every scene this way at the end (several scene IDs per call are possible, at most 40 images).
@@ -926,7 +1008,7 @@ function startCreate(dirInput: string, prompt: string, lang: Lang) {
   }
   const hosts = linkHosts(prompt);
   const allowed = [
-    `Read(/${dir}/**)`, `Edit(/${dir}/**)`, `Write(/${dir}/**)`, `Read(/${path.join(root, 'ANLEITUNG.md')})`, vorschauRule, paketToolRule,
+    `Read(/${dir}/**)`, `Edit(/${dir}/**)`, `Write(/${dir}/**)`, `Read(/${path.join(root, 'ANLEITUNG.md')})`, vorschauRule, paketToolRule, plantumlToolRule,
     ...readRules,
     ...[...hosts].map((h) => `WebFetch(domain:${h})`),
   ];
@@ -952,7 +1034,8 @@ function startCreate(dirInput: string, prompt: string, lang: Lang) {
       },
     });
   const images = takeImages(prompt, path.join(dir, 'src'), lang);
-  run(`Task for the new presentation:\n\n${prompt}${images}`, 0);
+  const specs = takeSpecs(prompt, dir, lang);
+  run(`Task for the new presentation:\n\n${prompt}${images}${specs}`, 0);
 }
 
 function undoRebuild(lang: Lang) {

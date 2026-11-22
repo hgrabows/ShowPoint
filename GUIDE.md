@@ -68,6 +68,7 @@ The content only has to satisfy this interface (types in `editor/types.ts`):
 | `src/content.json` | yes | `title` (name of the presentation), `order`, `scenes` – per scene `name` (short name for the bar), `dur`, `stops`, `t`, `lists`, optionally `kicker`, `title`, `captions` |
 | `src/begleittext.md` (accompanying notes) | no | topic, audience, tone for the `?` key |
 | `src/umbau-regeln.md` (rebuild rules) | no | specifics of these slides for "Rebuild slide" |
+| `vorgaben/*.md, *.txt` | no | specifications for how things are drawn (e.g. ER diagrams) – apply to every rebuild |
 | `quellen/*.md, *.txt, *.pdf` | no | sent to the model as text when asking questions |
 
 Which presentation is shown is chosen in the presenter at the top right under "Presentation":
@@ -358,9 +359,41 @@ Images (screenshots, photos, logos) can be added through a task – in “Rebuil
   computers too. “Undo” takes it out again.
 - Claude cannot generate images itself; it draws graphics as SVG/HTML (sharp and animatable).
 
+## Specifications for how things are drawn (`vorgaben/`)
+
+If something in a presentation should always be drawn in a certain way – for example ER diagrams in a fixed PlantUML
+notation – put a description as a Markdown or text file into the presentation's `vorgaben/` folder ("vorgaben" =
+specifications; next to `src/`). With "New presentation" and every "Rebuild slide" Claude gets the list of these files
+(file name, heading, first paragraph) and reads the matching one before it builds or changes such a thing. The
+specifications are binding for the look; the technical rules (change only `src/`, everything computed from the frame)
+still apply.
+
+- **By hand:** copy the file into `vorgaben/` – it applies from the next rebuild. Delete or edit it the same way.
+- **In a task:** a line with "specification" (also "spec", "template", "guideline", "Vorgabe", "Vorlage") and the path
+  of a `.md` or `.txt` file, e.g. `Specification for ER diagrams: /Users/me/specs/plantuml_er.md`. The server copies
+  the file into `vorgaben/` (same name replaces the old copy); the log says "Specification added".
+- The specifications belong to the presentation and are passed on with it. "Undo" does not remove them.
+- Which ones apply is shown in the presenter at the bottom right under "Libraries used · specifications".
+
+## PlantUML diagrams
+
+For diagrams that Mermaid or the building blocks cannot draw properly (e.g. ER diagrams), Claude can use PlantUML: it
+writes the diagram text to `src/diagramme/<name>.puml` and calls the tool "plantuml"; that creates `<name>.svg` next
+to it, already in the colours of the dark slides, and the slide shows the SVG like an image.
+
+- Set up once: `npm run plantuml` downloads PlantUML (fixed version, verified by checksum) into `.werkzeuge/`. On
+  macOS (Apple Silicon), Linux and Windows this is a standalone program – **no Java needed**. Only on other systems
+  (e.g. Intel Macs) the `.jar` is downloaded, which needs Java.
+- Drawing happens locally, nothing goes to the internet; `!include` and URLs in the diagram text are blocked. PlantUML
+  uses its built-in layout (no Graphviz needed, same result on every machine).
+- The finished SVG lives in the presentation: **presenting, PDF and video work without PlantUML**. It is only needed
+  to change or redraw a diagram; if it is missing then, Claude says so in its result.
+- By hand: `node scripts/plantuml.mjs <presentation folder> <name>`.
+- The text in the diagram lives in the `.puml` file, not in `content.json` – change it with "Rebuild slide".
+
 ## Preview tool for Claude
 
-When rebuilding and creating, Claude gets one single additional tool, `vorschau` (preview): it checks `content.json`
+When rebuilding and creating, Claude gets – besides "paket" and "plantuml" – the tool `vorschau` (preview): it checks `content.json`
 and the types and returns the requested scenes at every stop as images (half size). Claude looks at the
 images, fixes overlaps, cut-off or too-small texts and checks again. Each pass costs
 a few seconds per scene.

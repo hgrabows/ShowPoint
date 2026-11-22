@@ -68,6 +68,7 @@ Der Inhalt muss nur diese Schnittstelle erfüllen (Typen dazu in `editor/types.t
 | `src/content.json` | ja | `title` (Name der Präsentation), `order`, `scenes` – je Szene `name` (Kurzname für die Leiste), `dur`, `stops`, `t`, `lists`, optional `kicker`, `title`, `captions` |
 | `src/begleittext.md` | nein | Thema, Zielgruppe, Ton für die `?`-Taste |
 | `src/umbau-regeln.md` | nein | Besonderheiten dieser Folien für „Folie umbauen“ |
+| `vorgaben/*.md, *.txt` | nein | Vorgaben, wie etwas gezeichnet wird (z. B. ER-Diagramme) – gelten bei jedem Umbau |
 | `quellen/*.md, *.txt, *.pdf` | nein | gehen bei Fragen als Text an das Modell |
 
 Welche Präsentation gezeigt wird, wählt man im Präsentator rechts oben unter „Präsentation“:
@@ -361,9 +362,41 @@ Bilder (Screenshots, Fotos, Logos) lassen sich per Auftrag einbinden – bei „
   auf anderen Rechnern. „Rückgängig“ nimmt es wieder heraus.
 - Bilder selbst erzeugen kann Claude nicht; Grafiken zeichnet es als SVG/HTML (scharf und animierbar).
 
+## Vorgaben für die Darstellung (`vorgaben/`)
+
+Soll etwas in einer Präsentation immer auf eine bestimmte Art gezeichnet werden – etwa ER-Diagramme in einer festen
+PlantUML-Schreibweise –, legt man dafür eine Beschreibung als Markdown- oder Textdatei in den Ordner `vorgaben/` der
+Präsentation (neben `src/`). Claude bekommt bei „Neue Präsentation“ und bei jedem „Folie umbauen“ die Liste dieser
+Dateien (Dateiname, Überschrift, erster Absatz) und liest die passende, bevor es so etwas baut oder ändert. Die
+Vorgaben sind verbindlich für die Darstellung; die technischen Regeln (nur `src/` ändern, alles aus dem Bild berechnet)
+gelten weiter.
+
+- **Von Hand:** Datei in `vorgaben/` kopieren – sie gilt ab dem nächsten Umbau. Löschen oder bearbeiten genauso.
+- **Per Auftrag:** eine Zeile mit „Vorgabe“ (auch „Vorlage“, „Spezifikation“, „spec“, „template“) und dem Pfad einer
+  `.md`- oder `.txt`-Datei, z. B. `Vorgabe für ER-Diagramme: /Users/ich/specs/plantuml_er.md`. Der Server kopiert die
+  Datei nach `vorgaben/` (gleicher Name ersetzt die alte Kopie); im Protokoll steht „Vorgabe übernommen“.
+- Die Vorgaben gehören zur Präsentation und werden mit ihr weitergegeben. „Rückgängig“ entfernt sie nicht.
+- Welche gelten, steht im Präsentator rechts unten bei „Benutzte Bibliotheken · Vorgaben“.
+
+## PlantUML-Diagramme
+
+Für Diagramme, die Mermaid oder die Bausteine nicht richtig können (z. B. ER-Diagramme), kann Claude PlantUML benutzen:
+Es schreibt den Diagrammtext nach `src/diagramme/<name>.puml` und ruft das Werkzeug „plantuml“ auf; das erzeugt
+`<name>.svg` daneben, schon in den Farben der dunklen Folien, und die Folie bindet das SVG wie ein Bild ein.
+
+- Einmal einrichten: `npm run plantuml` lädt PlantUML (feste Version, per Prüfsumme geprüft) nach `.werkzeuge/`.
+  Auf macOS (Apple Silicon), Linux und Windows ist das ein eigenständiges Programm – **Java ist nicht nötig**. Nur auf
+  anderen Systemen (z. B. Intel-Macs) wird die `.jar` geladen, die Java braucht.
+- Gezeichnet wird lokal, nichts geht ins Internet; `!include` und URLs im Diagrammtext sind gesperrt. PlantUML benutzt
+  sein eingebautes Layout (kein Graphviz nötig, gleiches Ergebnis auf jedem Rechner).
+- Das fertige SVG liegt in der Präsentation: **Präsentieren, PDF und Video gehen ohne PlantUML**. Gebraucht wird es
+  nur, um ein Diagramm zu ändern oder neu zu zeichnen; fehlt es dann, sagt Claude das im Ergebnis.
+- Von Hand: `node scripts/plantuml.mjs <Präsentationsordner> <name>`.
+- Der Text im Diagramm steht in der `.puml`-Datei, nicht in `content.json` – ändern per „Folie umbauen“.
+
 ## Vorschau-Werkzeug für Claude
 
-Beim Umbauen und beim Erzeugen bekommt Claude ein einziges zusätzliches Werkzeug, `vorschau`: Es prüft `content.json`
+Beim Umbauen und beim Erzeugen bekommt Claude neben „paket“ und „plantuml“ das Werkzeug `vorschau`: Es prüft `content.json`
 und die Typen und gibt die gewünschten Szenen an jedem Haltepunkt als Bild zurück (halbe Größe). Claude sieht sich die
 Bilder an, bessert Überlappungen, abgeschnittene oder zu kleine Texte nach und prüft erneut. Das kostet je Durchgang
 einige Sekunden pro Szene.
