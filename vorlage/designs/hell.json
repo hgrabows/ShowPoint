@@ -1,0 +1,13 @@
+{
+  "name": "Hell",
+  "dark": false,
+  "surface": {"bg": "#F5F7FB", "background": "linear-gradient(180deg, #FFFFFF 0%, #EDF1F8 100%)", "panel": "#FFFFFF", "panel2": "#E6ECF7", "border": "#B9C5DB", "inset": "#EDF1F8", "stage": "#F5F7FB"},
+  "text": {"normal": "#172033", "muted": "#525E78", "heading": "#0E1526", "kicker": "#5B3FD6", "onAccent": "#FFFFFF"},
+  "accent": ["#0B78B6", "#6D4AE0", "#B45F06", "#0B8457", "#D23B3B", "#C2540A", "#4D7C0F", "#BE2F85"],
+  "status": {"good": "#0B8457", "bad": "#D23B3B", "note": "#B45F06"},
+  "font": {"family": "-apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Helvetica, Arial, sans-serif", "weights": {"normal": 500, "strong": 600, "kicker": 700, "heading": 800}, "files": []},
+  "shape": {"radius": 20, "borderWidth": 3},
+  "caption": {"bg": "rgba(255,255,255,0.92)", "border": "#B9C5DB", "text": "#172033"},
+  "diagram": {"node": "#E6ECF7", "nodeBorder": "#0B78B6", "line": "#525E78", "group": "#EDF1F8", "noteBg": "#FFF3D6", "noteBorder": "#B45F06", "errorBg": "#FDE8E8"},
+  "model": {"ground": "#A9B4C8", "fill": "#FFFFFF"}
+}

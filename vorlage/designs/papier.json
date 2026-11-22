@@ -1,0 +1,13 @@
+{
+  "name": "Papier",
+  "dark": false,
+  "surface": {"bg": "#FBF7EF", "background": "#FBF7EF", "panel": "#FFFDF8", "panel2": "#F1E9DA", "border": "#C9BBA0", "inset": "#F4EEE2", "stage": "#FBF7EF"},
+  "text": {"normal": "#2B2620", "muted": "#655B4E", "heading": "#1F1A14", "kicker": "#A4461F", "onAccent": "#FFFDF8"},
+  "accent": ["#1F6F8B", "#A4461F", "#94650A", "#4A7435", "#B23A3A", "#7A4E8C", "#3D63A8", "#7B6030"],
+  "status": {"good": "#4A7435", "bad": "#B23A3A", "note": "#94650A"},
+  "font": {"family": "-apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Helvetica, Arial, sans-serif", "weights": {"normal": 500, "strong": 600, "kicker": 700, "heading": 800}, "files": []},
+  "shape": {"radius": 8, "borderWidth": 2},
+  "caption": {"bg": "#FFFDF8", "border": "#C9BBA0", "text": "#2B2620"},
+  "diagram": {"node": "#F1E9DA", "nodeBorder": "#1F6F8B", "line": "#655B4E", "group": "#F4EEE2", "noteBg": "#FBEFC9", "noteBorder": "#94650A", "errorBg": "#F8E3DE"},
+  "model": {"ground": "#B5AA96", "fill": "#FFF6E6"}
+}

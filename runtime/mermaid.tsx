@@ -17,57 +17,59 @@
 import React, {useId, useLayoutEffect, useMemo, useReducer} from 'react';
 import {spring, useCurrentFrame, useVideoConfig} from './index';
 import {waitFor} from './wait';
+import {useDesign} from './design';
+import type {Design} from './design';
 
-/** Colours and font of the slides (vorlage/src/ui.tsx); override single values with `themeVariables`. */
-const SLIDE_THEME: Record<string, string | boolean> = {
-  darkMode: true,
-  background: '#0B1020',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif',
-  primaryColor: '#1B2442',
-  primaryTextColor: '#E8ECF8',
-  primaryBorderColor: '#38BDF8',
-  secondaryColor: '#151C33',
-  secondaryTextColor: '#E8ECF8',
-  secondaryBorderColor: '#8B6CFF',
-  tertiaryColor: '#151C33',
-  tertiaryTextColor: '#E8ECF8',
-  tertiaryBorderColor: '#2E3A63',
-  mainBkg: '#1B2442',
-  nodeBorder: '#38BDF8',
-  nodeTextColor: '#E8ECF8',
-  textColor: '#E8ECF8',
-  titleColor: '#E8ECF8',
-  lineColor: '#9AA6C7',
-  clusterBkg: '#121935',
-  clusterBorder: '#2E3A63',
-  edgeLabelBackground: '#0B1020',
+/** Mermaid theme in the colours and font of the design; single values can be replaced with `themeVariables`. */
+const slideTheme = (d: Design): Record<string, string | boolean> => ({
+  darkMode: d.dark,
+  background: d.surface.bg,
+  fontFamily: d.font.family,
+  primaryColor: d.diagram.node,
+  primaryTextColor: d.text.normal,
+  primaryBorderColor: d.diagram.nodeBorder,
+  secondaryColor: d.surface.panel,
+  secondaryTextColor: d.text.normal,
+  secondaryBorderColor: d.accent[1 % d.accent.length],
+  tertiaryColor: d.surface.panel,
+  tertiaryTextColor: d.text.normal,
+  tertiaryBorderColor: d.surface.border,
+  mainBkg: d.diagram.node,
+  nodeBorder: d.diagram.nodeBorder,
+  nodeTextColor: d.text.normal,
+  textColor: d.text.normal,
+  titleColor: d.text.normal,
+  lineColor: d.diagram.line,
+  clusterBkg: d.diagram.group,
+  clusterBorder: d.surface.border,
+  edgeLabelBackground: d.surface.bg,
   // sequence diagrams
-  actorBkg: '#1B2442',
-  actorBorder: '#38BDF8',
-  actorTextColor: '#E8ECF8',
-  actorLineColor: '#2E3A63',
-  signalColor: '#9AA6C7',
-  signalTextColor: '#E8ECF8',
-  labelBoxBkgColor: '#151C33',
-  labelBoxBorderColor: '#2E3A63',
-  labelTextColor: '#E8ECF8',
-  loopTextColor: '#9AA6C7',
-  noteBkgColor: '#2A2310',
-  noteBorderColor: '#FFB020',
-  noteTextColor: '#E8ECF8',
-  activationBkgColor: '#151C33',
-  activationBorderColor: '#8B6CFF',
-  sequenceNumberColor: '#0B1020',
+  actorBkg: d.diagram.node,
+  actorBorder: d.diagram.nodeBorder,
+  actorTextColor: d.text.normal,
+  actorLineColor: d.surface.border,
+  signalColor: d.diagram.line,
+  signalTextColor: d.text.normal,
+  labelBoxBkgColor: d.surface.panel,
+  labelBoxBorderColor: d.surface.border,
+  labelTextColor: d.text.normal,
+  loopTextColor: d.diagram.line,
+  noteBkgColor: d.diagram.noteBg,
+  noteBorderColor: d.diagram.noteBorder,
+  noteTextColor: d.text.normal,
+  activationBkgColor: d.surface.panel,
+  activationBorderColor: d.accent[1 % d.accent.length],
+  sequenceNumberColor: d.surface.bg,
   // state diagrams
-  specialStateColor: '#9AA6C7',
-  innerEndBackground: '#0B1020',
-  altBackground: '#151C33',
-  compositeBackground: '#121935',
-  compositeTitleBackground: '#1B2442',
-  labelColor: '#E8ECF8',
-  errorBkgColor: '#3A1620',
-  errorTextColor: '#F87171',
-};
+  specialStateColor: d.diagram.line,
+  innerEndBackground: d.surface.bg,
+  altBackground: d.surface.panel,
+  compositeBackground: d.diagram.group,
+  compositeTitleBackground: d.diagram.node,
+  labelColor: d.text.normal,
+  errorBkgColor: d.diagram.errorBg,
+  errorTextColor: d.status.bad,
+});
 
 export type MermaidProps = {
   /** The diagram in Mermaid syntax, e.g. 'flowchart LR\n  A[Frage] --> B[Antwort]'. Best kept in c.t. */
@@ -91,7 +93,7 @@ export type MermaidProps = {
   fontSize?: number;
   /** Upper limit for scaling the diagram up to fill the box (default 2). */
   maxScale?: number;
-  /** Mermaid theme variables that replace single slide colours, e.g. {primaryColor: '#2A1F4D'}. */
+  /** Mermaid theme variables that replace single colours of the design, e.g. {primaryBorderColor: C.good}. */
   themeVariables?: Record<string, string>;
   style?: React.CSSProperties;
 };
@@ -312,7 +314,8 @@ export const Mermaid: React.FC<MermaidProps> = ({
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const cls = `sp-mm-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const theme = useMemo(() => ({...SLIDE_THEME, ...themeVariables}), [themeVariables]);
+  const design = useDesign();
+  const theme = useMemo(() => ({...slideTheme(design), ...themeVariables}), [design, themeVariables]);
   const key = useMemo(() => JSON.stringify([code, fontSize, theme]), [code, fontSize, theme]);
   const [, redraw] = useReducer((n: number) => n + 1, 0);
   const drawn = cache.get(key);
@@ -334,7 +337,7 @@ export const Mermaid: React.FC<MermaidProps> = ({
   if (drawn.error !== undefined) {
     return (
       <div style={{...box, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <pre style={{margin: 0, padding: 16, border: '2px solid #F87171', borderRadius: 8, color: '#F87171', fontSize: 24, whiteSpace: 'pre-wrap', background: '#1A0F18'}}>
+        <pre style={{margin: 0, padding: 16, border: `2px solid ${design.status.bad}`, borderRadius: 8, color: design.status.bad, fontSize: 24, whiteSpace: 'pre-wrap', background: design.diagram.errorBg}}>
           {`Mermaid: ${drawn.error}`}
         </pre>
       </div>

@@ -18,6 +18,7 @@ import {interpolate, useCurrentFrame} from './index';
 import {ThreeCanvas} from './three';
 import type {ThreeContext} from './three';
 import {waitFor} from './wait';
+import {useDesign} from './design';
 
 export type Model3DObjects = {
   /** The loaded model, centred at the origin and scaled so that its largest side is about 2 units. */
@@ -75,6 +76,7 @@ loader.setMeshoptDecoder(MeshoptDecoder);
 
 export const Model3D: React.FC<Props> = ({src, x, y, w, h, at = 0, angle = -30, tilt = 15, spin = 0, zoom = 1, light = 1, animate = true, update, pixelRatio, style}) => {
   const frame = useCurrentFrame();
+  const design = useDesign();
   const [state, setState] = useState<{src: string; gltf?: GLTF; error?: string}>({src});
 
   useEffect(() => {
@@ -102,7 +104,7 @@ export const Model3D: React.FC<Props> = ({src, x, y, w, h, at = 0, angle = -30, 
   const box: React.CSSProperties = {position: 'absolute', left: x, top: y, width: w, height: h, ...style};
   if (state.error) {
     return (
-      <div style={{...box, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #ff5a5a', borderRadius: 12, color: '#ff8a8a', fontSize: 24, padding: 24, boxSizing: 'border-box', textAlign: 'center'}}>
+      <div style={{...box, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${design.status.bad}`, borderRadius: 12, color: design.status.bad, fontSize: 24, padding: 24, boxSizing: 'border-box', textAlign: 'center'}}>
         3D model could not be loaded: {state.error}
       </div>
     );
@@ -113,7 +115,7 @@ export const Model3D: React.FC<Props> = ({src, x, y, w, h, at = 0, angle = -30, 
   const opacity = interpolate(frame, [at, at + 12], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
   return (
     <ThreeCanvas<Model3DObjects>
-      key={src}
+      key={`${src}|${design.model.ground}|${design.model.fill}`}
       x={x}
       y={y}
       w={w}
@@ -134,11 +136,11 @@ export const Model3D: React.FC<Props> = ({src, x, y, w, h, at = 0, angle = -30, 
         const pivot = new THREE.Group();
         pivot.add(holder);
         scene.add(pivot);
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x334466, 0.9 * light));
+        scene.add(new THREE.HemisphereLight(0xffffff, new THREE.Color(design.model.ground), 0.9 * light));
         const key = new THREE.DirectionalLight(0xffffff, 1.7 * light);
         key.position.set(3, 5, 4);
         scene.add(key);
-        const fill = new THREE.DirectionalLight(0x9fb4ff, 0.5 * light);
+        const fill = new THREE.DirectionalLight(new THREE.Color(design.model.fill), 0.5 * light);
         fill.position.set(-4, 1, -3);
         scene.add(fill);
         camera.position.set(0, 0, 4.3 / zoom);

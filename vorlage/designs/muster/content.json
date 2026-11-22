@@ -1,0 +1,24 @@
+{
+  "title": "Muster",
+  "order": ["muster"],
+  "scenes": {
+    "muster": {
+      "name": "Muster",
+      "dur": 120,
+      "kicker": "Dachzeile",
+      "title": "Überschrift der Folie",
+      "captions": [{"at": 0, "text": "So sieht der Sprechtext in diesem Design aus."}],
+      "stops": [100],
+      "t": {
+        "t01": "Kasten",
+        "t02": "kleine Zeile darunter",
+        "t03": "Zweiter Kasten",
+        "t04": "mit Rahmen in „gut“",
+        "t05": "Normaler Text auf dem Hintergrund",
+        "t06": "Gedämpfter Text für Nebensachen",
+        "ablauf": "flowchart TD\n  A[Frage] --> B{Bekannt?}\n  B -->|ja| C[Antwort]\n  B -->|nein| D[Nachlesen]\n  D --> C\n  N>Hinweis] -.-> D"
+      },
+      "lists": {"namen": ["A", "B", "C", "D"], "werte": ["42", "67", "28", "55"]}
+    }
+  }
+}

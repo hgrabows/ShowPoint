@@ -5,6 +5,9 @@ import path from 'node:path';
 import {defineConfig} from 'vite';
 import {runtimeResolve} from './runtime/aliases.mjs';
 import {nonFreePackages, presentationPackages} from './scripts/paket.mjs';
+import {isDesign, resolveDesign} from './runtime/designCore.mjs';
+import {designFiles, fontDirOf, ownDir as ownDesignsDir} from './scripts/designs.mjs';
+import {renderAll as redrawDiagrams} from './scripts/plantuml.mjs';
 
 const root = process.cwd();
 
@@ -73,6 +76,16 @@ const MSG = {
     switchLocked: 'Umbau läuft – erst danach lässt sich die Präsentation wechseln.',
     jobRunning: 'Es läuft schon ein Auftrag – bitte warten, bis er fertig ist.',
     promptEmpty: 'Der Prompt ist leer.',
+    designNone: 'Diese Präsentation hat ihr Aussehen noch fest in den Folien (kein src/design.json). Ein Design lässt sich hier erst wählen, wenn sie umgestellt ist.',
+    designUnknown: 'Dieses Design gibt es nicht (mehr).',
+    designBusy: 'Es läuft gerade ein Auftrag – das Design lässt sich erst danach wechseln.',
+    beforeDesign: (name: string) => `Stand vor dem Wechsel zum Design „${name}“`,
+    designNameEmpty: 'Bitte einen Namen für das Design angeben.',
+    designNameTaken: (name: string) => `„${name}“ heißt schon ein mitgeliefertes Design. Bitte einen anderen Namen wählen.`,
+    designOnlyOwn: 'Nur eigene Designs lassen sich löschen.',
+    designTaken: (name: string) => `Design übernommen → src/design.json${name ? ` (${name})` : ''}`,
+    diagramsRedrawn: (n: number) => `Design geändert: ${n} PlantUML-Diagramm${n === 1 ? '' : 'e'} neu gezeichnet.`,
+    diagramsFailed: (text: string) => `Das Design wurde geändert, aber die PlantUML-Diagramme ließen sich nicht neu zeichnen und haben noch die alten Farben: ${text}`,
   },
   en: {
     removeOnlyLinked: 'Only linked folders can be removed. The project folder and real folders under inhalte/ stay.',
@@ -132,6 +145,16 @@ const MSG = {
     switchLocked: 'Rebuild in progress – the presentation can be switched once it has finished.',
     jobRunning: 'A job is already running – please wait until it has finished.',
     promptEmpty: 'The prompt is empty.',
+    designNone: 'This presentation still has its look fixed in the slides (no src/design.json). A design can be chosen here once it has been converted.',
+    designUnknown: 'This design does not exist (any more).',
+    designBusy: 'A job is running – the design can be switched once it has finished.',
+    beforeDesign: (name: string) => `State before switching to the design "${name}"`,
+    designNameEmpty: 'Please enter a name for the design.',
+    designNameTaken: (name: string) => `"${name}" is already the name of a built-in design. Please choose another name.`,
+    designOnlyOwn: 'Only your own designs can be deleted.',
+    designTaken: (name: string) => `Design added → src/design.json${name ? ` (${name})` : ''}`,
+    diagramsRedrawn: (n: number) => `Design changed: ${n} PlantUML diagram${n === 1 ? '' : 's'} drawn again.`,
+    diagramsFailed: (text: string) => `The design was changed, but the PlantUML diagrams could not be drawn again and still have the old colours: ${text}`,
   },
 } satisfies Record<Lang, unknown>;
 
@@ -327,6 +350,8 @@ const presentationInfo = () => ({
   specs: hasInhalt() ? specList(real(inhaltDir())).map(({file, title}) => ({file, title})) : [],
   // earlier states (before each rebuild), newest first
   versions: hasInhalt() ? listVersions(real(inhaltDir())) : [],
+  // the look of the slides: name of the design in src/design.json (has = false: an older presentation without one)
+  design: currentDesign(),
   list: listPresentations(),
 });
 
@@ -587,7 +612,7 @@ const finishJob = () => {
 const KEEP_VERSIONS = 10;
 const versionsDir = (presDir: string) => path.join(presDir, '.umbau');
 const VERSION_ID = /^\d{4}-\d\d-\d\dT[\d-]+Z$/;
-function saveVersion(presDir: string, meta: {kind: 'rebuild' | 'restore'; instruction: string; scene?: string}): string {
+function saveVersion(presDir: string, meta: {kind: 'rebuild' | 'restore' | 'design'; instruction: string; scene?: string}): string {
   const dir = versionsDir(presDir);
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const target = path.join(dir, stamp);
@@ -669,6 +694,151 @@ function adoptOldBackups() {
 }
 adoptOldBackups();
 
+// ── Designs: the look of a presentation (colours, font, background, shapes) is its src/design.json ──────────────
+// Designs to choose from: the shipped ones (vorlage/designs/*.json) and the user's own (designs/*.json in the ShowPoint
+// folder, not in git). Each has a preview picture next to it (<name>.jpg, the sample slide rendered by
+// scripts/designs.mjs); font files of an own design lie in designs/<name>/schriften/.
+type DesignEntry = {id: string; name: string; own: boolean; file: string; preview: boolean; stamp: number; colors: string[]};
+const designId = (file: string) => (path.dirname(file) === ownDesignsDir ? 'own:' : '') + path.basename(file).replace(/\.json$/i, '');
+const readJson = (file: string): unknown => {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+};
+function listDesigns(): DesignEntry[] {
+  const out: DesignEntry[] = [];
+  for (const file of designFiles() as string[]) {
+    const json = readJson(file);
+    if (!isDesign(json)) continue;
+    const d = resolveDesign(json);
+    const jpg = file.replace(/\.json$/i, '.jpg');
+    const preview = fs.existsSync(jpg);
+    out.push({
+      id: designId(file),
+      name: d.name || path.basename(file).replace(/\.json$/i, ''),
+      own: path.dirname(file) === ownDesignsDir,
+      file,
+      preview,
+      stamp: Math.round(preview ? fs.statSync(jpg).mtimeMs : 0),
+      // a few colours, shown until the preview picture is there: background, box, text, three accents
+      colors: [d.surface.bg, d.surface.panel, d.text.normal, ...d.accent.slice(0, 3)],
+    });
+  }
+  return out;
+}
+const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+/** The design of the presentation shown: its name, which listed design it is (id, if unchanged), or has = false. */
+function currentDesign(): {has: boolean; name: string; id: string} {
+  if (!hasInhalt()) return {has: false, name: '', id: ''};
+  const json = readJson(path.join(inhaltSrc(), 'design.json'));
+  if (!isDesign(json)) return {has: false, name: '', id: ''};
+  const same = listDesigns().find((d) => sameJson(readJson(d.file), json));
+  return {has: true, name: String((json as {name?: string}).name ?? ''), id: same?.id ?? ''};
+}
+/** Puts a design into a presentation: src/design.json, plus the font files that belong to an own design. */
+function writeDesign(srcDir: string, entry: DesignEntry) {
+  fs.copyFileSync(entry.file, path.join(srcDir, 'design.json'));
+  const fonts = fontDirOf(entry.file) as string;
+  if (fs.existsSync(fonts)) fs.cpSync(fonts, path.join(srcDir, 'schriften'), {recursive: true});
+}
+/** Switches the design of the presentation shown. Only design.json changes; the state before is kept in "Earlier states". */
+async function applyDesign(id: string, lang: Lang): Promise<{warning?: string}> {
+  const t = MSG[lang];
+  if (!hasInhalt()) throw new Error(t.noPresentation);
+  if (job.running) throw new Error(t.designBusy);
+  if (!currentDesign().has) throw new Error(t.designNone);
+  const entry = listDesigns().find((d) => d.id === id);
+  if (!entry) throw new Error(t.designUnknown);
+  const presDir = real(inhaltDir());
+  saveVersion(presDir, {kind: 'design', instruction: t.beforeDesign(entry.name)});
+  writeDesign(path.join(presDir, 'src'), entry);
+  if (job.presentation === presDir) job.backup = ''; // "Undo" of the last rebuild would also undo this switch
+  // PlantUML diagrams are finished pictures in the old colours: draw them again
+  const r = await redrawDiagrams(presDir);
+  return r.ok ? {} : {warning: t.diagramsFailed(r.text)};
+}
+/** A design file written the way the shipped ones are: one line per group, easy to read and to change. */
+const formatDesign = (d: Record<string, unknown>) => `{\n${Object.entries(d).map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(',\n')}\n}\n`;
+const previewJobs = new Set<string>();
+/** Renders the preview picture of a design in the background (a few seconds). */
+function renderDesignPreview(file: string) {
+  if (previewJobs.has(file)) return;
+  previewJobs.add(file);
+  execFile(process.execPath, [path.join(root, 'scripts', 'designs.mjs'), file], {cwd: root, timeout: 180_000}, () => previewJobs.delete(file));
+}
+/** Saves the design of the presentation shown as an own design (designs/<name>.json) for other presentations. */
+function saveOwnDesign(nameIn: string, overwrite: boolean, lang: Lang): {exists?: boolean; saved?: string} {
+  const t = MSG[lang];
+  if (!hasInhalt()) throw new Error(t.noPresentation);
+  const srcDir = real(inhaltSrc());
+  const json = readJson(path.join(srcDir, 'design.json'));
+  if (!isDesign(json)) throw new Error(t.designNone);
+  const name = nameIn.trim().replace(/\s+/g, ' ').slice(0, 60);
+  const slug = name.toLowerCase().replace(/[^a-z0-9äöüß]+/g, '-').replace(/^-|-$/g, '');
+  if (!slug) throw new Error(t.designNameEmpty);
+  if (listDesigns().some((d) => !d.own && (d.id === slug || d.name.toLowerCase() === name.toLowerCase()))) throw new Error(t.designNameTaken(name));
+  const file = path.join(ownDesignsDir, `${slug}.json`);
+  if (fs.existsSync(file) && !overwrite) return {exists: true};
+  fs.mkdirSync(ownDesignsDir, {recursive: true});
+  fs.writeFileSync(file, formatDesign({...(json as Record<string, unknown>), name}));
+  // the presentation now carries this design under its new name ("Design: <name>" in the presenter)
+  if ((json as {name?: string}).name !== name) fs.writeFileSync(path.join(srcDir, 'design.json'), formatDesign({...(json as Record<string, unknown>), name}));
+  fs.rmSync(file.replace(/\.json$/, '.jpg'), {force: true});
+  // a house font belongs to the design: its files travel with it
+  const fonts = fontDirOf(file) as string;
+  fs.rmSync(path.dirname(fonts), {recursive: true, force: true});
+  for (const f of resolveDesign(json).font.files) {
+    const from = path.join(srcDir, 'schriften', f.file);
+    if (!fs.existsSync(from)) continue;
+    fs.mkdirSync(fonts, {recursive: true});
+    fs.copyFileSync(from, path.join(fonts, f.file));
+  }
+  renderDesignPreview(file);
+  return {saved: designId(file)};
+}
+function removeOwnDesign(id: string, lang: Lang) {
+  const entry = listDesigns().find((d) => d.id === id);
+  if (!entry) throw new Error(MSG[lang].designUnknown);
+  if (!entry.own) throw new Error(MSG[lang].designOnlyOwn);
+  fs.rmSync(entry.file, {force: true});
+  fs.rmSync(entry.file.replace(/\.json$/i, '.jpg'), {force: true});
+  fs.rmSync(entry.file.replace(/\.json$/i, ''), {recursive: true, force: true});
+}
+/**
+ * A design file named in a task (a line with "Design" and a path to a .json file that is a design) replaces the
+ * presentation's src/design.json. Returns a note for Claude and the paths taken, so they are not also copied as data.
+ */
+function takeDesign(text: string, srcDir: string, lang: Lang): {note: string; taken: Set<string>} {
+  const taken = new Set<string>();
+  let name = '';
+  if (!fs.existsSync(path.join(srcDir, 'design.json'))) return {note: '', taken};
+  for (const line of text.split(/\r?\n/)) {
+    if (!/design/i.test(line)) continue;
+    const found = new Set<string>();
+    for (const m of line.matchAll(/["„“'‚]((?:~|\/)[^"“”'\n]+\.json)["“”'‘]/gi)) found.add(m[1]);
+    for (const m of line.matchAll(/(?:^|[\s(:])((?:~|\/)[^\s"'“”<>()]*\.json)/gi)) found.add(m[1]);
+    for (const f of found) {
+      const from = path.resolve(expandHome(f));
+      if (!fs.existsSync(from) || !fs.statSync(from).isFile()) continue; // reported with the data files
+      const json = readJson(from);
+      if (!isDesign(json)) continue; // some other JSON: treated as data
+      taken.add(f);
+      if (name) continue; // one design per task: the first one counts
+      name = String((json as {name?: string}).name ?? '') || path.basename(from);
+      if (from !== path.join(srcDir, 'design.json')) fs.copyFileSync(from, path.join(srcDir, 'design.json'));
+      const fonts = fontDirOf(from) as string;
+      if (fs.existsSync(fonts)) fs.cpSync(fonts, path.join(srcDir, 'schriften'), {recursive: true});
+      push('tool', MSG[lang].designTaken(name));
+    }
+  }
+  return {
+    note: name ? `\n\nA design was supplied with this task and is already in place as src/design.json ("${name}") – the slides now use it. Do not copy it anywhere else; change it only if the task asks for adjustments. If the presentation has PlantUML diagrams, draw each of them again with the tool "plantuml".` : '',
+    taken,
+  };
+}
+
 /**
  * Web access for creating and rebuilding: only the sites whose links the user wrote into the task (WebFetch limited
  * to those hosts, no web search). For GitHub links the raw files are allowed too, so Claude can read the files a
@@ -708,7 +878,8 @@ ${formulaRule}
 ${mermaidRule}
 ${modelRule}
 ${dataRule}
-${fontRule}
+${fontRule(fs.existsSync(path.join(realDir, 'src', 'design.json')))}
+${designRule(path.join(realDir, 'src'))}
 ${plantumlRule}
 ${paketRule}
 ${linkRule}
@@ -982,7 +1153,7 @@ function glbSummary(file: string): string {
     return '';
   }
 }
-function takeImages(text: string, srcDir: string, lang: Lang): string {
+function takeImages(text: string, srcDir: string, lang: Lang, skip: Set<string> = new Set()): string {
   let out = '';
   for (const kind of TAKEN) {
     const found = new Set<string>();
@@ -991,6 +1162,7 @@ function takeImages(text: string, srcDir: string, lang: Lang): string {
     const dest = path.join(srcDir, kind.folder);
     const lines: string[] = [];
     for (const f of found) {
+      if (skip.has(f)) continue; // a design file, already taken as src/design.json
       const from = path.resolve(expandHome(f));
       if (!fs.existsSync(from) || !fs.statSync(from).isFile()) {
         // a path with spaces is also found cut off at the first space – only report the full one
@@ -1011,7 +1183,16 @@ function takeImages(text: string, srcDir: string, lang: Lang): string {
   return out;
 }
 const dataRule = `- Data files (.csv, .tsv, .json in the presentation's src/daten/; the server copies such paths named in a task there): read the file with Read, pick what the slide needs and put those labels and values into c.lists / c.t of content.json (values as strings), so they stay editable in the presenter – then draw them with the chart building blocks. Do not import the data file in the code. Keep the numbers exactly as in the file (round only for display and say so); with many rows choose or aggregate sensibly and state in your final answer what you left out. The file stays in src/daten/ as the source.`;
-const fontRule = `- Own fonts (.woff2, .woff, .ttf, .otf in the presentation's src/schriften/; the server copies such paths named in a task there): register each file once at the top of src/ui.tsx with \`import regular from './schriften/x.woff2'; loadFont('Name', regular);\` (loadFont from 'showpoint'; further cuts with \`{weight: 700}\` or \`{style: 'italic'}\` – take weight and style from the file name) and put the family first in the FONT constant there, keeping the existing fallbacks. Never load fonts from the web. If only one weight was supplied, say in your final answer that bold text is synthesised by the browser. Check with "vorschau" that the text still fits.`;
+const fontRuleOld = `- Own fonts (.woff2, .woff, .ttf, .otf in the presentation's src/schriften/; the server copies such paths named in a task there): register each file once at the top of src/ui.tsx with \`import regular from './schriften/x.woff2'; loadFont('Name', regular);\` (loadFont from 'showpoint'; further cuts with \`{weight: 700}\` or \`{style: 'italic'}\` – take weight and style from the file name) and put the family first in the FONT constant there, keeping the existing fallbacks. Never load fonts from the web. If only one weight was supplied, say in your final answer that bold text is synthesised by the browser. Check with "vorschau" that the text still fits.`;
+// with src/design.json: the font is part of the design, src/ui.tsx registers the files named there
+const fontRuleDesign = `- Own fonts (.woff2, .woff, .ttf, .otf in the presentation's src/schriften/; the server copies such paths named in a task there): the font belongs to the design. Enter each file in src/design.json under font.files – \`{"family": "Name", "file": "x.woff2", "weight": 400, "style": "normal"}\` (file name without folder; take weight and style from the file name, further cuts as further entries) – and put the family first in font.family there, keeping the existing fallbacks. src/ui.tsx registers these files by itself; write no loadFont call and no font name into the code. Never load fonts from the web. If only one weight was supplied, say in your final answer that bold text is synthesised by the browser. Check with "vorschau" that the text still fits.`;
+const fontRule = (hasDesign: boolean) => (hasDesign ? fontRuleDesign : fontRuleOld);
+/** The rule for the look of the slides; only for presentations that carry a src/design.json. */
+const designRule = (srcDir: string) =>
+  !fs.existsSync(path.join(srcDir, 'design.json'))
+    ? ''
+    : `- Design (the look: colours, font, background, shapes): it lives only in ${path.join(srcDir, 'design.json')} – read it. Slides take it through src/ui.tsx: C.bg, C.panel, C.panel2, C.border, C.inset, C.text, C.muted, C.heading, C.kicker, C.accent[0], C.accent[1] … (the accent palette, in the order chart series use it), C.good, C.bad, C.note, C.onAccent (text on an accent colour), FONT, W (font weights: W.normal, W.strong, W.kicker, W.heading), SHAPE (radius, borderWidth); code outside ui.tsx may use useDesign() from 'showpoint'. Never write a colour value (#…, rgb(…), hsl(…), a colour name) or a font name into a slide or into ui.tsx – only then can the design be switched. Shades come from mix(C.bg, C.accent[0], 0.2) (mix from 'showpoint': 0 = first colour, 1 = second) or from opacity. "transparent" and "currentColor" are fine. Charts, Mermaid diagrams, PlantUML diagrams and the light of 3D models take the design by themselves: pass them no colours, unless one element is to stand out (then a C.… value).
+  If the task is about the look itself – "background lighter", "more contrast", "rounder boxes", "the colours of our university", "a design like this web page" (if its link is in the task, read the page with WebFetch and take colours and character from it; load no files from it) – change only design.json, not the slides. Keep its structure and all its groups (surface, text, accent, status, font, shape, caption, diagram, model); surface.bg stays one plain colour (charts and diagrams treat it as the ground), a gradient goes into surface.background. Adjust the dependent groups as well (caption, diagram, model) and give "name" a fitting new name when the character changes. Text must stay readable: text.normal, text.muted and text.heading against surface.bg, panel and panel2 at least 4.5 : 1 (WCAG), accents against surface.bg at least 3 : 1; with a light background set "dark": false. Then draw every existing PlantUML diagram again with the tool "plantuml" (they are finished pictures in the old colours) and check several different slides with "vorschau".`;
 const modelRule = `- 3D models: only .glb files inside the presentation's src/modelle/ (the user supplies them, e.g. exported from Blender; the server copies .glb paths named in a task there). \`import haus from './modelle/haus.glb'\` and \`<Model3D src={haus} x={…} y={…} w={…} h={…} at={…} angle={-30} tilt={15} spin={20} zoom={1} />\` from 'showpoint': the model is centred, scaled to fit and lit; spin = degrees per second from the frame, animations stored in the file play from frame \`at\`. For more (show single parts one after another, turn to a certain view at a stop) pass \`update={(ctx, frame, fps) => { … }}\` and set everything from the frame alone: ctx.objects.model.getObjectByName('…').visible, ctx.objects.pivot.rotation, ctx.camera. You cannot open a .glb – use the part names given with the task, and check the result with "vorschau" (two different frames). Labels as normal text next to the canvas, not in 3D. Simple 3D shapes without a file: <ThreeCanvas> as before.`;
 const paketRule = `- Other libraries (maps, network graphs, physics, special charts …): only when the building blocks from 'showpoint' cannot do it reasonably. Install with the tool "paket" (input: name, e.g. "d3-geo"); it installs into the presentation's own node_modules, then import as usual. Prefer small, freely licensed packages (MIT, ISC, BSD, Apache-2.0); if the tool reports a licence warning, mention it in your final answer. Never install react, never use the library's own animation clock, timers or transitions: switch them off (e.g. animation: false, frameloop "never") and compute everything from useCurrentFrame(), otherwise jumping, stops, PDF and video will not match. Maps: prefer SVG with d3-geo and offline data (world-atlas / topojson) over tile maps from the internet. Check with "vorschau" that two different frames look different where they should.`;
 const chartRule = `- Numbers and proportions as charts from 'showpoint': <BarChart> (columns; horizontal for long labels; highlight = index to emphasise), <LineChart> (values or series = [{name, values}], area), <PieChart> (shares; donut, center text). Props: x, y, w, h in stage pixels, labels, values, at (start frame), unit (e.g. " %"), decimalComma for German-style numbers. Put labels and values into c.lists (values as strings like "3,5"), so they stay editable in the presenter. Never draw charts by hand when these fit.`;
@@ -1044,7 +1225,8 @@ function positionNote(sc: {dur: number; stops?: number[]; captions?: {at: number
 }
 
 function startRebuild(instruction: string, sceneId: string, lang: Lang, frame: number | null = null) {
-  if (!hasInhalt()) throw new Error(MSG[lang].noPresentation);
+  const t = MSG[lang];
+  if (!hasInhalt()) throw new Error(t.noPresentation);
   const content = JSON.parse(fs.readFileSync(contentFile(), 'utf8'));
   const nr = content.order.indexOf(sceneId) + 1;
   job.running = true;
@@ -1065,11 +1247,14 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang, frame: n
   const outside = realDir !== root && !realDir.startsWith(root + path.sep);
   const editRule = outside ? `/${path.join(realDir, 'src')}/**` : `${rel(inhaltSrc())}/**`;
   const file = contentFile();
-  const images = takeImages(instruction, real(inhaltSrc()), lang); // after the backup, so "Undo" removes them
+  const designFile = path.join(realDir, 'src', 'design.json');
+  const designBefore = fs.existsSync(designFile) ? fs.readFileSync(designFile, 'utf8') : '';
+  const design = takeDesign(instruction, real(inhaltSrc()), lang); // a design file named in the task becomes src/design.json
+  const images = takeImages(instruction, real(inhaltSrc()), lang, design.taken); // after the backup, so "Undo" removes them
   const hosts = linkHosts(instruction); // links in the task may be read, nothing else from the web
   const specs = takeSpecs(instruction, realDir, lang); // into vorgaben/ – they stay, also after "Undo"
   runClaude({
-    prompt: `Slide currently shown: no. ${nr} (scene ID "${sceneId}", title "${content.scenes[sceneId]?.title ?? ''}").${positionNote(content.scenes[sceneId], frame)}\n\nTask:\n${instruction}${images}${specs}`,
+    prompt: `Slide currently shown: no. ${nr} (scene ID "${sceneId}", title "${content.scenes[sceneId]?.title ?? ''}").${positionNote(content.scenes[sceneId], frame)}\n\nTask:\n${instruction}${design.note}${images}${specs}`,
     system: rebuildSystem(lang),
     tools: `Read,Edit,Write,Glob,Grep${hosts.size ? ',WebFetch' : ''}`,
     allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`, vorschauRule, paketToolRule, plantumlToolRule, ...[...hosts].map((h) => `WebFetch(domain:${h})`)],
@@ -1078,9 +1263,15 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang, frame: n
     done: () => {
       // check: valid JSON and error-free types
       checkContent(file);
-      typeCheck(null, (out) => {
+      typeCheck(null, async (out) => {
         pushTypeResult(out);
         pushLicenseNote(realDir);
+        // the design changed: PlantUML diagrams are finished pictures, draw them again in the new colours
+        if (designBefore && fs.existsSync(designFile) && fs.readFileSync(designFile, 'utf8') !== designBefore) {
+          const r = await redrawDiagrams(realDir).catch((e: Error) => ({ok: false, count: 0, text: e.message}));
+          if (!r.ok) push('warn', t.diagramsFailed(r.text));
+          else if (r.count) push('tool', t.diagramsRedrawn(r.count));
+        }
         finishJob();
       });
     },
@@ -1099,7 +1290,7 @@ The folder of the new presentation is ${dir} (your working folder). It already c
 Language: write all slide texts, captions, notes, begleittext.md, umbau-regeln.md, README.md and quellen/00-notizen.md in the language the task (the user's request) is written in; if that is unclear, use ${LANG_NAME[lang]}. Write your final answer in ${LANG_NAME[lang]}.
 
 Procedure:
-1. Read ${path.join(root, 'ANLEITUNG.md')} (interface between presenter and content, rules for scenes) and the scaffold: src/ui.tsx (building blocks), src/scenes.tsx (example of their use), src/Video.tsx, src/content.json.
+1. Read ${path.join(root, 'ANLEITUNG.md')} (interface between presenter and content, rules for scenes) and the scaffold: src/ui.tsx (building blocks), src/design.json (the look the user chose: colours, font, shapes), src/scenes.tsx (example of their use), src/Video.tsx, src/content.json.
 2. Read the sources named in the task: files with Read (long PDFs page by page), links with WebFetch. If a source cannot be read, say so clearly at the end; do not invent anything you have not read.
 3. Plan the slides: one idea per slide, a clear thread from the problem to the conclusion, scope as in the task.
 4. Write the scenes as React.FC<SceneProps> to src/ (at most about five scenes per file, e.g. scenesA.tsx, scenesB.tsx), replace the placeholder scenes and register every scene in REG in src/Video.tsx.
@@ -1111,14 +1302,15 @@ Rules:
 - Nothing may overlap or stick out of the frame. Check widths and positions by calculation; as a rule of thumb a character needs about 0.55 × font size of width. Text in the picture at least 22 px, captions at most about 150 characters.
 - All visible texts come from c.t (keys t01, t02, …) or c.lists, never hard-coded – only then can they be edited in the presenter.
 - Elements appear one after another, matching the spoken text (captions[].at). Each caption stays about 4 to 6 seconds. Stops shortly before each next caption and at the end of the scene (dur − 13).
-- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react plus packages installed with the tool "paket" (see below) (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, Formula, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random, BarChart, LineChart, PieChart, Mermaid, ThreeCanvas, Model3D); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
+- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react plus packages installed with the tool "paket" (see below) (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, Formula, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random, BarChart, LineChart, PieChart, Mermaid, ThreeCanvas, Model3D, mix, useDesign); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks; keep the DesignProvider in src/Video.tsx.
 ${imageRule}
 ${chartRule}
 ${formulaRule}
 ${mermaidRule}
 ${modelRule}
 ${dataRule}
-${fontRule}
+${fontRule(true)}
+${designRule(path.join(dir, 'src'))}
 ${plantumlRule}
 ${paketRule}
 ${linkRule}
@@ -1128,7 +1320,7 @@ ${vorschauHint(dir)}
   Check every scene this way at the end (several scene IDs per call are possible, at most 40 images).
 Finally answer briefly: the slides in their order, your assumptions, which sources you read and which not, what the preview showed and what you could not check.`;
 
-function startCreate(dirInput: string, prompt: string, lang: Lang) {
+function startCreate(dirInput: string, prompt: string, lang: Lang, designChoice = '') {
   const t = MSG[lang];
   const typed = expandHome(dirInput.trim());
   if (!path.isAbsolute(typed)) throw new Error(t.needAbsPath);
@@ -1140,8 +1332,11 @@ function startCreate(dirInput: string, prompt: string, lang: Lang) {
     if (fs.readdirSync(abs).some((n) => n !== '.DS_Store')) throw new Error(t.notEmpty(abs));
   }
   if (!isPresentation(vorlageDir)) throw new Error(t.templateMissing);
+  const chosen = designChoice ? listDesigns().find((d) => d.id === designChoice) : undefined;
+  if (designChoice && !chosen) throw new Error(t.designUnknown);
 
-  fs.cpSync(vorlageDir, abs, {recursive: true, filter: (s) => ![vorlageEnDir, path.join(vorlageDir, 'beispiele'), path.join(vorlageDir, 'node_modules')].includes(path.resolve(s))});
+  fs.cpSync(vorlageDir, abs, {recursive: true, filter: (s) => ![vorlageEnDir, path.join(vorlageDir, 'beispiele'), path.join(vorlageDir, 'designs'), path.join(vorlageDir, 'node_modules')].includes(path.resolve(s))});
+  if (chosen) writeDesign(path.join(abs, 'src'), chosen); // the look chosen in the window; without a choice the template's own (Nacht)
   if (lang === 'en') {
     for (const f of vorlageEnFiles) {
       const from = path.join(vorlageEnDir, f);
@@ -1203,9 +1398,10 @@ function startCreate(dirInput: string, prompt: string, lang: Lang) {
         });
       },
     });
-  const images = takeImages(prompt, path.join(dir, 'src'), lang);
+  const design = takeDesign(prompt, path.join(dir, 'src'), lang);
+  const images = takeImages(prompt, path.join(dir, 'src'), lang, design.taken);
   const specs = takeSpecs(prompt, dir, lang);
-  run(`Task for the new presentation:\n\n${prompt}${images}${specs}`, 0);
+  run(`Task for the new presentation:\n\n${prompt}${design.note}${images}${specs}`, 0);
 }
 
 function undoRebuild(lang: Lang) {
@@ -1249,7 +1445,7 @@ export default defineConfig({
   root: 'editor',
   // open: 'npm run edit' opens the presenter in the default browser (not wanted: BROWSER=none npm run edit);
   // preview images and installed packages of a presentation are no reason to reload the presenter
-  server: {port: 5173, strictPort: true, open: true, fs: {allow: ['..']}, watch: {ignored: ['**/.vorschau/**', '**/inhalte/*/node_modules/**', '**/.umbau/**']}},
+  server: {port: 5173, strictPort: true, open: true, fs: {allow: ['..']}, watch: {ignored: ['**/.vorschau/**', '**/inhalte/*/node_modules/**', '**/.umbau/**', '**/designs/*.jpg']}},
   resolve: runtimeResolve,
   assetsInclude: ['**/*.glb'], // 3D models are files to load, like images
   // mermaid is loaded with import() only when a slide uses it: bundle it up front, so its first use never makes
@@ -1363,6 +1559,46 @@ export default defineConfig({
           });
         });
 
+        // Designs: list with preview pictures; POST {apply: id} switches the design of the presentation shown,
+        // {save: name} keeps its design as an own one, {remove: id} deletes an own one
+        server.middlewares.use('/api/design', (req, res) => {
+          const lang = langOf(req);
+          const url = new URL(req.url ?? '/', 'http://x');
+          if (url.pathname.startsWith('/preview')) {
+            const entry = listDesigns().find((d) => d.id === url.searchParams.get('id'));
+            const jpg = entry?.file.replace(/\.json$/i, '.jpg');
+            if (!entry || !jpg || !fs.existsSync(jpg)) {
+              if (entry) renderDesignPreview(entry.file); // on its way; the presenter shows the colours until then
+              res.statusCode = 404;
+              return res.end();
+            }
+            res.setHeader('Content-Type', 'image/jpeg');
+            res.setHeader('Cache-Control', 'no-cache');
+            return fs.createReadStream(jpg).pipe(res);
+          }
+          const send = (extra: object = {}) => {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({current: currentDesign(), list: listDesigns().map(({file: _file, ...d}) => d), ...extra}));
+          };
+          if (req.method !== 'POST') return send();
+          let body = '';
+          req.on('data', (c) => (body += c));
+          req.on('end', async () => {
+            try {
+              const b = JSON.parse(body || '{}');
+              if (b.apply !== undefined) send(await applyDesign(String(b.apply), lang));
+              else if (b.save !== undefined) send(saveOwnDesign(String(b.save), !!b.overwrite, lang));
+              else if (b.remove !== undefined) {
+                removeOwnDesign(String(b.remove), lang);
+                send();
+              } else send();
+            } catch (e) {
+              res.statusCode = 400;
+              send({error: String((e as Error).message)});
+            }
+          });
+        });
+
         // Choose a presentation: list, switch via list entry, path or folder dialog
         server.middlewares.use('/api/presentation', (req, res) => {
           const lang = langOf(req);
@@ -1413,7 +1649,7 @@ export default defineConfig({
               if (job.running) throw new Error(t.jobRunning);
               const prompt = String(b.prompt ?? '').trim().slice(0, 20000);
               if (!prompt) throw new Error(t.promptEmpty);
-              startCreate(String(b.path ?? ''), prompt, lang);
+              startCreate(String(b.path ?? ''), prompt, lang, String(b.design ?? ''));
               send(jobStatus());
             } catch (e) {
               res.statusCode = 400;

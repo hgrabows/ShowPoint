@@ -66,6 +66,7 @@ Der Inhalt muss nur diese Schnittstelle erfüllen (Typen dazu in `editor/types.t
 |---|---|---|
 | `src/Video.tsx` | ja | exportiert `Video`, eine React-Komponente mit der Eigenschaft `{content}` |
 | `src/content.json` | ja | `title` (Name der Präsentation), `order`, `scenes` – je Szene `name` (Kurzname für die Leiste), `dur`, `stops`, `t`, `lists`, optional `kicker`, `title`, `captions` |
+| `src/design.json` | nein | Design: Farben, Schrift, Hintergrund, Formen (siehe „Design“); ohne die Datei gilt das dunkle Standard-Aussehen |
 | `src/begleittext.md` | nein | Thema, Zielgruppe, Ton für die `?`-Taste |
 | `src/umbau-regeln.md` | nein | Besonderheiten dieser Folien für „Folie umbauen“ |
 | `vorgaben/*.md, *.txt` | nein | Vorgaben, wie etwas gezeichnet wird (z. B. ER-Diagramme) – gelten bei jedem Umbau |
@@ -89,7 +90,8 @@ Welche Präsentation gezeigt wird, wählt man im Präsentator rechts oben unter 
 | `src/content.json` | Reihenfolge der Szenen, Dauer, Haltepunkte und alle Texte. Der Editor liest und schreibt diese Datei. |
 | `src/Video.tsx` | Tabelle `REG`: ordnet jeder Szenen-ID aus `content.json` eine React-Komponente zu und reiht sie hintereinander. |
 | `src/scenesA.tsx`, `scenesB.tsx`, `scenesC.tsx` | Die Szenen selbst. |
-| `src/ui.tsx` | Bausteine für Szenen (`Scene`, `Appear`, `Box`, `Arrow`, Farben `C` …) und die Typen `SceneContent`, `SceneProps`. |
+| `src/ui.tsx` | Bausteine für Szenen (`Scene`, `Appear`, `Box`, `Arrow`, Farben `C` …) und die Typen `SceneContent`, `SceneProps`. Farben und Schrift liest sie aus `src/design.json`. |
+| `src/design.json` | Das Design der Präsentation: Farben, Schrift, Hintergrund, Formen. Gewählt und gewechselt im Präsentator, verfeinert per Auftrag. |
 | `runtime/` | Laufzeit: die Bausteine, die Szenen aus `'showpoint'` importieren (siehe unten), und der Player. |
 | `render/`, `scripts/stills.mjs` | Renderer: öffnet die Präsentation in einem unsichtbaren Chrome und fotografiert einzelne Bilder. |
 | `scripts/render.mjs`, `scripts/pdf.mjs`, `scripts/vorschau*.mjs` | Präsentator: rendert die gewählte Präsentation als Video bzw. PDF und erzeugt die Vorschaubilder für Claude. |
@@ -230,11 +232,12 @@ Szenen importieren ihre Bausteine aus `'showpoint'` (Quelltext in `runtime/index
 | `AbsoluteFill` | `div`, das seinen Rahmen ganz ausfüllt |
 | `Sequence from={…} durationInFrames={…}`, `Series` | zeigt Inhalte nur in einem Zeitfenster; darin zählt das Bild wieder ab 0 |
 | `Img` | Bild; der Renderer wartet, bis es geladen ist |
+| `DesignProvider`, `useDesign()`, `mix(a, b, t)` | Design der Präsentation für die Bausteine: `Video.tsx` umschließt die Folien mit `<DesignProvider design={design}>`; `useDesign()` liefert es, `mix` mischt zwei Farben. Ohne `DesignProvider` gilt das dunkle Standard-Aussehen |
 | `BarChart`, `LineChart`, `PieChart` | Diagramme, die sich ab Bild `at` aufbauen (Details unten) |
 | `Formula` | Formel aus LaTeX-Text (KaTeX), weich eingeblendet ab `at`: `<Formula tex={c.t.f1} x={90} y={250} at={20} fontSize={56} />`; Umformungsschritte nacheinander mit `steps={c.lists.schritte}` (Abstand `every`, Standard 45 Bilder); außerdem `w`, `align`, `color`, `display={false}` für Fließtext-Stil. In `content.json` Backslashes verdoppeln: `"\\frac{a}{b}"` |
 | `ThreeCanvas x y w h setup={…} update={(ctx, frame, fps) => …}`, `THREE` | 3D-Szene mit Three.js: `setup` baut Szene, Licht und Kamera einmal, `update` setzt alles nur aus der Bildnummer. Beispiel: `vorlage/beispiele/three-beispiel.tsx`. Text in 3D ist nicht markierbar, Beschriftungen daher als normalen Text daneben setzen |
 | `Model3D src={haus} x y w h at angle tilt spin zoom update={…}` | 3D-Modell aus einer `.glb`-Datei (`import haus from './modelle/haus.glb'`): wird zentriert, eingepasst und beleuchtet; `spin` = Grad pro Sekunde aus der Bildnummer, in der Datei gespeicherte Animationen laufen ab Bild `at` mit. Mit `update` einzelne Teile per Namen ein-/ausblenden oder die Ansicht steuern. Beispiel: `vorlage/beispiele/modell-beispiel.tsx` |
-| `loadFont('Name', datei, {weight, style})` | meldet eine Schriftdatei aus `src/schriften/` an (oben in `ui.tsx`, nicht in einer Komponente); danach als `fontFamily` nutzbar |
+| `loadFont('Name', datei, {weight, style})` | meldet eine Schriftdatei aus `src/schriften/` an (oben in `ui.tsx`, nicht in einer Komponente); danach als `fontFamily` nutzbar. Mit `design.json` erledigt `ui.tsx` das für die Dateien unter `font.files` selbst |
 | `Mermaid code={…} x y w h` | Fluss-, Sequenz-, Zustands- und Klassendiagramme aus Mermaid-Text, eingepasst in den Rahmen und im Folienstil gefärbt. Einblenden: ganz ab `at`, mit `every={30}` Schritt für Schritt (Knoten in der Reihenfolge ihrer ersten Nennung, jede Kante mit dem späteren ihrer Knoten; im Sequenzdiagramm erst die Teilnehmer, dann Nachrichten und Notizen von oben nach unten) oder selbst gesteuert mit `reveal={Zahl sichtbarer Schritte}` bzw. `progress={0..1}`. Außerdem `fontSize` (Standard 20), `maxScale`, `themeVariables`. Mermaid wird erst geladen, wenn eine Folie es benutzt. Syntaxfehler erscheinen als roter Kasten. Beispiel: `vorlage/beispiele/mermaid-beispiel.tsx` |
 | `waitFor('name')` | für eigene Bausteine, die asynchron zeichnen: `const done = waitFor('name')` vor dem Start, `done()` sobald das Ergebnis im DOM steht. Vorschau, PDF und Video warten darauf (höchstens 30 s, dann Fehlermeldung mit dem Namen) |
 
@@ -380,6 +383,65 @@ Teile und der Animationen aus der Datei; Claude zeigt das Modell mit dem Baustei
 - Nur `.glb` (eine Datei mit allem darin). Für ein starres, fertig gerendertes Bild stattdessen ein PNG mit
   transparentem Hintergrund als Bild einbinden.
 
+## Design (Aussehen der Folien)
+
+Das Aussehen einer Präsentation – Farben, Schrift, Hintergrund, Formen – steht in einer einzigen Datei:
+`src/design.json`. Folien, Diagramme, Mermaid, PlantUML und das Licht der 3D-Modelle lesen daraus. Gemeint ist nur
+das Aussehen, nicht die Anordnung auf der Folie.
+
+**Wählen.** Bei „Neue Präsentation erzeugen …“ klickt man eines der Vorschaubilder an. Mitgeliefert sind vier Designs
+(`vorlage/designs/`):
+
+| Design | gedacht für |
+|---|---|
+| Nacht | dunkle Bühne – das bisherige Aussehen |
+| Hell | heller Hintergrund, dunkle Schrift |
+| Papier | warmes Papierweiß ohne Verlauf, gedeckte Farben – für gedruckte PDFs |
+| Kontrast | Weiß und Schwarz, kräftige Farben, dicke Rahmen – für Beamer in hellen Räumen |
+
+**Wechseln.** Im Präsentator rechts unten steht eingeklappt „Design: <Name>“. Aufgeklappt zeigt die Zeile alle Designs;
+ein Klick wechselt. Dabei wird nur `src/design.json` getauscht, der Stand davor steht unter „Frühere Stände“, und
+vorhandene PlantUML-Diagramme (`src/diagramme/*.puml`) werden neu gezeichnet. „angepasst“ hinter dem Namen heißt: Das
+Design dieser Präsentation weicht von allen gespeicherten ab.
+
+**Verfeinern.** Farbfelder gibt es im Präsentator nicht – verfeinert wird per Auftrag mit „Folie umbauen“, zum Beispiel
+„Hintergrund etwas heller“, „Kästen eckiger“ oder „Design in den Farben unserer Hochschule: https://…“ (den Link
+liest Claude). Claude ändert dann nur `src/design.json`, nicht die Folien. Eine fertige Design-Datei lässt sich auch
+mitgeben: eine Zeile mit „Design“ und dem Pfad einer `.json`-Datei, z. B. `Design: ~/designs/hochschule.json`.
+
+**Eigene Designs.** „Als eigenes Design speichern …“ legt das Design der gezeigten Präsentation unter einem Namen in
+`designs/` im ShowPoint-Ordner ab (nicht in git) – so entsteht etwa ein Hochschul-Design: ein mitgeliefertes wählen,
+per Auftrag anpassen, speichern. Eigene Designs stehen danach mit Vorschaubild in beiden Auswahlen neben den
+mitgelieferten; das ✕ auf der Kachel löscht eines. Nennt das Design eine Hausschrift (`font.files`), wandern deren
+Dateien aus `src/schriften/` mit nach `designs/<name>/schriften/` und beim Wählen in die nächste Präsentation.
+
+**Aufbau von `design.json`.** Fehlt etwas, wird es aus dem Rest abgeleitet.
+
+| Gruppe | Inhalt |
+|---|---|
+| `name`, `dark` | Name im Präsentator; `dark: true` = dunkle Bühne mit heller Schrift |
+| `surface` | `bg` (Hintergrund als eine Farbe – Diagramme behandeln sie als Grund), `background` (CSS-Hintergrund der Folie, auch ein Verlauf), `panel` (Kasten), `panel2` (zweiter Kasten), `border` (Rahmen, Gitterlinien), `inset`, `stage` (hinter den Folien, sichtbar beim Überblenden) |
+| `text` | `normal`, `muted` (gedämpft), `heading` (Überschrift), `kicker` (Dachzeile), `onAccent` (Text auf einer Akzentfarbe) |
+| `accent` | Akzent-Palette, etwa sechs bis acht Farben; Diagramm-Reihen nehmen sie in dieser Reihenfolge |
+| `status` | `good`, `bad`, `note` (Hinweis) |
+| `font` | `family` (CSS-Schriftliste), `weights` (`normal`, `strong`, `kicker`, `heading`), `files` (eigene Schriftdateien in `src/schriften/`: `{"family", "file", "weight", "style"}`) |
+| `shape` | `radius` (Eckenradius), `borderWidth` (Rahmenstärke) |
+| `caption` | Untertitel-Box: `bg`, `border`, `text` |
+| `diagram`, `model` | Mermaid/PlantUML (`node`, `nodeBorder`, `line`, `group`, `noteBg`, `noteBorder`, `errorBg`) und 3D-Licht (`ground`, `fill`) |
+
+**In den Folien.** `src/ui.tsx` liest `design.json` und gibt die Werte als `C` (Farben: `C.bg`, `C.panel`, `C.text`,
+`C.muted`, `C.accent[0]` …, `C.good`, `C.bad`, `C.note`), `FONT`, `W` (Schriftgewichte) und `SHAPE` weiter;
+`src/Video.tsx` reicht das Design mit `<DesignProvider design={design}>` an die Bausteine der Laufzeit. In einer Folie
+stehen deshalb keine Farbwerte und keine Schriftnamen; Zwischentöne kommen aus `mix(C.bg, C.accent[0], 0.2)`. Die
+älteren Namen `C.doc`, `C.mem`, `C.query`, `C.fire` bleiben als Verweise auf die Akzent-Palette erhalten.
+
+**Ältere Präsentationen** ohne `src/design.json` sehen aus wie bisher (das dunkle Aussehen ist der Standard der
+Laufzeit). Für sie zeigt der Präsentator „Design: fest in den Folien“; wählbar wird ein Design erst, wenn ihre Folien
+ihre Farben aus `design.json` lesen.
+
+**Prüfen.** `node scripts/designs.mjs --check` rechnet für jedes Design den Kontrast (WCAG) von Text gegen Hintergrund
+und Kästen aus; `node scripts/designs.mjs` rendert die Vorschaubilder neu (Musterfolie in `vorlage/designs/muster/`).
+
 ## Daten und Schriften einbinden
 
 Wie Bilder und 3D-Modelle lassen sich auch Daten und Schriften per Auftrag mitgeben – Pfad in den Auftrag schreiben,
@@ -388,9 +450,10 @@ bei „Folie umbauen“ oder „Neue Präsentation“:
 - **Daten** (`.csv`, `.tsv`, `.json`) → `src/daten/`. Claude liest die Datei, übernimmt die benötigten Werte nach
   `content.json` (dort bleiben sie im Präsentator änderbar) und zeichnet sie mit den Diagramm-Bausteinen. Die Datei
   bleibt als Quelle in der Präsentation. Excel-Tabellen vorher als CSV exportieren.
-- **Schriften** (`.woff2`, `.woff`, `.ttf`, `.otf`) → `src/schriften/`. Claude meldet sie in `src/ui.tsx` mit
-  `loadFont('Name', datei)` an und setzt sie in `FONT` an die erste Stelle; weitere Schnitte mit `{weight: 700}` oder
-  `{style: 'italic'}`. PDF, Video und Vorschau warten, bis die Schrift geladen ist. Die Schriftdateien liegen in der
+- **Schriften** (`.woff2`, `.woff`, `.ttf`, `.otf`) → `src/schriften/`. Die Schrift gehört zum Design: Claude trägt die
+  Dateien in `src/design.json` unter `font.files` ein und setzt die Familie in `font.family` an die erste Stelle;
+  `src/ui.tsx` meldet sie von selbst an. (In älteren Präsentationen ohne `design.json`: `loadFont('Name', datei)` in
+  `src/ui.tsx` und `FONT`.) PDF, Video und Vorschau warten, bis die Schrift geladen ist. Die Schriftdateien liegen in der
   Präsentation und werden mit ihr weitergegeben – die Lizenz der Schrift muss das erlauben.
 
 Welche Dateitypen ein Auftrag mitbringen kann, steht in `vite.config.mts` in der Tabelle `TAKEN` (Dateityp → Ordner).
@@ -415,7 +478,8 @@ gelten weiter.
 
 Für Diagramme, die Mermaid oder die Bausteine nicht richtig können (z. B. ER-Diagramme), kann Claude PlantUML benutzen:
 Es schreibt den Diagrammtext nach `src/diagramme/<name>.puml` und ruft das Werkzeug „plantuml“ auf; das erzeugt
-`<name>.svg` daneben, schon in den Farben der dunklen Folien, und die Folie bindet das SVG wie ein Bild ein.
+`<name>.svg` daneben, schon in den Farben des Designs (`src/design.json`; ohne die Datei im dunklen Standard-Schema),
+und die Folie bindet das SVG wie ein Bild ein. Nach einem Wechsel des Designs zeichnet der Präsentator die Diagramme neu.
 
 - Einmal einrichten: `npm run plantuml` lädt PlantUML (feste Version, per Prüfsumme geprüft) nach `.werkzeuge/`.
   Auf macOS (Apple Silicon), Linux und Windows ist das ein eigenständiges Programm – **Java ist nicht nötig**. Nur auf
@@ -424,7 +488,7 @@ Es schreibt den Diagrammtext nach `src/diagramme/<name>.puml` und ruft das Werkz
   sein eingebautes Layout (kein Graphviz nötig, gleiches Ergebnis auf jedem Rechner).
 - Das fertige SVG liegt in der Präsentation: **Präsentieren, PDF und Video gehen ohne PlantUML**. Gebraucht wird es
   nur, um ein Diagramm zu ändern oder neu zu zeichnen; fehlt es dann, sagt Claude das im Ergebnis.
-- Von Hand: `node scripts/plantuml.mjs <Präsentationsordner> <name>`.
+- Von Hand: `node scripts/plantuml.mjs <Präsentationsordner> <name>` (alle neu zeichnen: `--all` statt des Namens).
 - Der Text im Diagramm steht in der `.puml`-Datei, nicht in `content.json` – ändern per „Folie umbauen“.
 
 ## Vorschau-Werkzeug für Claude

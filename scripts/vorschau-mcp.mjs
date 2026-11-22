@@ -38,7 +38,7 @@ const paketTool = {
 const plantumlTool = {
   name: 'plantuml',
   description:
-    "Renders a PlantUML diagram of this presentation: reads src/diagramme/<name>.puml (write it first) and writes src/diagramme/<name>.svg next to it, in the colours of the dark slides. Runs locally, no network; !include and URLs are not available. Returns the size of the picture and how to import it, or the PlantUML error with its line. Call it again after every change of the .puml file.",
+    "Renders a PlantUML diagram of this presentation: reads src/diagramme/<name>.puml (write it first) and writes src/diagramme/<name>.svg next to it, in the colours of the presentation's design (src/design.json). Runs locally, no network; !include and URLs are not available. Returns the size of the picture and how to import it, or the PlantUML error with its line. Call it again after every change of the .puml file.",
   inputSchema: {
     type: 'object',
     properties: {name: {type: 'string', description: "Diagram name without folder and ending, e.g. 'schema' for src/diagramme/schema.puml."}},

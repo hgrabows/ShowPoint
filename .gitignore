@@ -6,3 +6,5 @@ quellen/.cache
 .DS_Store
 inhalte/
 .werkzeuge
+# own designs saved from the presenter (the shipped ones are in vorlage/designs/)
+/designs/

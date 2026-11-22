@@ -340,3 +340,8 @@ export {waitFor} from './wait';
 /* ── Own fonts ─────────────────────────────────────────────────────────────── */
 
 export {loadFont} from './font';
+
+/* ── Design (colours, font, shapes) ───────────────────────────────────────── */
+
+export {DesignProvider, useDesign, resolveDesign, mix, NIGHT} from './design';
+export type {Design, DesignInput} from './design';

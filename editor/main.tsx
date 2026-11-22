@@ -7,6 +7,8 @@ import {Ask, askCss} from './Ask';
 import {Rebuild, RebuildState, rebuildCss} from './Rebuild';
 import {floatCss} from './float';
 import {Create, createCss} from './Create';
+import {DesignPanel, designCss} from './Design';
+import type {DesignCurrent} from './Design';
 import {Slides, slidesCss} from './Slides';
 
 const css = `
@@ -72,7 +74,7 @@ select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;bord
 .libs-k{flex:none;width:7.5em;color:#5d6a92}
 .libs-warn{color:#ffb020}
 .libs-hint{margin-top:6px;color:#5d6a92}
-.libs.vers{margin-top:10px}
+.libs.vers,.libs.design{margin-top:10px}
 .vers-row{display:flex;align-items:center;gap:8px;margin-top:5px}
 .vers-when{flex:none;width:7.5em;color:#5d6a92;font-variant-numeric:tabular-nums}
 .vers-what{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -98,6 +100,7 @@ type Presentation = {
   builtins?: string[];
   specs?: {file: string; title: string}[];
   versions?: {id: string; time: number; kind: string; instruction: string; scene: string}[];
+  design?: DesignCurrent;
   list: {dir: string; title: string; path: string; linked: boolean}[];
   error?: string;
 };
@@ -237,7 +240,7 @@ const App: React.FC = () => {
         // a rebuild may have installed packages: refresh the licence notice
         fetch('/api/presentation')
           .then((r) => r.json())
-          .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses, packages: p.packages, builtins: p.builtins, specs: p.specs, versions: p.versions} : p)));
+          .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses, packages: p.packages, builtins: p.builtins, specs: p.specs, versions: p.versions, design: p.design} : p)));
       }
       rbWas.current = st.running;
     } catch {
@@ -732,7 +735,7 @@ const App: React.FC = () => {
   if (!content || !Video)
     return (
       <div style={{padding: 30, maxWidth: 640}}>
-        <style>{css + askCss + rebuildCss + createCss + langCss}</style>
+        <style>{css + askCss + rebuildCss + createCss + designCss + langCss}</style>
         {createBox}
         {jobBadge}
         {pres && !pres.videoUrl ? (
@@ -759,7 +762,7 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
-      <style>{css + askCss + rebuildCss + floatCss + createCss + langCss + slidesCss}</style>
+      <style>{css + askCss + rebuildCss + floatCss + createCss + designCss + langCss + slidesCss}</style>
       {createBox}
       {jobBadge}
       <div className="stage">
@@ -1087,6 +1090,16 @@ const App: React.FC = () => {
           })}
         </div>
         <Libraries builtins={pres?.builtins ?? []} packages={pres?.packages ?? []} specs={pres?.specs ?? []} />
+        <DesignPanel
+          design={pres?.design}
+          locked={!!rb?.running}
+          onChanged={() =>
+            // only design.json changed: the slides reload by themselves; refresh the name and "Earlier states"
+            fetch('/api/presentation')
+              .then((x) => x.json())
+              .then((p: Presentation) => setPres((old) => (old ? {...old, versions: p.versions, design: p.design} : p)))
+          }
+        />
         <Versions
           versions={pres?.versions ?? []}
           busy={!!rb?.running}
@@ -1101,7 +1114,7 @@ const App: React.FC = () => {
                 .then(setContent);
               fetch('/api/presentation')
                 .then((x) => x.json())
-                .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses, packages: p.packages, builtins: p.builtins, specs: p.specs, versions: p.versions} : p)));
+                .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses, packages: p.packages, builtins: p.builtins, specs: p.specs, versions: p.versions, design: p.design} : p)));
               fetch('/api/rebuild')
                 .then((x) => x.json())
                 .then(setRb);
@@ -1210,7 +1223,7 @@ const Versions: React.FC<{versions: NonNullable<Presentation['versions']>; busy:
       <summary>{T.versionsSummary(versions.length)}</summary>
       {versions.map((v) => {
         const when = T.versionsWhen(new Date(v.time));
-        const what = v.kind === 'restore' ? v.instruction : T.versionsBefore(v.scene, v.instruction);
+        const what = v.kind !== 'rebuild' ? v.instruction : T.versionsBefore(v.scene, v.instruction);
         return (
           <div key={v.id} className="vers-row" title={v.instruction}>
             <span className="vers-when">{when}</span>

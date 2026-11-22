@@ -18,6 +18,9 @@ pause at stops, answer questions about what is on screen – and can be rebuilt 
 - **Charts, formulas, diagrams, 3D** – built-in building blocks for bar, line and pie charts, KaTeX formulas, Mermaid diagrams (flowcharts, sequence, state and class diagrams), Three.js scenes and 3D models from `.glb` files (e.g. exported from Blender). PlantUML diagrams (e.g. ER models) through a local tool, and per-presentation specifications (`vorgaben/`) that tell Claude how things are to be drawn.
 - **Any library when needed** – for maps, graphs and the like, Claude installs an npm package into the presentation
   itself; packages without a free licence are marked in the presenter.
+- **Designs** – each presentation carries its look (colours, font, background, shapes) in `src/design.json`. Four
+  designs are shipped (night, light, paper, contrast); choose one when creating, switch it in the side panel, refine it
+  with a task (“background a little lighter”, “the colours of our university”) and save the result as your own design.
 - **Create a presentation** – give a folder and a prompt; Claude Code writes the scenes, texts and stops from a template.
 - **Reorder and remove slides** – drag slides into a new order in the slide list, click to jump to one, remove a
   slide with 🗑 and restore it later.

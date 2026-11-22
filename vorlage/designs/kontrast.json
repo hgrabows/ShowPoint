@@ -1,0 +1,13 @@
+{
+  "name": "Kontrast",
+  "dark": false,
+  "surface": {"bg": "#FFFFFF", "background": "#FFFFFF", "panel": "#FFFFFF", "panel2": "#EEF1F5", "border": "#111827", "inset": "#EEF1F5", "stage": "#FFFFFF"},
+  "text": {"normal": "#000000", "muted": "#2F3848", "heading": "#000000", "kicker": "#0047AB", "onAccent": "#FFFFFF"},
+  "accent": ["#0047AB", "#6B21C8", "#A34A00", "#0A6B37", "#C01818", "#B33A00", "#0B6477", "#9A1AA6"],
+  "status": {"good": "#0A6B37", "bad": "#C01818", "note": "#A34A00"},
+  "font": {"family": "-apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Helvetica, Arial, sans-serif", "weights": {"normal": 600, "strong": 700, "kicker": 800, "heading": 900}, "files": []},
+  "shape": {"radius": 6, "borderWidth": 4},
+  "caption": {"bg": "#FFFFFF", "border": "#111827", "text": "#000000"},
+  "diagram": {"node": "#EEF1F5", "nodeBorder": "#0047AB", "line": "#111827", "group": "#F6F7F9", "noteBg": "#FFF1CC", "noteBorder": "#A34A00", "errorBg": "#FCE4E4"},
+  "model": {"ground": "#9AA3B2", "fill": "#FFFFFF"}
+}

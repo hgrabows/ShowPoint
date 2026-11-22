@@ -66,6 +66,7 @@ The content only has to satisfy this interface (types in `editor/types.ts`):
 |---|---|---|
 | `src/Video.tsx` | yes | exports `Video`, a React component with the prop `{content}` |
 | `src/content.json` | yes | `title` (name of the presentation), `order`, `scenes` – per scene `name` (short name for the bar), `dur`, `stops`, `t`, `lists`, optionally `kicker`, `title`, `captions` |
+| `src/design.json` | no | design: colours, font, background, shapes (see "Design"); without the file the dark standard look applies |
 | `src/begleittext.md` (accompanying notes) | no | topic, audience, tone for the `?` key |
 | `src/umbau-regeln.md` (rebuild rules) | no | specifics of these slides for "Rebuild slide" |
 | `vorgaben/*.md, *.txt` | no | specifications for how things are drawn (e.g. ER diagrams) – apply to every rebuild |
@@ -89,7 +90,8 @@ Which presentation is shown is chosen in the presenter at the top right under "P
 | `src/content.json` | Order of the scenes, duration, stops and all texts. The editor reads and writes this file. |
 | `src/Video.tsx` | Table `REG`: maps each scene ID from `content.json` to a React component and puts them in sequence. |
 | `src/scenesA.tsx`, `scenesB.tsx`, `scenesC.tsx` | The scenes themselves. |
-| `src/ui.tsx` | Building blocks for scenes (`Scene`, `Appear`, `Box`, `Arrow`, colors `C` …) and the types `SceneContent`, `SceneProps`. |
+| `src/ui.tsx` | Building blocks for scenes (`Scene`, `Appear`, `Box`, `Arrow`, colors `C` …) and the types `SceneContent`, `SceneProps`. It reads colours and font from `src/design.json`. |
+| `src/design.json` | The design of the presentation: colours, font, background, shapes. Chosen and switched in the presenter, refined with a task. |
 | `runtime/` | Runtime: the building blocks scenes import from `'showpoint'` (see below) and the player. |
 | `render/`, `scripts/stills.mjs` | Renderer: opens the presentation in a hidden Chrome and takes pictures of single frames. |
 | `scripts/render.mjs`, `scripts/pdf.mjs`, `scripts/vorschau*.mjs` | Presenter: renders the chosen presentation as video or PDF and makes the preview images for Claude. |
@@ -232,7 +234,8 @@ Scenes import their building blocks from `'showpoint'` (source in `runtime/index
 | `Formula` | formula from LaTeX text (KaTeX), fading in from `at`: `<Formula tex={c.t.f1} x={90} y={250} at={20} fontSize={56} />`; steps of a calculation one after the other with `steps={c.lists.steps}` (spacing `every`, default 45 frames); also `w`, `align`, `color`, `display={false}` for inline style. In `content.json` double the backslashes: `"\\frac{a}{b}"` |
 | `ThreeCanvas x y w h setup={…} update={(ctx, frame, fps) => …}`, `THREE` | 3D scene with Three.js: `setup` builds scene, lights and camera once, `update` sets everything from the frame number alone. Example: `vorlage/beispiele/three-beispiel.tsx`. Text drawn in 3D cannot be selected, so put labels next to it as normal text |
 | `Model3D src={haus} x y w h at angle tilt spin zoom update={…}` | 3D model from a `.glb` file (`import haus from './modelle/haus.glb'`): centred, scaled to fit and lit; `spin` = degrees per second from the frame, animations stored in the file play from frame `at`. With `update`, show or hide single parts by name or control the view. Example: `vorlage/beispiele/modell-beispiel.tsx` |
-| `loadFont('Name', file, {weight, style})` | registers a font file from `src/schriften/` (at the top of `ui.tsx`, not inside a component); then usable as `fontFamily` |
+| `loadFont('Name', file, {weight, style})` | registers a font file from `src/schriften/` (at the top of `ui.tsx`, not inside a component); then usable as `fontFamily`. With a `design.json`, `ui.tsx` does this by itself for the files under `font.files` |
+| `DesignProvider`, `useDesign()`, `mix(a, b, t)` | the design of the presentation for the building blocks: `Video.tsx` wraps the slides in `<DesignProvider design={design}>`; `useDesign()` returns it, `mix` mixes two colours. Without a `DesignProvider` the dark standard look applies |
 | `Mermaid code={…} x y w h` | flowcharts, sequence, state and class diagrams from Mermaid text, fitted into the box and coloured like the slides. Appearing: as a whole from `at`, step by step with `every={30}` (nodes in the order of their first mention, each edge with the later of its two nodes; in sequence diagrams the participants first, then messages and notes from top to bottom) or under your own control with `reveal={number of visible steps}` or `progress={0..1}`. Also `fontSize` (default 20), `maxScale`, `themeVariables`. Mermaid is only loaded when a slide uses it. Syntax errors show as a red box. Example: `vorlage/beispiele/mermaid-beispiel.tsx` |
 | `waitFor('name')` | for your own building blocks that draw asynchronously: `const done = waitFor('name')` before starting, `done()` once the result is in the DOM. Preview, PDF and video wait for it (at most 30 s, then an error naming it) |
 
@@ -377,6 +380,65 @@ names of the parts and animations in the file; Claude shows the model with the b
 - Only `.glb` (one file with everything in it). For a fixed, fully rendered picture add a PNG with a transparent
   background as an image instead.
 
+## Design (the look of the slides)
+
+The look of a presentation – colours, font, background, shapes – lives in a single file: `src/design.json`. Slides,
+charts, Mermaid, PlantUML and the light of 3D models read from it. "Design" means the look only, not the layout of a
+slide.
+
+**Choosing.** In "New presentation …" click one of the preview pictures. Four designs are shipped (`vorlage/designs/`):
+
+| Design | meant for |
+|---|---|
+| Nacht (Night) | dark stage – the look so far |
+| Hell (Light) | light background, dark text |
+| Papier (Paper) | warm paper white without a gradient, muted colours – for printed PDFs |
+| Kontrast (Contrast) | white and black, strong colours, thick frames – for projectors in bright rooms |
+
+**Switching.** At the bottom right of the presenter there is a folded line "Design: <name>". Opened, it shows all
+designs; a click switches. Only `src/design.json` is replaced, the state before is listed under "Earlier states", and
+existing PlantUML diagrams (`src/diagramme/*.puml`) are drawn again. "adapted" after the name means: the design of
+this presentation differs from every saved one.
+
+**Refining.** There are no colour pickers in the presenter – refine with a task in "Rebuild slide", for example
+"background a little lighter", "boxes less rounded" or "design in the colours of our university: https://…" (Claude
+reads the link). Claude then changes only `src/design.json`, not the slides. A finished design file can be supplied
+too: a line with "design" and the path of a `.json` file, e.g. `Design: ~/designs/university.json`.
+
+**Your own designs.** "Save as own design …" stores the design of the presentation shown under a name in `designs/` in
+the ShowPoint folder (not in git) – this is how a university design comes about: choose a shipped one, adapt it with
+tasks, save it. Own designs then appear with a preview picture in both choosers next to the shipped ones; the ✕ on a
+tile deletes one. If the design names a house font (`font.files`), its files travel from `src/schriften/` to
+`designs/<name>/schriften/` and, when chosen, into the next presentation.
+
+**Structure of `design.json`.** Whatever is missing is derived from the rest.
+
+| Group | Content |
+|---|---|
+| `name`, `dark` | name in the presenter; `dark: true` = dark stage with light text |
+| `surface` | `bg` (background as one colour – charts and diagrams treat it as the ground), `background` (CSS background of the slide, may be a gradient), `panel` (box), `panel2` (second box), `border` (frames, grid lines), `inset`, `stage` (behind the slides, visible while fading) |
+| `text` | `normal`, `muted`, `heading`, `kicker` (line above the heading), `onAccent` (text on an accent colour) |
+| `accent` | accent palette, about six to eight colours; chart series take them in this order |
+| `status` | `good`, `bad`, `note` |
+| `font` | `family` (CSS font stack), `weights` (`normal`, `strong`, `kicker`, `heading`), `files` (own font files in `src/schriften/`: `{"family", "file", "weight", "style"}`) |
+| `shape` | `radius` (corner radius), `borderWidth` (frame width) |
+| `caption` | caption box: `bg`, `border`, `text` |
+| `diagram`, `model` | Mermaid/PlantUML (`node`, `nodeBorder`, `line`, `group`, `noteBg`, `noteBorder`, `errorBg`) and 3D light (`ground`, `fill`) |
+
+**In the slides.** `src/ui.tsx` reads `design.json` and hands the values on as `C` (colours: `C.bg`, `C.panel`,
+`C.text`, `C.muted`, `C.accent[0]` …, `C.good`, `C.bad`, `C.note`), `FONT`, `W` (font weights) and `SHAPE`;
+`src/Video.tsx` passes the design to the runtime building blocks with `<DesignProvider design={design}>`. So a slide
+contains no colour values and no font names; shades come from `mix(C.bg, C.accent[0], 0.2)`. The older names `C.doc`,
+`C.mem`, `C.query`, `C.fire` remain as references into the accent palette.
+
+**Older presentations** without `src/design.json` look as before (the dark look is the runtime's default). For them the
+presenter shows "Design: fixed in the slides"; a design can be chosen once their slides read their colours from
+`design.json`.
+
+**Checking.** `node scripts/designs.mjs --check` computes the contrast (WCAG) of text against background and boxes for
+every design; `node scripts/designs.mjs` renders the preview pictures again (sample slide in
+`vorlage/designs/muster/`).
+
 ## Adding data and fonts
 
 Like images and 3D models, data and fonts can be supplied with a task – write the path into the task, in "Rebuild
@@ -385,9 +447,10 @@ slide" or "New presentation":
 - **Data** (`.csv`, `.tsv`, `.json`) → `src/daten/` ("daten" = data). Claude reads the file, copies the values it needs
   into `content.json` (where they stay editable in the presenter) and draws them with the chart building blocks. The
   file stays in the presentation as the source. Export Excel sheets as CSV first.
-- **Fonts** (`.woff2`, `.woff`, `.ttf`, `.otf`) → `src/schriften/` ("schriften" = fonts). Claude registers them in
-  `src/ui.tsx` with `loadFont('Name', file)` and puts the family first in `FONT`; further cuts with `{weight: 700}` or
-  `{style: 'italic'}`. PDF, video and the preview wait until the font is loaded. The font files live in the
+- **Fonts** (`.woff2`, `.woff`, `.ttf`, `.otf`) → `src/schriften/` ("schriften" = fonts). The font belongs to the
+  design: Claude enters the files in `src/design.json` under `font.files` and puts the family first in `font.family`;
+  `src/ui.tsx` registers them by itself. (In older presentations without a `design.json`: `loadFont('Name', file)` in
+  `src/ui.tsx` and `FONT`.) PDF, video and the preview wait until the font is loaded. The font files live in the
   presentation and are passed on with it – the font's licence must allow that.
 
 Which file types a task can bring along is listed in `vite.config.mts` in the table `TAKEN` (file type → folder).
@@ -412,7 +475,8 @@ still apply.
 
 For diagrams that Mermaid or the building blocks cannot draw properly (e.g. ER diagrams), Claude can use PlantUML: it
 writes the diagram text to `src/diagramme/<name>.puml` and calls the tool "plantuml"; that creates `<name>.svg` next
-to it, already in the colours of the dark slides, and the slide shows the SVG like an image.
+to it, already in the colours of the design (`src/design.json`; without that file in the dark standard scheme), and the
+slide shows the SVG like an image. After a change of design the presenter draws the diagrams again.
 
 - Set up once: `npm run plantuml` downloads PlantUML (fixed version, verified by checksum) into `.werkzeuge/`. On
   macOS (Apple Silicon), Linux and Windows this is a standalone program – **no Java needed**. Only on other systems
@@ -421,7 +485,7 @@ to it, already in the colours of the dark slides, and the slide shows the SVG li
   uses its built-in layout (no Graphviz needed, same result on every machine).
 - The finished SVG lives in the presentation: **presenting, PDF and video work without PlantUML**. It is only needed
   to change or redraw a diagram; if it is missing then, Claude says so in its result.
-- By hand: `node scripts/plantuml.mjs <presentation folder> <name>`.
+- By hand: `node scripts/plantuml.mjs <presentation folder> <name>` (draw all again: `--all` instead of the name).
 - The text in the diagram lives in the `.puml` file, not in `content.json` – change it with "Rebuild slide".
 
 ## Preview tool for Claude

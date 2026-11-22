@@ -1,6 +1,6 @@
 # Presentation
 
-- `src/` – slides (`scenes*.tsx`, building blocks in `ui.tsx`), texts and sequence (`content.json`),
+- `src/` – slides (`scenes*.tsx`, building blocks in `ui.tsx`), look (`design.json`), texts and sequence (`content.json`),
   notes for questions (`begleittext.md`) and for rebuilding (`umbau-regeln.md`)
 - `quellen/` (sources) – material (.md, .txt, .pdf) the model consults when answering questions
 - `out/` – rendered video
