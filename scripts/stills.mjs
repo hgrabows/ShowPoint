@@ -48,7 +48,7 @@ export async function openStage(dir, {scale = 1, pages = 1} = {}) {
     server: {host: '127.0.0.1', port: 47000 + Math.floor(Math.random() * 1000), strictPort: false, hmr: false, watch: null, fs: {allow: [root, dir]}},
     resolve: runtimeResolve,
     optimizeDeps: {
-      include: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+      include: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'mermaid'],
       // scan the slides up front, so packages of the presentation (also CommonJS ones) are prepared before the
       // first picture – without a reload in the middle of rendering
       entries: [path.join(src, '**/*.{ts,tsx,js,jsx}')],

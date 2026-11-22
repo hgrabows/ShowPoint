@@ -982,6 +982,9 @@ export default defineConfig({
   // preview images and installed packages of a presentation are no reason to reload the presenter
   server: {port: 5173, strictPort: true, open: true, fs: {allow: ['..']}, watch: {ignored: ['**/.vorschau/**', '**/inhalte/*/node_modules/**', '**/.umbau/**']}},
   resolve: runtimeResolve,
+  // mermaid is loaded with import() only when a slide uses it: bundle it up front, so its first use never makes
+  // Vite re-optimise the dependencies and abort the page load
+  optimizeDeps: {include: ['mermaid']},
   plugins: [
     {
       name: 'content-api',
