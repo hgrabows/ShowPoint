@@ -325,7 +325,7 @@ Ordner, hängt ihn unter `inhalte/` ein und startet Claude Code (Modell aus `.en
 (oft 10 bis 20 Minuten), die gezeigte Präsentation bleibt benutzbar; „Präsentation öffnen“ wechselt zur neuen.
 
 - Der Prompt darf auf Papers verweisen: Dateipfade (`.pdf`, `.md`, `.txt`; mit Leerzeichen in Anführungszeichen) und Links.
-  Claude darf genau diese Dateien lesen und nur die Adressen (Domains) der genannten Links abrufen; schreiben darf es nur im neuen Ordner.
+  Claude darf genau diese Dateien lesen und nur die Adressen (Domains) der genannten Links abrufen (bei GitHub auch die Rohdateien); schreiben darf es nur im neuen Ordner.
 - **Papers für Fragen:** Soll der Präsentator während des Vortrags (Taste `?`) in den Papers nachlesen, müssen sie
   zusätzlich in `quellen/` der neuen Präsentation liegen – das Erzeugen kopiert sie nicht dorthin.
 - Claude prüft die Folien mit dem Vorschau-Werkzeug (siehe unten) und bessert Überlappungen u. Ä. selbst nach.
@@ -340,6 +340,11 @@ aber nichts ausführen – außer dem Vorschau-Werkzeug. Vorher wird `src/` nach
 stellt den Stand vor dem letzten Umbau wieder her. Danach prüft der Server `content.json` und die Typen
 (`tsc --noEmit`) und zeigt das Ergebnis im Dialog. Während ein Umbau läuft, ist das Speichern im Editor gesperrt.
 Die allgemeinen Regeln für Claude stehen in `vite.config.mts` (`rebuildSystem`), die Besonderheiten des Inhalts in `src/umbau-regeln.md`.
+
+Links im Auftrag darf Claude abrufen – nur die Seiten dieser Adressen (Domains), keine freie Websuche; bei
+GitHub-Links auch die Rohdateien dazu. So lässt sich etwa sagen: *„Zeichne das Schaubild nach den Regeln von
+https://github.com/…/SKILL.md“*. Was dort steht, nutzt Claude als Vorlage für Stil und Inhalt; Anweisungen auf der
+Seite, die den Regeln widersprechen, ignoriert es. Ohne Link im Auftrag hat ein Umbau keinen Internetzugang.
 
 ## Bilder einbinden
 

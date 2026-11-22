@@ -322,7 +322,7 @@ folder, mounts it under `inhalte/` and starts Claude Code (model from `.env`, `C
 (often 10 to 20 minutes), the presentation currently shown stays usable; "Open presentation" switches to the new one.
 
 - The prompt may refer to papers: file paths (`.pdf`, `.md`, `.txt`; in quotes if they contain spaces) and links.
-  Claude may read exactly these files and fetch only the addresses (domains) of the links given; it may write only in the new folder.
+  Claude may read exactly these files and fetch only the addresses (domains) of the links given (for GitHub also the raw files); it may write only in the new folder.
 - **Papers for questions:** if the presenter should consult the papers during the talk (`?` key), they must
   additionally be placed in `quellen/` of the new presentation – creating does not copy them there.
 - Claude checks the slides with the preview tool (see below) and fixes overlaps and the like itself.
@@ -337,6 +337,11 @@ but may not run anything – except the preview tool. Beforehand `src/` is backe
 restores the state before the last rebuild. Afterwards the server checks `content.json` and the types
 (`tsc --noEmit`) and shows the result in the dialog. While a rebuild is running, saving in the editor is locked.
 The general rules for Claude are in `vite.config.mts` (`rebuildSystem`), the specifics of the content in `src/umbau-regeln.md`.
+
+Claude may fetch links in the task – only pages of those addresses (domains), no free web search; for GitHub links
+also the raw files. So you can say, for example: *"Draw the diagram following the rules at
+https://github.com/…/SKILL.md"*. Claude uses what it reads there as a template for style and content; instructions on
+the page that contradict the rules are ignored. Without a link in the task, a rebuild has no internet access.
 
 ## Adding images
 
