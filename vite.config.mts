@@ -32,6 +32,8 @@ const MSG = {
     truncated: 'gekürzt, Gesamtgrenze erreicht',
     omitted: 'ausgelassen, Gesamtgrenze erreicht',
     notLoggedIn: ' – Claude Code ist nicht angemeldet: im Terminal „claude“ starten und dort /login ausführen.',
+    codexNotLoggedIn: ' – Codex ist nicht angemeldet: im Terminal „codex login“ ausführen (Anmeldung mit dem ChatGPT-Konto).',
+    codexNotFound: 'Der Befehl „codex“ wurde nicht gefunden. Codex CLI installieren (npm install -g @openai/codex) und mit „codex login“ anmelden.',
     unknownError: 'unbekannter Fehler',
     claudeNotFound: 'Befehl „claude“ nicht gefunden.',
     exited: (code: number | null) => `beendet mit Code ${code}`,
@@ -101,6 +103,8 @@ const MSG = {
     truncated: 'truncated, total limit reached',
     omitted: 'omitted, total limit reached',
     notLoggedIn: ' – Claude Code is not logged in: start "claude" in a terminal and run /login there.',
+    codexNotLoggedIn: ' – Codex is not logged in: run "codex login" in a terminal (sign in with your ChatGPT account).',
+    codexNotFound: 'The command "codex" was not found. Install the Codex CLI (npm install -g @openai/codex) and sign in with "codex login".',
     unknownError: 'unknown error',
     claudeNotFound: 'Command "claude" not found.',
     exited: (code: number | null) => `exited with code ${code}`,
@@ -498,6 +502,90 @@ function askClaude(
   child.stdin.end(prompt);
 }
 
+/**
+ * Answer from OpenAI's Codex CLI (command `codex`, logged in with the ChatGPT account via "codex login" – no API key).
+ * Like the Claude variant it may search the web, but has no shell and no file tools; the user's own Codex
+ * configuration (model, hooks, extra providers) is left out, so only .env decides.
+ */
+const CODEX_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'];
+function askCodex(
+  system: string,
+  history: {role: string; content: string}[],
+  question: string,
+  res: import('node:http').ServerResponse,
+  lang: Lang,
+) {
+  const t = MSG[lang];
+  const fileEnv = readEnv();
+  // the login of the Codex CLI counts, not an API key that happens to be in the environment
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^OPENAI_(API_KEY|BASE_URL|ORG)/.test(k)));
+  const effort = String(fileEnv.CODEX_EFFORT_FRAGEN ?? '').trim().toLowerCase();
+  const prompt = [
+    system,
+    askWebNote.replace('(WebSearch) and read web pages (WebFetch)', 'and read web pages'),
+    '## Conversation',
+    ...history.map((m) => `${m.role === 'user' ? 'Earlier question' : 'Your earlier answer'}: ${m.content}`),
+    history.length ? `New question: ${question}` : `Question: ${question}`,
+  ].join('\n\n');
+  const child = spawn(
+    'codex',
+    [
+      'exec', '--json', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules',
+      '-s', 'read-only', '--disable', 'shell_tool', '--disable', 'unified_exec', '-c', 'web_search="live"',
+      ...(fileEnv.CODEX_MODEL ? ['-m', fileEnv.CODEX_MODEL] : []),
+      ...(CODEX_EFFORTS.includes(effort) ? ['-c', `model_reasoning_effort="${effort}"`] : []),
+      '-',
+    ],
+    {cwd: os.tmpdir(), env},
+  );
+  res.setHeader('Content-Type', 'text/event-stream');
+  let buf = '';
+  let got = false;
+  let failed = false;
+  const fail = (msg: string) => {
+    if (failed) return;
+    failed = true;
+    const hint = /not logged in|log ?in|unauthorized|401|auth/i.test(msg) ? t.codexNotLoggedIn : '';
+    sse(res, {error: `Codex: ${msg.slice(0, 300)}${hint}`});
+  };
+  child.stdout.on('data', (d) => {
+    buf += d;
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const ev = JSON.parse(line);
+        const item = ev.item ?? {};
+        if (ev.type === 'item.completed' && item.type === 'agent_message' && item.text) {
+          // Codex sends whole messages, not single words: short notes first ("I'll look that up"), then the answer
+          sse(res, {choices: [{delta: {content: `${got ? '\n\n' : ''}${item.text}`}}]});
+          got = true;
+        } else if (item.type === 'web_search' && (item.query || item.action?.query || item.action?.url)) {
+          const what = String(item.query || item.action?.query || item.action?.url);
+          sse(res, {status: `${/^https?:/.test(what) ? '🌐' : '🔎'} ${what}`});
+        } else if (ev.type === 'error' || ev.type === 'turn.failed') {
+          fail(String(ev.message ?? ev.error?.message ?? t.unknownError));
+        }
+      } catch {
+        // not a JSON line – ignore
+      }
+    }
+  });
+  let err = '';
+  child.stderr.on('data', (d) => (err += d));
+  child.on('error', (e) => {
+    fail((e as NodeJS.ErrnoException).code === 'ENOENT' ? t.codexNotFound : e.message);
+    res.end();
+  });
+  child.on('close', (code) => {
+    if (!got && code !== 0) fail(err.trim().split('\n').slice(-3).join(' ') || t.exited(code));
+    res.end();
+  });
+  res.on('close', () => child.kill());
+  child.stdin.end(prompt);
+}
+
 async function ask(body: AskBody, res: import('node:http').ServerResponse, lang: Lang) {
   const t = MSG[lang];
   if (!hasInhalt()) throw new Error(t.noPresentation);
@@ -541,6 +629,7 @@ async function ask(body: AskBody, res: import('node:http').ServerResponse, lang:
     (quote ? `Highlighted passage the question refers to:\n"${quote}"\n\n` : '') +
     String(body.question).slice(0, 2000);
   if (body.provider === 'claude') return askClaude(system, history, question, res, lang);
+  if (body.provider === 'codex') return askCodex(system, history, question, res, lang);
   if (!env.LLM_BASE_URL || !env.LLM_API_KEY || !env.LLM_MODEL) {
     res.statusCode = 500;
     return res.end(t.llmEnvMissing);

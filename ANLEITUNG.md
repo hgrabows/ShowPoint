@@ -13,7 +13,8 @@ Alle Pfade wie `src/…` und `quellen/…` in dieser Anleitung meinen den **Ordn
 
 Voraussetzungen: Node.js (ab 20) und – für „Frage zur Folie“ mit Claude, „Folie umbauen“ und „Neue Präsentation“ –
 die Claude-Code-CLI (`claude`), angemeldet mit deinem Abo. Für das LLM aus `.env` `.env.example` nach `.env` kopieren
-und ausfüllen.
+und ausfüllen. Wer bei „Frage zur Folie“ lieber OpenAI nutzt: die Codex-CLI (`codex`), angemeldet mit dem
+ChatGPT-Konto (`codex login`) – ebenfalls ohne API-Schlüssel.
 
 ```bash
 git clone https://github.com/hgrabows/ShowPoint.git
@@ -174,6 +175,7 @@ Der Editor überschreibt `content.json` beim Bearbeiten; eine Versionsverwaltung
 
 - `?`-Taste: Thema, Zielgruppe und Ton stehen in `src/begleittext.md`, das Nachschlagematerial im Ordner `quellen/`. Beides auf das neue Thema umstellen, sonst antwortet das Modell mit falschem Hintergrund. Im Dialog wählt man zwischen „Claude Code“ (Befehl `claude`, Modell in `.env` als `CLAUDE_MODEL`, Denkaufwand als `CLAUDE_EFFORT_FRAGEN`) und „LLM aus .env“. Der Zugang steht in `.env` (Vorlage: `.env.example`).
   Mit „Claude Code“ darf das Modell bei Fragen **im Internet suchen und Webseiten lesen** (WebSearch, WebFetch) – etwa für aktuelle Fakten – und nennt dann die genutzten Seiten; im Dialog erscheint, wonach es sucht (🔎) und was es liest (🌐). Dateien lesen oder Befehle ausführen kann es dabei nicht. „LLM aus .env“ hat keinen Internetzugang.
+  Die Auswahl **„OpenAI Codex“** arbeitet genauso über den `codex`-Befehl und dein ChatGPT-Konto (`codex login`, kein API-Schlüssel): Sie darf im Internet suchen, hat aber keine Shell und keinen Zugriff auf Dateien; deine eigene Codex-Konfiguration (`~/.codex/config.toml`) wird dabei nicht benutzt. Modell und Denkaufwand stehen in `.env` (`CODEX_MODEL`, `CODEX_EFFORT_FRAGEN`; leer = Standard von Codex). Die Antwort erscheint in ganzen Absätzen statt Wort für Wort. „Folie umbauen“ und „Neue Präsentation“ laufen weiterhin über Claude Code.
 - „Folie umbauen“: Besonderheiten der Folien (Bausteine, Maße, Fakten) in `src/umbau-regeln.md` beschreiben.
 
 ## Weg B: eine fertige fremde Animation unverändert einladen

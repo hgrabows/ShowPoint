@@ -153,6 +153,7 @@ export const Ask: React.FC<{
           }}
         >
           <option value="claude">Claude Code</option>
+          <option value="codex">OpenAI Codex</option>
           <option value="llm">{T.llmEnv}</option>
         </select>
         <button title={T.close} onClick={onClose}>

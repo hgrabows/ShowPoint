@@ -174,6 +174,7 @@ The editor overwrites `content.json` when you edit; version control in the prese
 
 - `?` key: topic, audience and tone are in `src/begleittext.md`, the reference material in the `quellen/` folder. Switch both to the new topic, otherwise the model answers with the wrong background. In the dialog you choose between "Claude Code" (command `claude`, model in `.env` as `CLAUDE_MODEL`, reasoning effort as `CLAUDE_EFFORT_FRAGEN`) and "LLM from .env". The credentials are in `.env` (template: `.env.example`).
   With "Claude Code" the model may **search the internet and read web pages** when answering (WebSearch, WebFetch) – e.g. for current facts – and then names the pages it used; the dialog shows what it searches for (🔎) and reads (🌐). It cannot read files or run commands. "LLM from .env" has no internet access.
+  The choice **"OpenAI Codex"** works the same way through the `codex` command and your ChatGPT account (`codex login`, no API key): it may search the internet but has no shell and no access to files; your own Codex configuration (`~/.codex/config.toml`) is not used. Model and reasoning effort are set in `.env` (`CODEX_MODEL`, `CODEX_EFFORT_FRAGEN`; empty = Codex default). The answer appears in whole paragraphs instead of word by word. "Rebuild slide" and "New presentation" still run through Claude Code.
 - "Rebuild slide": describe the specifics of the slides (building blocks, dimensions, facts) in `src/umbau-regeln.md`.
 
 ## Route B: bring in a finished third-party animation unchanged
