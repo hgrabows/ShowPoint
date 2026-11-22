@@ -15,7 +15,7 @@ pause at stops, answer questions about what is on screen – and can be rebuilt 
 - **Rebuild a slide** – describe the change in plain words; Claude Code edits the slide code, the type check runs,
   the presentation reloads. Every rebuild can be undone. A suggestion from “ask” can be handed over with one click.
 - **Add images** – name an image file in a rebuild or create task; it is copied into the presentation and placed by Claude.
-- **Charts, formulas, 3D** – built-in building blocks for bar, line and pie charts, KaTeX formulas and Three.js scenes.
+- **Charts, formulas, diagrams, 3D** – built-in building blocks for bar, line and pie charts, KaTeX formulas, Mermaid diagrams (flowcharts, sequence, state and class diagrams) and Three.js scenes.
 - **Any library when needed** – for maps, graphs and the like, Claude installs an npm package into the presentation
   itself; packages without a free licence are marked in the presenter.
 - **Create a presentation** – give a folder and a prompt; Claude Code writes the scenes, texts and stops from a template.

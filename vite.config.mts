@@ -259,6 +259,7 @@ const pickFolder = (prompt: string, lang: Lang) =>
 const BUILTINS: {key: string; names: RegExp}[] = [
   {key: 'three', names: /\b(ThreeCanvas|THREE)\b/},
   {key: 'katex', names: /\bFormula\b/},
+  {key: 'mermaid', names: /\bMermaid\b/},
   {key: 'charts', names: /\b(BarChart|LineChart|PieChart)\b/},
 ];
 function builtinsUsed(srcDir: string): string[] {
@@ -563,6 +564,7 @@ Rules:
 ${imageRule}
 ${chartRule}
 ${formulaRule}
+${mermaidRule}
 ${paketRule}
 ${vorschauHint(realDir)}
   After the rebuild, check at least the changed scenes; look at the images before reporting that you are done.
@@ -744,6 +746,8 @@ const chartRule = `- Numbers and proportions as charts from 'showpoint': <BarCha
 const imageRule = `- Images: use only image files inside the presentation's src/bilder/ (the user supplies them; the server copies image paths named in a task there). Import them relative to the scene file, e.g. \`import foto from './bilder/foto.png'\`, and show them with \`<Img src={foto} style={{width: …, height: …, objectFit: 'contain'}} />\` (Img from 'showpoint', never a plain <img>, never paths outside the presentation). Keep labels as real text from c.t next to or on top of the image, not baked into it. Images may fade or move in like other elements; check size and position with the preview.`;
 const formulaRule = `- Formulas: always with \`<Formula tex={c.t.f1} x={…} y={…} at={…} fontSize={56} />\` from 'showpoint' (KaTeX; LaTeX text in c.t, steps of a calculation as \`steps={c.lists.…}\`, they appear one after the other), never as an image or pieced together from Unicode characters, sub/sup tags or SVG text. In content.json backslashes are doubled ("\\\\frac{a}{b}").`;
 
+const mermaidRule = `- Structure diagrams (flowcharts, decision trees, processes, sequence, state and class diagrams): \`<Mermaid code={c.t.ablauf} x={…} y={…} w={…} h={…} at={…} every={30} />\` from 'showpoint' (Mermaid syntax in c.t, line breaks as \\n; the diagram is scaled to fit the box, fontSize default 20 in diagram units). The elements appear one after another: nodes in the order of their first mention, each edge with the later of its two nodes; in sequence diagrams the participants, then messages and notes from top to bottom. Instead of every use reveal={number of visible steps} (fractions fade in, e.g. from interpolate over the stops) or progress={0..1}. Keep diagrams small (about 3–10 nodes), labels short. Use your own SVG/div drawings when the layout matters (spatial pictures, timelines, data structures with fixed positions, single highlighted parts that move) and charts for numbers. A Mermaid syntax error shows as a red box in the preview: fix it.`;
+
 /** Where in the slide the presenter stands: frame, section between stops, caption shown – so "this section" or "here" in a task is clear. */
 function positionNote(sc: {dur: number; stops?: number[]; captions?: {at: number; text: string}[]} | undefined, frame: number | null): string {
   if (!sc || frame === null) return '';
@@ -838,10 +842,11 @@ Rules:
 - Nothing may overlap or stick out of the frame. Check widths and positions by calculation; as a rule of thumb a character needs about 0.55 × font size of width. Text in the picture at least 22 px, captions at most about 150 characters.
 - All visible texts come from c.t (keys t01, t02, …) or c.lists, never hard-coded – only then can they be edited in the presenter.
 - Elements appear one after another, matching the spoken text (captions[].at). Each caption stays about 4 to 6 seconds. Stops shortly before each next caption and at the end of the scene (dur − 13).
-- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react plus packages installed with the tool "paket" (see below) (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, Formula, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random, BarChart, LineChart, PieChart); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
+- Graphics instead of text lists, drawn with div and SVG from the building blocks. No files from outside the presentation, only the packages showpoint and react plus packages installed with the tool "paket" (see below) (building blocks from 'showpoint': AbsoluteFill, Sequence, Series, Img, Formula, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, random, BarChart, LineChart, PieChart, Mermaid); images only as described in the next rule. You may add to ui.tsx, but do not change existing building blocks.
 ${imageRule}
 ${chartRule}
 ${formulaRule}
+${mermaidRule}
 ${paketRule}
 - Only write in ${dir}. Write valid TypeScript (strict) carefully and import only what you use and what exists.
 ${vorschauHint(dir)}
@@ -977,6 +982,9 @@ export default defineConfig({
   // preview images and installed packages of a presentation are no reason to reload the presenter
   server: {port: 5173, strictPort: true, open: true, fs: {allow: ['..']}, watch: {ignored: ['**/.vorschau/**', '**/inhalte/*/node_modules/**', '**/.umbau/**']}},
   resolve: runtimeResolve,
+  // mermaid is loaded with import() only when a slide uses it: bundle it up front, so its first use never makes
+  // Vite re-optimise the dependencies and abort the page load
+  optimizeDeps: {include: ['mermaid']},
   plugins: [
     {
       name: 'content-api',

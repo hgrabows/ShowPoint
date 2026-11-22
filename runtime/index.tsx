@@ -325,3 +325,12 @@ export const registerRoot = (_root: React.ComponentType): void => {};
 
 export {Formula} from './formula';
 export type {FormulaProps} from './formula';
+
+/* ── Diagrams from text (Mermaid) ─────────────────────────────────────────── */
+
+export {Mermaid} from './mermaid';
+export type {MermaidProps} from './mermaid';
+
+/* ── Waiting for asynchronous drawing (renderer) ──────────────────────────── */
+
+export {waitFor} from './wait';

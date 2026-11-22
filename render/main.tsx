@@ -1,9 +1,11 @@
 // Page that the renderer (scripts/stills.mjs) opens in a headless browser: shows the chosen presentation at one
-// frame and exposes window.showFrame(frame), which resolves once that frame is fully drawn (images, fonts).
+// frame and exposes window.showFrame(frame), which resolves once that frame is fully drawn (images, fonts,
+// building blocks that draw asynchronously and registered with waitFor).
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
 import {Stage} from '../runtime';
+import {allDone} from '../runtime/wait';
 import {Video, content} from 'virtual:showpoint-presentation';
 
 declare global {
@@ -55,6 +57,8 @@ window.showFrame = async (frame) => {
       img.addEventListener('error', r, {once: true});
     })),
   );
+  // building blocks that draw asynchronously (e.g. Mermaid) hold a waitFor handle until their result is in the DOM
+  await allDone(30_000);
   await nextPaint();
   if (window.renderInfo.error) throw new Error(window.renderInfo.error);
 };

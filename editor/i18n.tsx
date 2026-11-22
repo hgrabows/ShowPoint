@@ -52,7 +52,7 @@ const de = {
   libsBuiltin: 'eingebaut',
   libsInstalled: 'nachinstalliert',
   libsHint: 'Eingebaute kommen mit dem Präsentator; nachinstallierte stehen in package.json und PAKETE.md der Präsentation (Lizenz: Maus darüber).',
-  builtinName: {three: '3D (Three.js)', katex: 'Formeln (KaTeX)', charts: 'Diagramme'} as Record<string, string>,
+  builtinName: {three: '3D (Three.js)', katex: 'Formeln (KaTeX)', mermaid: 'Ablaufdiagramme (Mermaid)', charts: 'Diagramme'} as Record<string, string>,
   licenseNote: (names: string) =>
     `⚠ Lizenz beachten: Diese Präsentation nutzt Pakete ohne freie Lizenz (${names}). Für die eigene Nutzung in Ordnung – vor dem Weitergeben (auch als PDF oder Video) oder einer kommerziellen Nutzung die Lizenz prüfen. Übersicht: PAKETE.md im Ordner der Präsentation.`,
   presentation: 'Präsentation',
@@ -220,7 +220,7 @@ const en: typeof de = {
   libsBuiltin: 'built in',
   libsInstalled: 'installed',
   libsHint: 'Built-in ones come with the presenter; installed ones are listed in the presentation\'s package.json and PAKETE.md (licence: hover).',
-  builtinName: {three: '3D (Three.js)', katex: 'Formulas (KaTeX)', charts: 'Charts'},
+  builtinName: {three: '3D (Three.js)', katex: 'Formulas (KaTeX)', mermaid: 'Flow diagrams (Mermaid)', charts: 'Charts'},
   licenseNote: (names) =>
     `⚠ Mind the licence: this presentation uses packages without a free licence (${names}). Fine for your own use – before passing it on (also as PDF or video) or using it commercially, check the licence. Overview: PAKETE.md in the presentation folder.`,
   presentation: 'Presentation',
