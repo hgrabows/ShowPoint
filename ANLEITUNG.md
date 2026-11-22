@@ -234,6 +234,7 @@ Szenen importieren ihre Bausteine aus `'showpoint'` (Quelltext in `runtime/index
 | `Formula` | Formel aus LaTeX-Text (KaTeX), weich eingeblendet ab `at`: `<Formula tex={c.t.f1} x={90} y={250} at={20} fontSize={56} />`; Umformungsschritte nacheinander mit `steps={c.lists.schritte}` (Abstand `every`, Standard 45 Bilder); außerdem `w`, `align`, `color`, `display={false}` für Fließtext-Stil. In `content.json` Backslashes verdoppeln: `"\\frac{a}{b}"` |
 | `ThreeCanvas x y w h setup={…} update={(ctx, frame, fps) => …}`, `THREE` | 3D-Szene mit Three.js: `setup` baut Szene, Licht und Kamera einmal, `update` setzt alles nur aus der Bildnummer. Beispiel: `vorlage/beispiele/three-beispiel.tsx`. Text in 3D ist nicht markierbar, Beschriftungen daher als normalen Text daneben setzen |
 | `Model3D src={haus} x y w h at angle tilt spin zoom update={…}` | 3D-Modell aus einer `.glb`-Datei (`import haus from './modelle/haus.glb'`): wird zentriert, eingepasst und beleuchtet; `spin` = Grad pro Sekunde aus der Bildnummer, in der Datei gespeicherte Animationen laufen ab Bild `at` mit. Mit `update` einzelne Teile per Namen ein-/ausblenden oder die Ansicht steuern. Beispiel: `vorlage/beispiele/modell-beispiel.tsx` |
+| `loadFont('Name', datei, {weight, style})` | meldet eine Schriftdatei aus `src/schriften/` an (oben in `ui.tsx`, nicht in einer Komponente); danach als `fontFamily` nutzbar |
 | `Mermaid code={…} x y w h` | Fluss-, Sequenz-, Zustands- und Klassendiagramme aus Mermaid-Text, eingepasst in den Rahmen und im Folienstil gefärbt. Einblenden: ganz ab `at`, mit `every={30}` Schritt für Schritt (Knoten in der Reihenfolge ihrer ersten Nennung, jede Kante mit dem späteren ihrer Knoten; im Sequenzdiagramm erst die Teilnehmer, dann Nachrichten und Notizen von oben nach unten) oder selbst gesteuert mit `reveal={Zahl sichtbarer Schritte}` bzw. `progress={0..1}`. Außerdem `fontSize` (Standard 20), `maxScale`, `themeVariables`. Mermaid wird erst geladen, wenn eine Folie es benutzt. Syntaxfehler erscheinen als roter Kasten. Beispiel: `vorlage/beispiele/mermaid-beispiel.tsx` |
 | `waitFor('name')` | für eigene Bausteine, die asynchron zeichnen: `const done = waitFor('name')` vor dem Start, `done()` sobald das Ergebnis im DOM steht. Vorschau, PDF und Video warten darauf (höchstens 30 s, dann Fehlermeldung mit dem Namen) |
 
@@ -378,6 +379,21 @@ Teile und der Animationen aus der Datei; Claude zeigt das Modell mit dem Baustei
   und neu exportiert; die neue Datei wieder im Auftrag nennen.
 - Nur `.glb` (eine Datei mit allem darin). Für ein starres, fertig gerendertes Bild stattdessen ein PNG mit
   transparentem Hintergrund als Bild einbinden.
+
+## Daten und Schriften einbinden
+
+Wie Bilder und 3D-Modelle lassen sich auch Daten und Schriften per Auftrag mitgeben – Pfad in den Auftrag schreiben,
+bei „Folie umbauen“ oder „Neue Präsentation“:
+
+- **Daten** (`.csv`, `.tsv`, `.json`) → `src/daten/`. Claude liest die Datei, übernimmt die benötigten Werte nach
+  `content.json` (dort bleiben sie im Präsentator änderbar) und zeichnet sie mit den Diagramm-Bausteinen. Die Datei
+  bleibt als Quelle in der Präsentation. Excel-Tabellen vorher als CSV exportieren.
+- **Schriften** (`.woff2`, `.woff`, `.ttf`, `.otf`) → `src/schriften/`. Claude meldet sie in `src/ui.tsx` mit
+  `loadFont('Name', datei)` an und setzt sie in `FONT` an die erste Stelle; weitere Schnitte mit `{weight: 700}` oder
+  `{style: 'italic'}`. PDF, Video und Vorschau warten, bis die Schrift geladen ist. Die Schriftdateien liegen in der
+  Präsentation und werden mit ihr weitergegeben – die Lizenz der Schrift muss das erlauben.
+
+Welche Dateitypen ein Auftrag mitbringen kann, steht in `vite.config.mts` in der Tabelle `TAKEN` (Dateityp → Ordner).
 
 ## Vorgaben für die Darstellung (`vorgaben/`)
 

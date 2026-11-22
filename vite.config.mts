@@ -58,6 +58,10 @@ const MSG = {
     specCopied: (name: string) => `Vorgabe übernommen → vorgaben/${name}`,
     modelCopied: (name: string) => `3D-Modell übernommen → src/modelle/${name}`,
     modelNotFound: (f: string) => `3D-Modell nicht gefunden: ${f}`,
+    dataCopied: (name: string) => `Daten übernommen → src/daten/${name}`,
+    dataNotFound: (f: string) => `Datei nicht gefunden: ${f}`,
+    fontCopied: (name: string) => `Schrift übernommen → src/schriften/${name}`,
+    fontNotFound: (f: string) => `Schrift nicht gefunden: ${f}`,
     specNotFound: (f: string) => `Vorgabe nicht gefunden: ${f}`,
     plantumlLabel: 'PlantUML zeichnen',
     undone: 'Rückgängig gemacht: der Inhalt ist wieder auf dem Stand vor diesem Umbau.',
@@ -113,6 +117,10 @@ const MSG = {
     specCopied: (name: string) => `Specification added → vorgaben/${name}`,
     modelCopied: (name: string) => `3D model added → src/modelle/${name}`,
     modelNotFound: (f: string) => `3D model not found: ${f}`,
+    dataCopied: (name: string) => `Data added → src/daten/${name}`,
+    dataNotFound: (f: string) => `File not found: ${f}`,
+    fontCopied: (name: string) => `Font added → src/schriften/${name}`,
+    fontNotFound: (f: string) => `Font not found: ${f}`,
     specNotFound: (f: string) => `Specification not found: ${f}`,
     plantumlLabel: 'Draw PlantUML',
     undone: 'Undone: the content is back to the state before this rebuild.',
@@ -699,6 +707,8 @@ ${chartRule}
 ${formulaRule}
 ${mermaidRule}
 ${modelRule}
+${dataRule}
+${fontRule}
 ${plantumlRule}
 ${paketRule}
 ${linkRule}
@@ -936,6 +946,21 @@ const TAKEN: {ext: string; folder: string; copied: (lang: Lang, name: string) =>
     heading: '3D models supplied with this task, already copied into the presentation (binary files – do not Read them; show them with <Model3D>):',
     describe: glbSummary,
   },
+  {
+    ext: 'csv|tsv|json',
+    folder: 'daten',
+    copied: (lang, name) => MSG[lang].dataCopied(name),
+    missing: (lang, f) => MSG[lang].dataNotFound(f),
+    heading: 'Data files supplied with this task, already copied into the presentation (read them with Read):',
+    describe: (file) => ` – ${(fs.statSync(file).size / 1000).toFixed(1)} kB`,
+  },
+  {
+    ext: 'woff2?|ttf|otf',
+    folder: 'schriften',
+    copied: (lang, name) => MSG[lang].fontCopied(name),
+    missing: (lang, f) => MSG[lang].fontNotFound(f),
+    heading: 'Font files supplied with this task, already copied into the presentation (binary files – do not Read them; register them with loadFont):',
+  },
 ];
 /** What a .glb file contains, read from its JSON part: names of the parts, animations, size – so Claude can address parts by name. */
 function glbSummary(file: string): string {
@@ -985,6 +1010,8 @@ function takeImages(text: string, srcDir: string, lang: Lang): string {
   }
   return out;
 }
+const dataRule = `- Data files (.csv, .tsv, .json in the presentation's src/daten/; the server copies such paths named in a task there): read the file with Read, pick what the slide needs and put those labels and values into c.lists / c.t of content.json (values as strings), so they stay editable in the presenter – then draw them with the chart building blocks. Do not import the data file in the code. Keep the numbers exactly as in the file (round only for display and say so); with many rows choose or aggregate sensibly and state in your final answer what you left out. The file stays in src/daten/ as the source.`;
+const fontRule = `- Own fonts (.woff2, .woff, .ttf, .otf in the presentation's src/schriften/; the server copies such paths named in a task there): register each file once at the top of src/ui.tsx with \`import regular from './schriften/x.woff2'; loadFont('Name', regular);\` (loadFont from 'showpoint'; further cuts with \`{weight: 700}\` or \`{style: 'italic'}\` – take weight and style from the file name) and put the family first in the FONT constant there, keeping the existing fallbacks. Never load fonts from the web. If only one weight was supplied, say in your final answer that bold text is synthesised by the browser. Check with "vorschau" that the text still fits.`;
 const modelRule = `- 3D models: only .glb files inside the presentation's src/modelle/ (the user supplies them, e.g. exported from Blender; the server copies .glb paths named in a task there). \`import haus from './modelle/haus.glb'\` and \`<Model3D src={haus} x={…} y={…} w={…} h={…} at={…} angle={-30} tilt={15} spin={20} zoom={1} />\` from 'showpoint': the model is centred, scaled to fit and lit; spin = degrees per second from the frame, animations stored in the file play from frame \`at\`. For more (show single parts one after another, turn to a certain view at a stop) pass \`update={(ctx, frame, fps) => { … }}\` and set everything from the frame alone: ctx.objects.model.getObjectByName('…').visible, ctx.objects.pivot.rotation, ctx.camera. You cannot open a .glb – use the part names given with the task, and check the result with "vorschau" (two different frames). Labels as normal text next to the canvas, not in 3D. Simple 3D shapes without a file: <ThreeCanvas> as before.`;
 const paketRule = `- Other libraries (maps, network graphs, physics, special charts …): only when the building blocks from 'showpoint' cannot do it reasonably. Install with the tool "paket" (input: name, e.g. "d3-geo"); it installs into the presentation's own node_modules, then import as usual. Prefer small, freely licensed packages (MIT, ISC, BSD, Apache-2.0); if the tool reports a licence warning, mention it in your final answer. Never install react, never use the library's own animation clock, timers or transitions: switch them off (e.g. animation: false, frameloop "never") and compute everything from useCurrentFrame(), otherwise jumping, stops, PDF and video will not match. Maps: prefer SVG with d3-geo and offline data (world-atlas / topojson) over tile maps from the internet. Check with "vorschau" that two different frames look different where they should.`;
 const chartRule = `- Numbers and proportions as charts from 'showpoint': <BarChart> (columns; horizontal for long labels; highlight = index to emphasise), <LineChart> (values or series = [{name, values}], area), <PieChart> (shares; donut, center text). Props: x, y, w, h in stage pixels, labels, values, at (start frame), unit (e.g. " %"), decimalComma for German-style numbers. Put labels and values into c.lists (values as strings like "3,5"), so they stay editable in the presenter. Never draw charts by hand when these fit.`;
@@ -1090,6 +1117,8 @@ ${chartRule}
 ${formulaRule}
 ${mermaidRule}
 ${modelRule}
+${dataRule}
+${fontRule}
 ${plantumlRule}
 ${paketRule}
 ${linkRule}

@@ -29,3 +29,20 @@ declare module '*.glb' {
   const src: string;
   export default src;
 }
+// Font files, registered with loadFont('Name', file) from 'showpoint'
+declare module '*.woff2' {
+  const src: string;
+  export default src;
+}
+declare module '*.woff' {
+  const src: string;
+  export default src;
+}
+declare module '*.ttf' {
+  const src: string;
+  export default src;
+}
+declare module '*.otf' {
+  const src: string;
+  export default src;
+}

@@ -232,6 +232,7 @@ Scenes import their building blocks from `'showpoint'` (source in `runtime/index
 | `Formula` | formula from LaTeX text (KaTeX), fading in from `at`: `<Formula tex={c.t.f1} x={90} y={250} at={20} fontSize={56} />`; steps of a calculation one after the other with `steps={c.lists.steps}` (spacing `every`, default 45 frames); also `w`, `align`, `color`, `display={false}` for inline style. In `content.json` double the backslashes: `"\\frac{a}{b}"` |
 | `ThreeCanvas x y w h setup={…} update={(ctx, frame, fps) => …}`, `THREE` | 3D scene with Three.js: `setup` builds scene, lights and camera once, `update` sets everything from the frame number alone. Example: `vorlage/beispiele/three-beispiel.tsx`. Text drawn in 3D cannot be selected, so put labels next to it as normal text |
 | `Model3D src={haus} x y w h at angle tilt spin zoom update={…}` | 3D model from a `.glb` file (`import haus from './modelle/haus.glb'`): centred, scaled to fit and lit; `spin` = degrees per second from the frame, animations stored in the file play from frame `at`. With `update`, show or hide single parts by name or control the view. Example: `vorlage/beispiele/modell-beispiel.tsx` |
+| `loadFont('Name', file, {weight, style})` | registers a font file from `src/schriften/` (at the top of `ui.tsx`, not inside a component); then usable as `fontFamily` |
 | `Mermaid code={…} x y w h` | flowcharts, sequence, state and class diagrams from Mermaid text, fitted into the box and coloured like the slides. Appearing: as a whole from `at`, step by step with `every={30}` (nodes in the order of their first mention, each edge with the later of its two nodes; in sequence diagrams the participants first, then messages and notes from top to bottom) or under your own control with `reveal={number of visible steps}` or `progress={0..1}`. Also `fontSize` (default 20), `maxScale`, `themeVariables`. Mermaid is only loaded when a slide uses it. Syntax errors show as a red box. Example: `vorlage/beispiele/mermaid-beispiel.tsx` |
 | `waitFor('name')` | for your own building blocks that draw asynchronously: `const done = waitFor('name')` before starting, `done()` once the result is in the DOM. Preview, PDF and video wait for it (at most 30 s, then an error naming it) |
 
@@ -375,6 +376,21 @@ names of the parts and animations in the file; Claude shows the model with the b
   exported again; name the new file in a task again.
 - Only `.glb` (one file with everything in it). For a fixed, fully rendered picture add a PNG with a transparent
   background as an image instead.
+
+## Adding data and fonts
+
+Like images and 3D models, data and fonts can be supplied with a task – write the path into the task, in "Rebuild
+slide" or "New presentation":
+
+- **Data** (`.csv`, `.tsv`, `.json`) → `src/daten/` ("daten" = data). Claude reads the file, copies the values it needs
+  into `content.json` (where they stay editable in the presenter) and draws them with the chart building blocks. The
+  file stays in the presentation as the source. Export Excel sheets as CSV first.
+- **Fonts** (`.woff2`, `.woff`, `.ttf`, `.otf`) → `src/schriften/` ("schriften" = fonts). Claude registers them in
+  `src/ui.tsx` with `loadFont('Name', file)` and puts the family first in `FONT`; further cuts with `{weight: 700}` or
+  `{style: 'italic'}`. PDF, video and the preview wait until the font is loaded. The font files live in the
+  presentation and are passed on with it – the font's licence must allow that.
+
+Which file types a task can bring along is listed in `vite.config.mts` in the table `TAKEN` (file type → folder).
 
 ## Specifications for how things are drawn (`vorgaben/`)
 

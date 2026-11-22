@@ -336,3 +336,7 @@ export type {MermaidProps} from './mermaid';
 /* ── Waiting for asynchronous drawing (renderer) ──────────────────────────── */
 
 export {waitFor} from './wait';
+
+/* ── Own fonts ─────────────────────────────────────────────────────────────── */
+
+export {loadFont} from './font';
