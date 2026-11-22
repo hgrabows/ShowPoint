@@ -42,7 +42,7 @@ npm install
 npm run edit
 ```
 
-Open <http://localhost:5173>, then choose or create a presentation at the top right. A starting skeleton lives in
+The presenter opens in your browser at <http://localhost:5173>; choose or create a presentation at the top right. A starting skeleton lives in
 [`vorlage/`](vorlage/) (English texts in [`vorlage/en/`](vorlage/en/)). See [GUIDE.md](GUIDE.md) for details.
 
 ## License

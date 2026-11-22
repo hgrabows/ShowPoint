@@ -30,7 +30,8 @@ npm install
 npm run edit
 ```
 
-Then open <http://localhost:5173>. The port is fixed; if another editor is already running there, startup aborts –
+The presenter then opens by itself in the default browser at <http://localhost:5173> (without browser:
+`BROWSER=none npm run edit`). The port is fixed; if another editor is already running there, startup aborts –
 stop the other one first. If no presentation has been chosen yet, the page only shows the selection.
 
 Keys: space / → / Enter / click = next · ← = back · `S` = stop on/off · `F` = fullscreen · `?` = ask the LLM.

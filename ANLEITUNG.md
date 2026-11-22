@@ -31,7 +31,8 @@ npm install
 npm run edit
 ```
 
-Dann <http://localhost:5173> öffnen. Der Port ist fest; läuft dort schon ein anderer Editor, bricht der Start ab –
+Der Präsenter öffnet sich dann selbst im Standardbrowser unter <http://localhost:5173> (ohne Browser:
+`BROWSER=none npm run edit`). Der Port ist fest; läuft dort schon ein anderer Editor, bricht der Start ab –
 den anderen zuerst beenden. Ist noch keine Präsentation gewählt, zeigt die Seite nur die Auswahl.
 
 Tasten: Leertaste / → / Enter / Klick = weiter · ← = zurück · `S` = Haltepunkt ein/aus · `F` = Vollbild · `?` = Frage ans LLM.

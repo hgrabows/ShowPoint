@@ -973,8 +973,9 @@ function startPdf(lang: Lang) {
 // Small editor: reads and writes src/content.json, from which the video is rendered too.
 export default defineConfig({
   root: 'editor',
+  // open: 'npm run edit' opens the presenter in the default browser (not wanted: BROWSER=none npm run edit);
   // preview images and installed packages of a presentation are no reason to reload the presenter
-  server: {port: 5173, strictPort: true, fs: {allow: ['..']}, watch: {ignored: ['**/.vorschau/**', '**/inhalte/*/node_modules/**', '**/.umbau/**']}},
+  server: {port: 5173, strictPort: true, open: true, fs: {allow: ['..']}, watch: {ignored: ['**/.vorschau/**', '**/inhalte/*/node_modules/**', '**/.umbau/**']}},
   resolve: runtimeResolve,
   plugins: [
     {
