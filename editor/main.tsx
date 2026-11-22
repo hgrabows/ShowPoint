@@ -93,7 +93,7 @@ select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;bord
 kbd{background:#1b2442;border:1px solid #2e3a63;border-radius:4px;padding:1px 5px;font:inherit;font-size:11px}
 `;
 
-const AGENTS = {claude: 'Claude Code', codex: 'OpenAI Codex', custom: 'Custom (.env)'} as const;
+const AGENTS = {claude: 'Claude Code', codex: 'OpenAI Codex', custom: 'Custom (.env)', gemini: 'Gemini (Antigravity)'} as const;
 type Presentation = {
   current: string;
   title: string;
@@ -105,8 +105,8 @@ type Presentation = {
   specs?: {file: string; title: string}[];
   versions?: {id: string; time: number; kind: string; instruction: string; scene: string}[];
   design?: DesignCurrent;
-  agent?: 'claude' | 'codex' | 'custom';
-  agents?: {claude: boolean; codex: boolean; custom: boolean};
+  agent?: 'claude' | 'codex' | 'custom' | 'gemini';
+  agents?: {claude: boolean; codex: boolean; custom: boolean; gemini: boolean};
   list: {dir: string; title: string; path: string; linked: boolean}[];
   error?: string;
 };
@@ -693,7 +693,7 @@ const App: React.FC = () => {
       <div className="pres-ai" title={T.agentTitle}>
         <label>{T.agentLabel}</label>
         <select value={pres.agent ?? 'claude'} onChange={(e) => switchTo({agent: e.target.value})}>
-          {(['claude', 'codex', 'custom'] as const).map((a) => (
+          {(['claude', 'codex', 'gemini', 'custom'] as const).map((a) => (
             <option key={a} value={a}>
               {AGENTS[a]}
               {pres.agents && !pres.agents[a] ? ` – ${a === 'custom' ? T.agentCustomMissing : T.agentMissing}` : ''}
@@ -818,7 +818,6 @@ const App: React.FC = () => {
               onClearQuote={() => setQuote('')}
               onClose={() => setAsking(false)}
               agentName={AGENTS[pres?.agent ?? 'claude']}
-              onlyAgent={pres?.agent === 'custom'}
               onHandover={(text) => {
                 setRbDraft((d) => ({text, n: (d?.n ?? 0) + 1}));
                 setRebuilding(true);

@@ -11,8 +11,8 @@ All paths such as `src/…` and `quellen/…` in this guide refer to the **prese
 ## Getting started
 
 Requirements: Node.js (20 or later) and – for "Ask about slide", "Rebuild slide" and "New presentation" – an AI:
-the Claude Code CLI (`claude`, signed in with your subscription) **or** the Codex CLI (`codex`, signed in with your
-ChatGPT account via `codex login`), both without an API key; or your own provider with URL and key (see "Choosing
+the Claude Code CLI (`claude`, signed in with your subscription), the Codex CLI (`codex`, signed in with your
+ChatGPT account via `codex login`) **or** Google's Antigravity CLI (`agy`), all without an API key; or your own provider with URL and key (see "Choosing
 the AI"). For that, copy `.env.example` to `.env` and fill it in.
 
 ```bash
@@ -46,7 +46,7 @@ texts and code are kept: below the list, “Removed slides (n)” offers “↩ 
 position. To delete a slide for good (including its code), use “Rebuild slide”.
 In `content.json`, removed slides stay in `scenes` but not in `order`; `removed` remembers their position.
 
-## Choosing the AI: Claude Code, OpenAI Codex or Custom
+## Choosing the AI: Claude Code, OpenAI Codex, Gemini or Custom
 
 Who answers questions, rebuilds slides and creates new presentations is set once: in the presenter at the top left
 under **"AI"**, or in `.env` with `KI=`. The choice applies to everything until you change it.
@@ -55,9 +55,10 @@ under **"AI"**, or in `.env` with `KI=`. The choice applies to everything until 
 |---|---|---|---|
 | `claude` | Claude Code CLI (`claude`) | your Claude subscription, no key | `CLAUDE_MODEL`, `CLAUDE_EFFORT_FRAGEN`, `CLAUDE_EFFORT_UMBAU` |
 | `codex` | Codex CLI (`codex`) | your ChatGPT account (`codex login`), no key | `CODEX_MODEL`, `CODEX_EFFORT_FRAGEN`, `CODEX_EFFORT_UMBAU` |
+| `gemini` | Google's Antigravity CLI (`agy`) | your Google account (start `agy` once and sign in; the sign-in of the Antigravity app is shared) | `GEMINI_MODEL`, `GEMINI_EFFORT_FRAGEN`, `GEMINI_EFFORT_UMBAU` |
 | `custom` | Codex CLI, pointed at your own provider | `LLM_BASE_URL` and `LLM_API_KEY` | `LLM_MODEL`, `LLM_REASONING_EFFORT` |
 
-Empty = automatic: Claude Code, or Codex if only that is installed. So you need only one of the two programs.
+Empty = automatic: Claude Code, or Codex if only that is installed. So you need only one of the programs.
 
 - **Custom** needs the Codex CLI as the tool and a provider that offers OpenAI's "Responses"
   interface – Codex speaks no other. Questions about a slide go straight to the provider (chat interface) with Custom,
@@ -66,6 +67,12 @@ Empty = automatic: Claude Code, or Codex if only that is installed. So you need 
   there its sandbox sets the limits: write only in the presentation's `src/` (for "New presentation" in the new folder),
   read only ShowPoint, the presentation and the sources named in the task, `.env` blocked, no network for commands.
   The system's temporary folders stay writable. Your own Codex configuration (`~/.codex/config.toml`) is not used.
+- **Gemini (`agy`)** works with its own permission rules and a terminal sandbox: write only in the presentation's
+  `src/` (for "New presentation" in the new folder), read only ShowPoint, the presentation and the sources, `.env`
+  blocked, web pages only from the addresses named in the task. One peculiarity: a refused access ends the whole run
+  there without a result – the reason is then in the log, and you start the task again. For the run ShowPoint briefly
+  creates `src/.agents/mcp_config.json` and removes it again. `agy models` shows which models your account offers.
+  Installation: <https://antigravity.google/docs/getting-started?tab=cli>.
 - **Links in a task:** Claude may read exactly the addresses named. With Codex the web tool cannot be limited to
   addresses; it is only on when the task contains links. Custom has no web tool.
 - **PDF sources** are read directly by Claude; Codex only has the shell for them and copes less well with PDFs – text or
@@ -200,7 +207,7 @@ The editor overwrites `content.json` when you edit; version control in the prese
 
 - `?` key: topic, audience and tone are in `src/begleittext.md`, the reference material in the `quellen/` folder. Switch both to the new topic, otherwise the model answers with the wrong background. In the dialog you choose between "Claude Code" (command `claude`, model in `.env` as `CLAUDE_MODEL`, reasoning effort as `CLAUDE_EFFORT_FRAGEN`) and "LLM from .env". The credentials are in `.env` (template: `.env.example`).
   With "Claude Code" the model may **search the internet and read web pages** when answering (WebSearch, WebFetch) – e.g. for current facts – and then names the pages it used; the dialog shows what it searches for (🔎) and reads (🌐). It cannot read files or run commands. "LLM from .env" has no internet access.
-  Who answers is the AI chosen in the presenter (see "Choosing the AI"); in the question window you can switch to the LLM from `.env` instead. Claude Code and Codex may search the internet for a question but get no shell and no access to files.
+  Who answers is the AI chosen in the presenter (see "Choosing the AI"); the question window has no choice of its own. Claude Code, Codex and Gemini may search the internet for a question but get no shell and no access to files.
 - "Rebuild slide": describe the specifics of the slides (building blocks, dimensions, facts) in `src/umbau-regeln.md`.
 
 ## Route B: bring in a finished third-party animation unchanged

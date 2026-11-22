@@ -46,18 +46,9 @@ export const Ask: React.FC<{
   onClose: () => void;
   /** Hands a suggestion over to “Rebuild slide” as its instruction. */
   onHandover: (instruction: string) => void;
-  /** Name of the agent chosen in the presenter (Claude Code or OpenAI Codex); it answers unless the LLM from .env is picked. */
+  /** Name of the agent chosen in the presenter (Claude Code or OpenAI Codex); it answers. */
   agentName: string;
-  /** the agent is the LLM from .env itself ("custom"): nothing else to choose */
-  onlyAgent: boolean;
-}> = ({sceneId, sceneName, caption, quote, onClearQuote, onClose, onHandover, agentName, onlyAgent}) => {
-  const [provider, setProvider] = useState(() => {
-    try {
-      return localStorage.getItem('ask-provider') === 'llm' ? 'llm' : 'agent';
-    } catch {
-      return 'agent';
-    }
-  });
+}> = ({sceneId, sceneName, caption, quote, onClearQuote, onClose, onHandover, agentName}) => {
   const fl = useFloat('ask-box', {l: 0.515, t: 0.06, w: 0.46});
   const [turns, setTurns] = useState<Turn[]>([]);
   const log = useFollowLog(turns);
@@ -95,7 +86,7 @@ export const Ask: React.FC<{
     try {
       const r = await fetch('/api/ask', {
         method: 'POST',
-        body: JSON.stringify({question: q, quote, provider, sceneId, caption, history}),
+        body: JSON.stringify({question: q, quote, sceneId, caption, history}),
       });
       if (!r.ok || !r.body) {
         const msg = await r.text();
@@ -143,22 +134,7 @@ export const Ask: React.FC<{
   return (
     <div className="ask" ref={fl.ref} style={fl.style} onClick={(e) => e.stopPropagation()}>
       <div {...fl.head}>
-        {T.askHead} <span>{sceneName}</span>
-        <select
-          value={onlyAgent ? 'agent' : provider}
-          title={T.whoAnswers}
-          onChange={(e) => {
-            setProvider(e.target.value);
-            try {
-              localStorage.setItem('ask-provider', e.target.value);
-            } catch {
-              // without storage the choice applies to this dialog only
-            }
-          }}
-        >
-          <option value="agent">{agentName}</option>
-          {onlyAgent ? null : <option value="llm">{T.llmEnv}</option>}
-        </select>
+        {T.askHead} <span>{sceneName} · {agentName}</span>
         <button title={T.close} onClick={onClose}>
           ✕
         </button>

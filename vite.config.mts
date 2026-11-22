@@ -33,6 +33,8 @@ const MSG = {
     omitted: 'ausgelassen, Gesamtgrenze erreicht',
     notLoggedIn: ' – Claude Code ist nicht angemeldet: im Terminal „claude“ starten und dort /login ausführen.',
     codexNotLoggedIn: ' – Codex ist nicht angemeldet: im Terminal „codex login“ ausführen (Anmeldung mit dem ChatGPT-Konto).',
+    agyNotLoggedIn: ' – agy ist nicht angemeldet: im Terminal einmal „agy“ starten und mit dem Google-Konto anmelden.',
+    agyNotFound: 'Der Befehl „agy“ (Antigravity CLI) wurde nicht gefunden. Installation: https://antigravity.google/docs/getting-started?tab=cli',
     codexNotFound: 'Der Befehl „codex“ wurde nicht gefunden. Codex CLI installieren (npm install -g @openai/codex) und mit „codex login“ anmelden.',
     unknownError: 'unbekannter Fehler',
     claudeNotFound: 'Befehl „claude“ nicht gefunden.',
@@ -104,6 +106,8 @@ const MSG = {
     omitted: 'omitted, total limit reached',
     notLoggedIn: ' – Claude Code is not logged in: start "claude" in a terminal and run /login there.',
     codexNotLoggedIn: ' – Codex is not logged in: run "codex login" in a terminal (sign in with your ChatGPT account).',
+    agyNotLoggedIn: ' – agy is not signed in: start "agy" once in a terminal and sign in with your Google account.',
+    agyNotFound: 'The command "agy" (Antigravity CLI) was not found. Installation: https://antigravity.google/docs/getting-started?tab=cli',
     codexNotFound: 'The command "codex" was not found. Install the Codex CLI (npm install -g @openai/codex) and sign in with "codex login".',
     unknownError: 'unknown error',
     claudeNotFound: 'Command "claude" not found.',
@@ -258,10 +262,14 @@ const saveChoice = () => saveEnv('INHALT', inhaltRel);
 // ── Which coding agent does the work (questions, rebuilds, new presentations): Claude Code or OpenAI Codex ──
 // Chosen in the presenter and stored as KI in .env. Without a choice: Claude Code, or Codex if only that is installed.
 // "custom" is the Codex CLI as well, but talking to the provider from .env (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL).
-type Agent = 'claude' | 'codex' | 'custom';
-const AGENTS: Agent[] = ['claude', 'codex', 'custom'];
+// "gemini" is Google's Antigravity CLI (command agy, signed in with the Google account of the Antigravity app).
+type Agent = 'claude' | 'codex' | 'custom' | 'gemini';
+const AGENTS: Agent[] = ['claude', 'codex', 'custom', 'gemini'];
 const hasCmd = (cmd: string) =>
   (process.env.PATH ?? '').split(path.delimiter).some((d) => d && ['', '.cmd', '.exe'].some((e) => fs.existsSync(path.join(d, cmd + e))));
+// agy installs itself into ~/.local/bin, which a server started from an older shell does not have in PATH yet
+const agyCmd = () => (hasCmd('agy') ? 'agy' : path.join(os.homedir(), '.local', 'bin', 'agy'));
+const hasAgy = () => hasCmd('agy') || fs.existsSync(agyCmd());
 const currentAgent = (): Agent => {
   // .env decides (the presenter writes it there); KI=… in front of the start command only fills in when .env says nothing
   const v = String(readEnv().KI || process.env.KI || '').trim().toLowerCase();
@@ -374,7 +382,7 @@ const presentationInfo = () => ({
   design: currentDesign(),
   // who does the work, and which of the two commands are installed here
   agent: currentAgent(),
-  agents: {claude: hasCmd('claude'), codex: hasCmd('codex'), custom: hasCmd('codex') && !!readEnv().LLM_BASE_URL && !!readEnv().LLM_API_KEY},
+  agents: {claude: hasCmd('claude'), codex: hasCmd('codex'), custom: hasCmd('codex') && !!readEnv().LLM_BASE_URL && !!readEnv().LLM_API_KEY, gemini: hasAgy()},
   list: listPresentations(),
 });
 
@@ -661,9 +669,9 @@ async function ask(body: AskBody, res: import('node:http').ServerResponse, lang:
   const question =
     (quote ? `Highlighted passage the question refers to:\n"${quote}"\n\n` : '') +
     String(body.question).slice(0, 2000);
-  // the chosen agent answers; "custom" (and the choice "LLM from .env") asks the provider from .env directly
+  // the chosen agent answers; "custom" asks the provider from .env directly
   const agent = currentAgent();
-  if (body.provider !== 'llm' && agent !== 'custom') return (agent === 'codex' ? askCodex : askClaude)(system, history, question, res, lang);
+  if (agent !== 'custom') return (agent === 'codex' ? askCodex : agent === 'gemini' ? askAgy : askClaude)(system, history, question, res, lang);
   if (!env.LLM_BASE_URL || !env.LLM_API_KEY || !env.LLM_MODEL) {
     res.statusCode = 500;
     return res.end(t.llmEnvMissing);
@@ -1055,10 +1063,13 @@ type Run = {
   extra?: string[];
   cwd: string;
   /** the same limits for Codex: folders it may write, further paths it may read, whether it may use the web, folder for the tools */
-  codex: {write: string[]; read: string[]; web: boolean; dir: string};
+  codex: {write: string[]; read: string[]; web: boolean; dir: string; hosts: string[]};
   done: (ok: boolean) => void;
 };
-const runAgent = (o: Run) => (currentAgent() === 'claude' ? runClaude : runCodex)(o);
+const runAgent = (o: Run) => {
+  const a = currentAgent();
+  return (a === 'claude' ? runClaude : a === 'gemini' ? runAgy : runCodex)(o);
+};
 
 /**
  * The same job with OpenAI's Codex CLI (login with the ChatGPT account, no API key). Codex works through a shell, so
@@ -1143,6 +1154,166 @@ function runCodex(o: Run) {
   });
   child.on('close', (code) => {
     if (code !== 0 && !failed) push('error', err.trim().split('\n').slice(-3).join(' ').slice(0, 400) || `Codex: ${t.exited(code)}`);
+    end(code === 0 && !failed);
+  });
+}
+
+// ── Google's Antigravity CLI (agy): the third way to run the same jobs ────────────────────────────
+const AGY_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+const agyAccount = (kind: 'FRAGEN' | 'UMBAU') => {
+  const fileEnv = readEnv();
+  const effort = String(fileEnv[`GEMINI_EFFORT_${kind}`] ?? '').trim().toLowerCase();
+  return [...(fileEnv.GEMINI_MODEL ? ['--model', fileEnv.GEMINI_MODEL] : []), ...(AGY_EFFORTS.includes(effort) ? ['--effort', effort] : [])];
+};
+/** Reads agy's NDJSON stream: text pieces, finished tool steps and the final result. */
+function readAgy(child: import('node:child_process').ChildProcess, on: {text: (t: string) => void; tool: (name: string, info: {parameters?: Record<string, unknown>; error?: {message?: string}}) => void; fail: (msg: string) => void}) {
+  let buf = '';
+  let got = false;
+  child.stdout!.on('data', (d) => {
+    buf += d;
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const ev = JSON.parse(line);
+        const st = ev.step_update;
+        if (ev.event === 'step_update' && st?.step_type === 'agent_response' && st.text_delta) {
+          got = true;
+          on.text(st.text_delta);
+        } else if (ev.event === 'step_update' && st?.step_type === 'tool' && st.state === 'DONE') on.tool(String(st.tool_name ?? ''), st.tool_info ?? {});
+        else if (ev.event === 'result') {
+          if (ev.result?.status !== 'SUCCESS') on.fail(String(ev.result?.error ?? ev.result?.status ?? ''));
+          else if (!got && ev.result?.response) on.text(String(ev.result.response));
+          else if (!got) on.fail('');
+        }
+      } catch {
+        // not a JSON line
+      }
+    }
+  });
+}
+
+/** Answer from agy: it may read web pages, but gets an empty folder, no commands and no files. */
+function askAgy(system: string, history: {role: string; content: string}[], question: string, res: import('node:http').ServerResponse, lang: Lang) {
+  const t = MSG[lang];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'showpoint-frage-'));
+  const prompt = [
+    system,
+    askWebNote.replace('(WebSearch) and read web pages (WebFetch)', 'and read web pages'),
+    'You have no access to files or to a shell here and need none: do not run commands and do not read or write files – a refused tool ends the answer. Just answer.',
+    '## Conversation',
+    ...history.map((m) => `${m.role === 'user' ? 'Earlier question' : 'Your earlier answer'}: ${m.content}`),
+    history.length ? `New question: ${question}` : `Question: ${question}`,
+  ].join('\n\n');
+  const settings = {enableTerminalSandbox: true, allowNonWorkspaceAccess: false, permissions: {allow: ['read_url(*)'], deny: ['command(*)', 'write_file(*)', `read_file(${os.homedir()})`, 'mcp(*)']}};
+  const child = spawn(agyCmd(), ['-p', prompt, '--output-format', 'stream-json', '--sandbox', '--settings', JSON.stringify(settings), ...agyAccount('FRAGEN')], {cwd: dir, stdio: ['ignore', 'pipe', 'pipe']});
+  res.setHeader('Content-Type', 'text/event-stream');
+  let err = '';
+  let failed = false;
+  const fail = (msg: string) => {
+    if (failed) return;
+    failed = true;
+    const text = msg || err.trim().split('\n').slice(-2).join(' ') || t.unknownError;
+    sse(res, {error: `Gemini: ${text.slice(0, 300)}${/authentication required|not authenticated|log ?in/i.test(text) ? t.agyNotLoggedIn : ''}`});
+  };
+  readAgy(child, {
+    text: (x) => sse(res, {choices: [{delta: {content: x}}]}),
+    tool: (name, info) => {
+      const what = String(info.parameters?.Url ?? info.parameters?.Query ?? info.parameters?.query ?? '');
+      if (what) sse(res, {status: `${/^https?:/.test(what) ? '🌐' : '🔎'} ${what}`});
+      void name;
+    },
+    fail,
+  });
+  child.stderr.on('data', (d) => (err += d));
+  child.on('error', (e) => {
+    fail((e as NodeJS.ErrnoException).code === 'ENOENT' ? t.agyNotFound : e.message);
+    res.end();
+  });
+  child.on('close', (code) => {
+    if (code !== 0) fail('');
+    fs.rmSync(dir, {recursive: true, force: true});
+    res.end();
+  });
+  res.on('close', () => child.kill());
+}
+
+/**
+ * A rebuild or a new presentation with agy. Its own permission rules and its terminal sandbox set the limits: the
+ * working folder is the folder it may write (src/ of the presentation, or the new presentation), reading is allowed for
+ * ShowPoint (without .env), the presentation and the sources, web pages only for the hosts named in the task. The
+ * ShowPoint tools come from <working folder>/.agents/mcp_config.json, written for the run and removed afterwards.
+ */
+function runAgy(o: Run) {
+  const t = MSG[job.lang];
+  const cwd = o.codex.write[0];
+  const agents = path.join(cwd, '.agents');
+  const hadAgents = fs.existsSync(agents);
+  const mcpFile = path.join(agents, 'mcp_config.json');
+  const hadMcp = fs.existsSync(mcpFile) ? fs.readFileSync(mcpFile) : null;
+  fs.mkdirSync(agents, {recursive: true});
+  fs.writeFileSync(mcpFile, JSON.stringify({mcpServers: {showpoint: {command: process.execPath, args: [path.join(root, 'scripts', 'vorschau-mcp.mjs'), o.codex.dir]}}}));
+  const tidy = () => {
+    if (hadMcp) fs.writeFileSync(mcpFile, hadMcp);
+    else fs.rmSync(hadAgents ? mcpFile : agents, {recursive: true, force: true});
+  };
+  const deny = ['command(git)', 'command(sudo)'];
+  for (const d of [root, o.codex.dir]) {
+    for (const n of fs.existsSync(d) ? fs.readdirSync(d) : []) if (/^\.env(\.|$)/.test(n)) deny.push(`read_file(${path.join(d, n)})`);
+  }
+  const settings = {
+    enableTerminalSandbox: true,
+    toolPermission: 'proceed-in-sandbox',
+    allowNonWorkspaceAccess: false,
+    permissions: {
+      allow: ['mcp(showpoint/*)', `read_file(${root})`, `read_file(${o.codex.dir})`, ...o.codex.read.map((r) => `read_file(${r})`), ...o.codex.write.map((w) => `write_file(${w})`), ...o.codex.hosts.map((h) => `read_url(${h})`)],
+      deny,
+    },
+  };
+  const note = `Notes for this run with the Antigravity CLI: your working folder is ${cwd}; relative paths in the instructions above are meant relative to ${o.cwd}, so use absolute paths. Where the instructions name the tools Read, Edit, Write, Glob, Grep or WebFetch, use your own file, search and web tools. "vorschau", "paket" and "plantuml" are tools of the MCP server "showpoint" (call_mcp_tool); look at the images "vorschau" returns. IMPORTANT: nobody can approve anything here, and a single refused action ends the whole run without a result. So write only inside ${o.codex.write.join(' and ')}, read only ${root}, ${o.codex.dir} and the sources named in the task, open only the links given in the task${o.codex.hosts.length ? '' : ' (there are none: do not use the web)'}, and do not use git, npm, a browser, subagents or image generation. Do not touch the folder .agents.`;
+  const child = spawn(
+    agyCmd(),
+    ['-p', `${o.system}\n\n${note}\n\n${o.prompt}`, '--output-format', 'stream-json', '--sandbox', '--mode', 'accept-edits', '--settings', JSON.stringify(settings), ...agyAccount('UMBAU')],
+    {cwd, stdio: ['ignore', 'pipe', 'pipe']},
+  );
+  const short = (s: unknown) => String(s ?? '').replace(o.codex.dir + '/', '').replace(root + '/', '');
+  let err = '';
+  let failed = false;
+  readAgy(child, {
+    text: (x) => push('text', x),
+    tool: (name, info) => {
+      const p = info.parameters ?? {};
+      if (name === 'call_mcp_tool') {
+        const tool = String(p.ToolName ?? '');
+        const args = (p.Arguments ?? {}) as {scenes?: string[]; name?: string};
+        const label = tool === 'vorschau' ? t.previewLabel : tool === 'paket' ? t.packageLabel : tool === 'plantuml' ? t.plantumlLabel : tool;
+        push('tool', `${label} ${tool === 'vorschau' ? (args.scenes ?? []).join(', ') || t.allScenes : String(args.name ?? '')}`.trim());
+      } else if (name === 'run_command') push('tool', `Shell ${short(String(p.CommandLine ?? '').split('\n')[0]).slice(0, 140)}`);
+      else if (/write|replace|edit/.test(name)) push('tool', `Edit ${short(p.Path ?? p.TargetFile ?? p.AbsolutePath ?? '')}`);
+      else if (/url|web|search/.test(name)) push('tool', `Web ${String(p.Url ?? p.Query ?? p.query ?? '').slice(0, 140)}`);
+      if (info.error?.message) push('error', String(info.error.message).slice(0, 300));
+    },
+    fail: (msg) => {
+      failed = true;
+      const text = msg || err.trim().split('\n').slice(-2).join(' ') || t.unknownError;
+      push('error', `Gemini: ${text.slice(0, 500)}${/authentication required|not authenticated/i.test(text) ? t.agyNotLoggedIn : ''}`);
+    },
+  });
+  child.stderr.on('data', (d) => (err += d));
+  let ended = false;
+  const end = (ok: boolean) => {
+    if (ended) return;
+    ended = true;
+    tidy();
+    o.done(ok);
+  };
+  child.on('error', (e) => {
+    push('error', (e as NodeJS.ErrnoException).code === 'ENOENT' ? t.agyNotFound : e.message);
+    end(false);
+  });
+  child.on('close', (code) => {
+    if (code !== 0 && !failed) push('error', err.trim().split('\n').slice(-3).join(' ').slice(0, 400) || `Gemini: ${t.exited(code)}`);
     end(code === 0 && !failed);
   });
 }
@@ -1482,7 +1653,7 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang, frame: n
     tools: `Read,Edit,Write,Glob,Grep${hosts.size ? ',WebFetch' : ''}`,
     allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`, vorschauRule, paketToolRule, plantumlToolRule, ...[...hosts].map((h) => `WebFetch(domain:${h})`)],
     extra: [...(outside ? ['--add-dir', realDir] : []), ...vorschauMcp(realDir)],
-    codex: {write: [path.join(realDir, 'src')], read: [realDir], web: hosts.size > 0, dir: realDir},
+    codex: {write: [path.join(realDir, 'src')], read: [realDir], web: hosts.size > 0, dir: realDir, hosts: [...hosts]},
     cwd: root,
     done: () => {
       // check: valid JSON and error-free types
@@ -1611,7 +1782,7 @@ function startCreate(dirInput: string, prompt: string, lang: Lang, designChoice 
       system: createSystem(dir, lang),
       tools: `Read,Edit,Write,Glob,Grep${hosts.size ? ',WebFetch' : ''}`,
       extra: vorschauMcp(dir),
-      codex: {write: [dir], read: sourcePaths, web: hosts.size > 0, dir},
+      codex: {write: [dir], read: sourcePaths, web: hosts.size > 0, dir, hosts: [...hosts]},
       allowed,
       cwd: dir,
       done: (ok) => {

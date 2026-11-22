@@ -12,8 +12,8 @@ Alle Pfade wie `src/…` und `quellen/…` in dieser Anleitung meinen den **Ordn
 ## Starten
 
 Voraussetzungen: Node.js (ab 20) und – für „Frage zur Folie“, „Folie umbauen“ und „Neue Präsentation“ – eine KI:
-die Claude-Code-CLI (`claude`, angemeldet mit deinem Abo) **oder** die Codex-CLI (`codex`, angemeldet mit dem
-ChatGPT-Konto über `codex login`), beide ohne API-Schlüssel; oder ein eigener Anbieter mit URL und Schlüssel
+die Claude-Code-CLI (`claude`, angemeldet mit deinem Abo), die Codex-CLI (`codex`, angemeldet mit dem
+ChatGPT-Konto über `codex login`) **oder** die Antigravity-CLI von Google (`agy`), alle ohne API-Schlüssel; oder ein eigener Anbieter mit URL und Schlüssel
 (siehe „KI wählen“). Dafür `.env.example` nach `.env` kopieren und ausfüllen.
 
 ```bash
@@ -47,7 +47,7 @@ Präsentation, Texte und Code bleiben aber erhalten: Unter der Liste steht „En
 „↩ wieder einfügen“ sie an ihrer alten Stelle wieder ein. Endgültig löschen (auch den Code) geht über „Folie umbauen“.
 In `content.json` stehen entfernte Folien weiter unter `scenes`, aber nicht in `order`; `removed` merkt sich ihre Stelle.
 
-## KI wählen: Claude Code, OpenAI Codex oder Custom
+## KI wählen: Claude Code, OpenAI Codex, Gemini oder Custom
 
 Wer Fragen beantwortet, Folien umbaut und neue Präsentationen erzeugt, legst du einmal fest: im Präsentator links oben
 unter **„KI“** oder in der `.env` mit `KI=`. Die Wahl gilt für alles, bis du sie änderst.
@@ -56,9 +56,10 @@ unter **„KI“** oder in der `.env` mit `KI=`. Die Wahl gilt für alles, bis d
 |---|---|---|---|
 | `claude` | Claude-Code-CLI (`claude`) | dein Claude-Abo, kein Schlüssel | `CLAUDE_MODEL`, `CLAUDE_EFFORT_FRAGEN`, `CLAUDE_EFFORT_UMBAU` |
 | `codex` | Codex-CLI (`codex`) | dein ChatGPT-Konto (`codex login`), kein Schlüssel | `CODEX_MODEL`, `CODEX_EFFORT_FRAGEN`, `CODEX_EFFORT_UMBAU` |
+| `gemini` | Antigravity-CLI von Google (`agy`) | dein Google-Konto (einmal `agy` starten und anmelden; die Anmeldung der Antigravity-App wird mitbenutzt) | `GEMINI_MODEL`, `GEMINI_EFFORT_FRAGEN`, `GEMINI_EFFORT_UMBAU` |
 | `custom` | Codex-CLI, umgestellt auf einen eigenen Anbieter | `LLM_BASE_URL` und `LLM_API_KEY` | `LLM_MODEL`, `LLM_REASONING_EFFORT` |
 
-Leer = automatisch: Claude Code, oder Codex, wenn nur das installiert ist. Man braucht also nur eines der beiden Programme.
+Leer = automatisch: Claude Code, oder Codex, wenn nur das installiert ist. Man braucht also nur eines der Programme.
 
 - **Custom** braucht die Codex-CLI als Werkzeug und einen Anbieter, der die
   „Responses“-Schnittstelle von OpenAI anbietet – eine andere spricht Codex nicht. Fragen zur Folie gehen bei Custom
@@ -68,6 +69,12 @@ Leer = automatisch: Claude Code, oder Codex, wenn nur das installiert ist. Man b
   Ordner), lesen nur ShowPoint, die Präsentation und die im Auftrag genannten Quellen, `.env` gesperrt, kein Netz für
   Befehle. Temporäre Ordner des Systems bleiben beschreibbar. Die eigene Codex-Konfiguration (`~/.codex/config.toml`)
   wird nicht benutzt.
+- **Gemini (`agy`)** arbeitet mit eigenen Berechtigungsregeln und einer Terminal-Sandbox: schreiben nur im `src/` der
+  Präsentation (bei „Neue Präsentation“ im neuen Ordner), lesen nur ShowPoint, die Präsentation und die Quellen, `.env`
+  gesperrt, Webseiten nur von den im Auftrag genannten Adressen. Eine Eigenheit: Ein verweigerter Zugriff beendet dort
+  den ganzen Lauf ohne Ergebnis – dann steht der Grund im Protokoll, und man startet den Auftrag neu. Für den Lauf legt
+  ShowPoint kurz `src/.agents/mcp_config.json` an und entfernt es wieder. Welche Modelle dein Konto anbietet, zeigt
+  `agy models`. Installation: <https://antigravity.google/docs/getting-started?tab=cli>.
 - **Links im Auftrag:** Claude darf genau die genannten Adressen lesen. Bei Codex lässt sich das Web-Werkzeug nicht auf
   Adressen begrenzen; es ist nur an, wenn der Auftrag Links enthält. Bei Custom gibt es kein Web-Werkzeug.
 - **PDF-Quellen** liest Claude direkt; Codex hat dafür nur die Shell und kommt mit PDFs schlechter zurecht – Text- oder
@@ -201,7 +208,7 @@ Der Editor überschreibt `content.json` beim Bearbeiten; eine Versionsverwaltung
 
 - `?`-Taste: Thema, Zielgruppe und Ton stehen in `src/begleittext.md`, das Nachschlagematerial im Ordner `quellen/`. Beides auf das neue Thema umstellen, sonst antwortet das Modell mit falschem Hintergrund. Im Dialog wählt man zwischen „Claude Code“ (Befehl `claude`, Modell in `.env` als `CLAUDE_MODEL`, Denkaufwand als `CLAUDE_EFFORT_FRAGEN`) und „LLM aus .env“. Der Zugang steht in `.env` (Vorlage: `.env.example`).
   Mit „Claude Code“ darf das Modell bei Fragen **im Internet suchen und Webseiten lesen** (WebSearch, WebFetch) – etwa für aktuelle Fakten – und nennt dann die genutzten Seiten; im Dialog erscheint, wonach es sucht (🔎) und was es liest (🌐). Dateien lesen oder Befehle ausführen kann es dabei nicht. „LLM aus .env“ hat keinen Internetzugang.
-  Es antwortet die im Präsentator gewählte KI (siehe „KI wählen“); im Fragen-Fenster kann man stattdessen auf das LLM aus `.env` umstellen. Claude Code und Codex dürfen für eine Frage im Internet suchen, bekommen dabei aber keine Shell und keinen Zugriff auf Dateien.
+  Es antwortet die im Präsentator gewählte KI (siehe „KI wählen“); eine eigene Auswahl gibt es im Fragen-Fenster nicht. Claude Code, Codex und Gemini dürfen für eine Frage im Internet suchen, bekommen dabei aber keine Shell und keinen Zugriff auf Dateien.
 - „Folie umbauen“: Besonderheiten der Folien (Bausteine, Maße, Fakten) in `src/umbau-regeln.md` beschreiben.
 
 ## Weg B: eine fertige fremde Animation unverändert einladen

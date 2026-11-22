@@ -10,7 +10,7 @@ pause at stops, answer questions about what is on screen – and can be rebuilt 
 
 - **Present** – animated slides with stops; advance with space, arrow keys or a click; fullscreen with `F`.
 - **Ask about a slide** (`?`) – ask about what is currently shown, or mark text and ask about exactly that.
-  Answers come from Claude Code, OpenAI Codex (both through your subscription login, no API key) or your own provider (URL and key) and draw on the slide texts and your own sources
+  Answers come from Claude Code, OpenAI Codex, Gemini via Google's Antigravity CLI (all through your account login, no API key) or your own provider (URL and key) and draw on the slide texts and your own sources
   (`quellen/`: Markdown, text, PDF).
 - **Rebuild a slide** – describe the change in plain words; Claude Code edits the slide code, the type check runs,
   the presentation reloads. Every rebuild can be undone. A suggestion from “ask” can be handed over with one click.
