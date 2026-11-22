@@ -4,27 +4,57 @@ import {
   interpolate,
   random,
   spring,
+  loadFont,
+  resolveDesign,
   useCurrentFrame,
   useVideoConfig,
 } from 'showpoint';
+import design from './design.json';
 
+/**
+ * The look of this presentation – colours, font, background, shapes – comes from design.json and nowhere else.
+ * To change it, change design.json (in the presenter: "Design" in the side panel, or a task like "background a
+ * little lighter"); never write colour values or font names into a slide.
+ */
+export const D = resolveDesign(design);
+
+/** Colours for slides. All of them point into design.json. */
 export const C = {
-  bg: '#0B1020',
-  panel: '#151C33',
-  panel2: '#1B2442',
-  border: '#2E3A63',
-  text: '#E8ECF8',
-  muted: '#9AA6C7',
-  mem: '#8B6CFF',
-  query: '#FFB020',
-  doc: '#38BDF8',
-  good: '#34D399',
-  bad: '#F87171',
-  fire: '#FB923C',
+  bg: D.surface.bg,
+  panel: D.surface.panel,
+  panel2: D.surface.panel2,
+  border: D.surface.border,
+  inset: D.surface.inset,
+  text: D.text.normal,
+  muted: D.text.muted,
+  heading: D.text.heading,
+  kicker: D.text.kicker,
+  /** Text on top of an accent colour. */
+  onAccent: D.text.onAccent,
+  /** The accent palette in its order: C.accent[0], C.accent[1] … */
+  accent: D.accent,
+  good: D.status.good,
+  bad: D.status.bad,
+  note: D.status.note,
+  // Older names, kept so existing slides keep compiling: three accents by their former role, and a fourth.
+  doc: D.accent[0],
+  mem: D.accent[1 % D.accent.length],
+  query: D.accent[2 % D.accent.length],
+  fire: D.accent[5 % D.accent.length],
 };
 
-export const FONT =
-  '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif';
+export const FONT = D.font.family;
+/** Font weights of the design: W.normal, W.strong, W.kicker, W.heading. */
+export const W = D.font.weights;
+/** Corner radius and frame width of boxes. */
+export const SHAPE = D.shape;
+
+// Own font files named in design.json (font.files, files in src/schriften/) are registered here.
+const fontFiles = import.meta.glob<string>('./schriften/*.{woff2,woff,ttf,otf}', {eager: true, query: '?url', import: 'default'});
+for (const f of D.font.files) {
+  const url = fontFiles[`./schriften/${f.file}`];
+  if (url) loadFont(f.family, url, {weight: f.weight, style: f.style});
+}
 
 export const CLAMP = {
   extrapolateLeft: 'clamp',
@@ -94,9 +124,10 @@ const Captions: React.FC<{items: Caption[]}> = ({items}) => {
         right: 120,
         bottom: 34,
         height: 124,
-        borderRadius: 22,
-        background: 'rgba(8,12,26,0.85)',
-        border: `2px solid ${C.border}`,
+        borderRadius: SHAPE.radius + 2,
+        background: D.caption.bg,
+        border: `${Math.max(1, SHAPE.borderWidth - 1)}px solid ${D.caption.border}`,
+        color: D.caption.text,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -130,7 +161,7 @@ export const Scene: React.FC<{
   return (
     <AbsoluteFill
       style={{
-        background: `radial-gradient(1400px 800px at 20% 0%, #172047 0%, ${C.bg} 60%)`,
+        background: D.surface.background,
         fontFamily: FONT,
         color: C.text,
         opacity,
@@ -144,14 +175,14 @@ export const Scene: React.FC<{
                 fontSize: 26,
                 letterSpacing: 3,
                 textTransform: 'uppercase',
-                color: C.mem,
-                fontWeight: 700,
+                color: C.kicker,
+                fontWeight: W.kicker,
               }}
             >
               {kicker}
             </div>
           ) : null}
-          <div style={{fontSize: 62, fontWeight: 800, letterSpacing: -1}}>
+          <div style={{fontSize: 62, fontWeight: W.heading, letterSpacing: -1, color: C.heading}}>
             {title}
           </div>
         </div>
@@ -182,8 +213,8 @@ export const Box: React.FC<{
         top: y,
         width: w,
         height: h,
-        borderRadius: 20,
-        border: `3px solid ${color}`,
+        borderRadius: SHAPE.radius,
+        border: `${SHAPE.borderWidth}px solid ${color}`,
         background: fill,
         display: 'flex',
         flexDirection: 'column',
@@ -192,7 +223,7 @@ export const Box: React.FC<{
         textAlign: 'center',
         boxSizing: 'border-box',
         fontSize: 30,
-        fontWeight: 600,
+        fontWeight: W.strong,
         opacity: s,
         transform: `scale(${0.92 + 0.08 * s})`,
         ...style,
@@ -207,7 +238,7 @@ export const Sub: React.FC<{children: React.ReactNode; color?: string}> = ({
   children,
   color = C.muted,
 }) => (
-  <div style={{fontSize: 22, fontWeight: 500, color, marginTop: 6}}>
+  <div style={{fontSize: 22, fontWeight: W.normal, color, marginTop: 6}}>
     {children}
   </div>
 );
@@ -222,7 +253,7 @@ export const Label: React.FC<{
   align?: 'left' | 'center' | 'right';
   weight?: number;
   children: React.ReactNode;
-}> = ({x, y, at = 0, w, size = 26, color = C.muted, align = 'left', weight = 500, children}) => {
+}> = ({x, y, at = 0, w, size = 26, color = C.muted, align = 'left', weight = W.normal, children}) => {
   const s = useAppear(at);
   return (
     <div
@@ -366,7 +397,7 @@ export const Doc: React.FC<{
       width: w,
       height: h,
       borderRadius: 7,
-      background: '#0F1A33',
+      background: C.inset,
       border: `2px solid ${color}`,
       boxSizing: 'border-box',
       padding: `${h * 0.16}px ${w * 0.16}px`,

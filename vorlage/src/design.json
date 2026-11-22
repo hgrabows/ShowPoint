@@ -1,0 +1,13 @@
+{
+  "name": "Nacht",
+  "dark": true,
+  "surface": {"bg": "#0B1020", "background": "radial-gradient(1400px 800px at 20% 0%, #172047 0%, #0B1020 60%)", "panel": "#151C33", "panel2": "#1B2442", "border": "#2E3A63", "inset": "#0F1A33"},
+  "text": {"normal": "#E8ECF8", "muted": "#9AA6C7", "heading": "#E8ECF8", "kicker": "#8B6CFF", "onAccent": "#0B1020"},
+  "accent": ["#38BDF8", "#8B6CFF", "#FFB020", "#34D399", "#F87171", "#FB923C", "#A3E635", "#F472B6"],
+  "status": {"good": "#34D399", "bad": "#F87171", "note": "#FFB020"},
+  "font": {"family": "-apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Helvetica, Arial, sans-serif", "weights": {"normal": 500, "strong": 600, "kicker": 700, "heading": 800}, "files": []},
+  "shape": {"radius": 20, "borderWidth": 3},
+  "caption": {"bg": "rgba(8,12,26,0.85)", "border": "#2E3A63", "text": "#E8ECF8"},
+  "diagram": {"node": "#1B2442", "nodeBorder": "#38BDF8", "line": "#9AA6C7", "group": "#121935", "noteBg": "#2A2310", "noteBorder": "#FFB020", "errorBg": "#3A1620"},
+  "model": {"ground": "#334466", "fill": "#9FB4FF"}
+}

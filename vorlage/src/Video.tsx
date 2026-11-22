@@ -1,5 +1,6 @@
 import React from 'react';
-import {AbsoluteFill, Series} from 'showpoint';
+import {AbsoluteFill, DesignProvider, Series} from 'showpoint';
+import design from './design.json';
 import {SceneContent, SceneProps} from './ui';
 import {Beispiel, Title} from './scenes';
 
@@ -24,6 +25,8 @@ export const sceneStarts = (c: Content) => {
 };
 
 export const Video: React.FC<{content: Content}> = ({content}) => (
+  // DesignProvider hands the design (design.json) to the building blocks of the runtime: charts, diagrams, 3D models
+  <DesignProvider design={design}>
   <AbsoluteFill style={{background: '#000'}}>
     <Series>
       {content.order.map((id) => {
@@ -37,4 +40,5 @@ export const Video: React.FC<{content: Content}> = ({content}) => (
       })}
     </Series>
   </AbsoluteFill>
+  </DesignProvider>
 );

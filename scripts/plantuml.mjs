@@ -2,6 +2,7 @@
 // which the slide imports like any image. Runs locally – nothing is sent to a server.
 //   node scripts/plantuml.mjs --setup                       download PlantUML once (npm run plantuml)
 //   node scripts/plantuml.mjs <presentation folder> <file>  render src/diagramme/<file>.puml → .svg
+//   node scripts/plantuml.mjs <presentation folder> --all   render all of them again (after a change of design)
 // Used by Claude through the MCP tool "plantuml" (scripts/vorschau-mcp.mjs).
 // Only needed to create or change diagrams: the finished SVG lives in the presentation, so presenting, PDF and video
 // work without PlantUML.
@@ -10,6 +11,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {isDesign, plantumlTheme} from '../runtime/designCore.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // PlantUML, pinned to one version (same pictures on every machine); every download is checked against its SHA-256.
@@ -78,7 +80,9 @@ export async function setup() {
   return {ok: true, text: `PlantUML ${VERSION} (jar) installed: ${jarPath}${java ? '' : '\nNote: Java was not found – install it (e.g. https://adoptium.net) to draw diagrams.'}`};
 }
 
-// Look of the slides (dark stage). Comes first, so a diagram – or a spec in vorgaben/ – can override single values.
+// Look of the slides. Comes first, so a diagram – or a spec in vorgaben/ – can override single values.
+// A presentation with src/design.json gets its colours from there (plantumlTheme); this dark scheme is the
+// fallback for presentations without one.
 const THEME = `<style>
 root {
   FontName "Helvetica Neue", Helvetica, Arial, sans-serif
@@ -111,7 +115,18 @@ skinparam defaultFontSize 18
 skinparam classAttributeIconSize 0
 `;
 
-function prepare(source) {
+/** The style block for a presentation: from its src/design.json, else the dark standard scheme. */
+function themeOf(dir) {
+  try {
+    const design = JSON.parse(fs.readFileSync(path.join(dir, 'src', 'design.json'), 'utf8'));
+    if (isDesign(design)) return plantumlTheme(design);
+  } catch {
+    // no design.json, or not readable
+  }
+  return THEME;
+}
+
+function prepare(source, theme) {
   const lines = source.replace(/\r\n?/g, '\n').split('\n');
   let i = lines.findIndex((l) => /^\s*@start\w+/.test(l));
   if (i < 0) {
@@ -121,7 +136,7 @@ function prepare(source) {
   }
   // own layout engine of PlantUML (no Graphviz needed, same result on every machine) – unless the diagram chooses
   const layout = /!pragma\s+layout\b/i.test(source) ? '' : '!pragma layout smetana\n';
-  lines.splice(i + 1, 0, layout + THEME);
+  lines.splice(i + 1, 0, layout + theme);
   return lines.join('\n');
 }
 
@@ -161,7 +176,7 @@ export async function renderDiagram(dir, fileIn) {
   if (lack) return {ok: false, text: `PlantUML cannot run here: ${lack} Tell the user this in your final answer; do not replace the diagram with a hand-drawn imitation unless the task allows it.`};
 
   const source = fs.readFileSync(puml, 'utf8');
-  const input = prepare(source);
+  const input = prepare(source, themeOf(dir));
   const r = await runPlantuml(await command(), input);
   const svgStart = r.out.indexOf('<svg');
   // a syntax error still yields a picture (of the error) – the report on stderr tells
@@ -186,8 +201,30 @@ export async function renderDiagram(dir, fileIn) {
     text:
       `Rendered ${svgFile}.${size}\n` +
       `In the scene file: import ${name.replace(/[^\w]/g, '_')} from './diagramme/${name}.svg'; then <Img src={…} style={{position: 'absolute', left: …, top: …, width: …, height: …, objectFit: 'contain'}} /> (Img from 'showpoint'). ` +
-      `The colours already match the dark slides. After every change of ${name}.puml call this tool again, then check the slide with "vorschau" (text at least about 18 px high on the 1920×1080 stage – otherwise split the diagram or enlarge it).`,
+      `The colours already match the design of the slides. After every change of ${name}.puml call this tool again, then check the slide with "vorschau" (text at least about 18 px high on the 1920×1080 stage – otherwise split the diagram or enlarge it).`,
   };
+}
+
+/**
+ * Draws every diagram of a presentation again (src/diagramme/*.puml) – after its design changed.
+ * @returns {Promise<{ok: boolean, count: number, text: string}>}
+ */
+export async function renderAll(dir) {
+  let names = [];
+  try {
+    names = fs.readdirSync(path.join(dir, 'src', 'diagramme')).filter((f) => /\.puml$/i.test(f)).sort();
+  } catch {
+    // no diagrams
+  }
+  if (!names.length) return {ok: true, count: 0, text: 'No PlantUML diagrams.'};
+  const lack = await missing();
+  if (lack) return {ok: false, count: 0, text: lack};
+  const failed = [];
+  for (const n of names) {
+    const r = await renderDiagram(dir, n);
+    if (!r.ok) failed.push(`${n}: ${r.text.split('\n')[0]}`);
+  }
+  return {ok: !failed.length, count: names.length - failed.length, text: failed.length ? failed.join('\n') : `${names.length} diagram(s) drawn again.`};
 }
 
 // CLI
@@ -199,10 +236,16 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     process.exit(r.ok ? 0 : 1);
   }
   if (!a || !b) {
-    console.log('Usage: node scripts/plantuml.mjs --setup | <presentation folder> <diagram name>');
+    console.log('Usage: node scripts/plantuml.mjs --setup | <presentation folder> <diagram name | --all>');
     process.exit(1);
   }
-  const r = await renderDiagram(fs.realpathSync(path.resolve(a)), b);
+  const dir = fs.realpathSync(path.resolve(a));
+  if (b === '--all') {
+    const r = await renderAll(dir);
+    console.log(r.text);
+    process.exit(r.ok ? 0 : 1);
+  }
+  const r = await renderDiagram(dir, b);
   console.log(r.text);
   process.exit(r.ok ? 0 : 1);
 }

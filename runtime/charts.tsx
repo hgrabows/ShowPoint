@@ -5,15 +5,16 @@
  */
 import React, {useId} from 'react';
 import {Easing, interpolate, spring, useCurrentFrame, useVideoConfig} from './index';
+import {NIGHT, useDesign} from './design';
 
 export type Num = number | string;
 
-/** Colours that fit the ShowPoint scheme; series and segments take them in this order. */
-export const CHART_COLORS = ['#38BDF8', '#8B6CFF', '#FFB020', '#34D399', '#F87171', '#FB923C', '#A3E635', '#F472B6'];
+/**
+ * Accent colours of the dark standard look. Charts take their colours from the design of the presentation
+ * (useDesign().accent, in this order); this list only remains for slides that import it.
+ */
+export const CHART_COLORS = NIGHT.accent;
 
-const TEXT = '#E8ECF8';
-const MUTED = '#9AA6C7';
-const GRID = '#2E3A63';
 const CLAMP = {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'} as const;
 
 type Common = {
@@ -123,7 +124,9 @@ export type BarChartProps = Common & {
 
 export const BarChart: React.FC<BarChartProps> = (p) => {
   const {x, y, w, h, labels, at = 0, unit = '', fontSize: fs = 24, stagger = 8, horizontal = false, highlight} = p;
-  const {textColor = TEXT, mutedColor = MUTED, gridColor = GRID, color = CHART_COLORS[0], colors} = p;
+  const d = useDesign();
+  const {textColor = d.text.normal, mutedColor = d.text.muted, gridColor = d.surface.border, color = d.accent[0], colors} = p;
+  const round = Math.min(8, d.shape.radius);
   const parsed = parseNumbers(p.values);
   if (p.decimalComma !== undefined) parsed.sep = p.decimalComma ? ',' : '.';
   const vals = parsed.values;
@@ -160,7 +163,7 @@ export const BarChart: React.FC<BarChartProps> = (p) => {
               <Txt style={{left: 0, width: labelW - 16, top: cy, transform: 'translateY(-50%)', textAlign: 'right', fontSize: fs, color: textColor, opacity: Math.min(1, g * 1.5) * dim(i)}}>
                 {labels[i]}
               </Txt>
-              <div style={{position: 'absolute', left: Math.min(x0, x1), top: cy - barH / 2, width: Math.abs(x1 - x0), height: barH, background: colorOf(i), borderRadius: v >= 0 ? '0 8px 8px 0' : '8px 0 0 8px', opacity: dim(i)}} />
+              <div style={{position: 'absolute', left: Math.min(x0, x1), top: cy - barH / 2, width: Math.abs(x1 - x0), height: barH, background: colorOf(i), borderRadius: v >= 0 ? `0 ${round}px ${round}px 0` : `${round}px 0 0 ${round}px`, opacity: dim(i)}} />
               <Txt style={{left: v >= 0 ? x1 + 12 : x1 - 12, top: cy, transform: `translate(${v >= 0 ? 0 : -100}%, -50%)`, fontSize: fs * 0.9, fontWeight: 700, color: textColor, opacity: g * dim(i), whiteSpace: 'nowrap'}}>
                 {valueText(i, g)}
               </Txt>
@@ -197,7 +200,7 @@ export const BarChart: React.FC<BarChartProps> = (p) => {
         const y1 = yOf(v * g);
         return (
           <React.Fragment key={i}>
-            <div style={{position: 'absolute', left: cx - barW / 2, top: Math.min(y0, y1), width: barW, height: Math.abs(y1 - y0), background: colorOf(i), borderRadius: v >= 0 ? '8px 8px 0 0' : '0 0 8px 8px', opacity: dim(i)}} />
+            <div style={{position: 'absolute', left: cx - barW / 2, top: Math.min(y0, y1), width: barW, height: Math.abs(y1 - y0), background: colorOf(i), borderRadius: v >= 0 ? `${round}px ${round}px 0 0` : `0 0 ${round}px ${round}px`, opacity: dim(i)}} />
             <Txt style={{left: cx, top: v >= 0 ? y1 - 8 : y1 + 8, transform: `translate(-50%, ${v >= 0 ? -100 : 0}%)`, fontSize: fs * 0.9, fontWeight: 700, color: textColor, opacity: g * dim(i), whiteSpace: 'nowrap'}}>
               {valueText(i, g)}
             </Txt>
@@ -233,10 +236,11 @@ export type LineChartProps = Common & {
 
 export const LineChart: React.FC<LineChartProps> = (p) => {
   const {x, y, w, h, labels, at = 0, unit = '', fontSize: fs = 24, dur = 60, area = false, showValues = 'last'} = p;
-  const {textColor = TEXT, mutedColor = MUTED, gridColor = GRID} = p;
+  const d = useDesign();
+  const {textColor = d.text.normal, mutedColor = d.text.muted, gridColor = d.surface.border} = p;
   const clipId = useId().replace(/:/g, '');
   const frame = useCurrentFrame();
-  const series = (p.series ?? [{values: p.values ?? []}]).map((s, k) => ({...s, ...parseNumbers(s.values), color: s.color ?? CHART_COLORS[k % CHART_COLORS.length]}));
+  const series = (p.series ?? [{values: p.values ?? []}]).map((s, k) => ({...s, ...parseNumbers(s.values), color: s.color ?? d.accent[k % d.accent.length]}));
   const sep = p.decimalComma !== undefined ? (p.decimalComma ? ',' : '.') : series.find((s) => s.sep === ',') ? ',' : '.';
   const all = series.flatMap((s) => s.values);
   const lo = p.min ?? (Math.min(...all) >= 0 && Math.min(...all) < Math.max(...all) * 0.5 ? 0 : Math.min(...all));
@@ -304,7 +308,7 @@ export const LineChart: React.FC<LineChartProps> = (p) => {
                 <polyline points={line} fill="none" stroke={s.color} strokeWidth={6} strokeLinejoin="round" strokeLinecap="round" />
               </g>
               {pts.map(([px, py], i) =>
-                q > 0 && px <= reach + 0.5 ? <circle key={i} cx={px} cy={py} r={8} fill="#0B1020" stroke={s.color} strokeWidth={4} /> : null,
+                q > 0 && px <= reach + 0.5 ? <circle key={i} cx={px} cy={py} r={8} fill={d.surface.bg} stroke={s.color} strokeWidth={4} /> : null,
               )}
             </g>
           );
@@ -370,7 +374,8 @@ function arcPath(cx: number, cy: number, r: number, inner: number, a0: number, a
 
 export const PieChart: React.FC<PieChartProps> = (p) => {
   const {x, y, w, h, labels, at = 0, unit = '', fontSize: fs = 24, donut = true, center, dur = 45, showValues = false} = p;
-  const {textColor = TEXT, mutedColor = MUTED, colors = CHART_COLORS} = p;
+  const d = useDesign();
+  const {textColor = d.text.normal, mutedColor = d.text.muted, colors = d.accent} = p;
   const frame = useCurrentFrame();
   const parsed = parseNumbers(p.values);
   if (p.decimalComma !== undefined) parsed.sep = p.decimalComma ? ',' : '.';
@@ -401,7 +406,7 @@ export const PieChart: React.FC<PieChartProps> = (p) => {
       <svg width={size} height={h} style={{position: 'absolute', left: 0, top: 0, overflow: 'visible'}}>
         {segs.map((s) =>
           sweep > s.a0 ? (
-            <path key={s.i} d={arcPath(cx, cy, r, inner, s.a0, Math.min(s.a1, sweep))} fill={s.color} stroke="#0B1020" strokeWidth={3} strokeLinejoin="round" />
+            <path key={s.i} d={arcPath(cx, cy, r, inner, s.a0, Math.min(s.a1, sweep))} fill={s.color} stroke={d.surface.bg} strokeWidth={3} strokeLinejoin="round" />
           ) : null,
         )}
         {segs.map((s) => {
@@ -411,7 +416,7 @@ export const PieChart: React.FC<PieChartProps> = (p) => {
           const rr = donut ? (r + inner) / 2 : r * 0.62;
           const o = interpolate(sweep, [s.a1, s.a1 + 20], [0, 1], CLAMP);
           return (
-            <text key={`t${s.i}`} x={cx + rr * Math.cos(mid)} y={cy + rr * Math.sin(mid)} textAnchor="middle" dominantBaseline="central" fontSize={fs * 0.85} fontWeight={700} fill="#0B1020" opacity={o}>
+            <text key={`t${s.i}`} x={cx + rr * Math.cos(mid)} y={cy + rr * Math.sin(mid)} textAnchor="middle" dominantBaseline="central" fontSize={fs * 0.85} fontWeight={700} fill={d.text.onAccent} opacity={o}>
               {pct(s.v)}
             </text>
           );

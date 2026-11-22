@@ -46,3 +46,7 @@ declare module '*.otf' {
   const src: string;
   export default src;
 }
+// import.meta.glob (Vite): src/ui.tsx uses it to find the font files in src/schriften/ that design.json names
+interface ImportMeta {
+  glob<T = unknown>(pattern: string | string[], options?: {eager?: boolean; query?: string; import?: string}): Record<string, T>;
+}

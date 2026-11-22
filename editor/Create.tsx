@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {RebuildState, isBad} from './Rebuild';
 import {T, lang} from './i18n';
 import {useFollowLog} from './float';
+import {DesignChoice} from './Design';
 
 export const createCss = `
 .cr-back{position:fixed;inset:0;z-index:50;background:rgba(5,8,18,.72);display:flex;align-items:center;justify-content:center}
@@ -58,6 +59,7 @@ export const Create: React.FC<{
   const [template, setTemplate] = useState('');
   const [dir, setDir] = useState('');
   const [prompt, setPrompt] = useState('');
+  const [design, setDesign] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -66,7 +68,7 @@ export const Create: React.FC<{
       .then((r) => r.json())
       .then((d: {template: string; parent: string}) => {
         setTemplate(d.template);
-        let draft: {dir?: string; prompt?: string} = {};
+        let draft: {dir?: string; prompt?: string; design?: string} = {};
         try {
           draft = JSON.parse(load(DRAFT) ?? '{}');
         } catch {
@@ -74,12 +76,13 @@ export const Create: React.FC<{
         }
         setDir(draft.dir || `${d.parent}/`);
         setPrompt(draft.prompt || d.template);
+        setDesign(draft.design || '');
       })
       .catch(() => setError(T.templateFailed));
   }, []);
   useEffect(() => {
-    if (prompt || dir) store(DRAFT, JSON.stringify({dir, prompt}));
-  }, [dir, prompt]);
+    if (prompt || dir) store(DRAFT, JSON.stringify({dir, prompt, design}));
+  }, [dir, prompt, design]);
 
   const mine = state?.kind === 'create' && !!state.instruction;
   const showLog = mine && (state!.running || String(state!.startedAt) !== seen);
@@ -99,10 +102,10 @@ export const Create: React.FC<{
     if (/<[^<>\n]{3,}>/.test(prompt) && !window.confirm(T.placeholdersLeft)) return;
     setBusy(true);
     try {
-      const r = await fetch('/api/create', {method: 'POST', body: JSON.stringify({path: dir.trim(), prompt})}).then((x) => x.json());
+      const r = await fetch('/api/create', {method: 'POST', body: JSON.stringify({path: dir.trim(), prompt, design})}).then((x) => x.json());
       if (r.error) setError(r.error);
       else {
-        store(DRAFT, JSON.stringify({dir: '', prompt}));
+        store(DRAFT, JSON.stringify({dir: '', prompt, design}));
         onStarted(r);
       }
     } catch {
@@ -170,6 +173,7 @@ export const Create: React.FC<{
                 <input value={dir} placeholder={T.folderPlaceholder} onChange={(e) => setDir(e.target.value)} />
                 <button onClick={pick}>{T.chooseFolder}</button>
               </div>
+              <DesignChoice value={design} onChange={setDesign} />
               <label>{T.promptLabel}</label>
               <textarea className="cr-prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) start();
