@@ -72,6 +72,11 @@ select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;bord
 .libs-k{flex:none;width:7.5em;color:#5d6a92}
 .libs-warn{color:#ffb020}
 .libs-hint{margin-top:6px;color:#5d6a92}
+.libs.vers{margin-top:10px}
+.vers-row{display:flex;align-items:center;gap:8px;margin-top:5px}
+.vers-when{flex:none;width:7.5em;color:#5d6a92;font-variant-numeric:tabular-nums}
+.vers-what{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vers-row button{flex:none;font-size:11px;padding:2px 8px}
 .lic-note{border-left:3px solid #ffb020;background:#1f1a0d;color:#ffd27a;padding:8px 12px;border-radius:0 8px 8px 0;font-size:13px;line-height:1.45}
 @keyframes jobspin{to{transform:rotate(360deg)}}
 .job{position:fixed;left:16px;bottom:16px;z-index:40;display:flex;align-items:center;gap:8px;max-width:min(560px,60vw);
@@ -92,6 +97,7 @@ type Presentation = {
   packages?: {name: string; version: string; license: string; free: boolean}[];
   builtins?: string[];
   specs?: {file: string; title: string}[];
+  versions?: {id: string; time: number; kind: string; instruction: string; scene: string}[];
   list: {dir: string; title: string; path: string; linked: boolean}[];
   error?: string;
 };
@@ -231,7 +237,7 @@ const App: React.FC = () => {
         // a rebuild may have installed packages: refresh the licence notice
         fetch('/api/presentation')
           .then((r) => r.json())
-          .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses, packages: p.packages, builtins: p.builtins, specs: p.specs} : p)));
+          .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses, packages: p.packages, builtins: p.builtins, specs: p.specs, versions: p.versions} : p)));
       }
       rbWas.current = st.running;
     } catch {
@@ -1081,6 +1087,27 @@ const App: React.FC = () => {
           })}
         </div>
         <Libraries builtins={pres?.builtins ?? []} packages={pres?.packages ?? []} specs={pres?.specs ?? []} />
+        <Versions
+          versions={pres?.versions ?? []}
+          busy={!!rb?.running}
+          onRestore={(vid) =>
+            fetch('/api/versions', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({restore: vid})}).then((r) => {
+              if (!r.ok) return window.alert(T.versionsFailed);
+              // like after "Undo": take the restored texts from the server, do not write stale ones back
+              dirty.current = false;
+              restorePending.current = true;
+              fetch('/api/content')
+                .then((x) => x.json())
+                .then(setContent);
+              fetch('/api/presentation')
+                .then((x) => x.json())
+                .then((p: Presentation) => setPres((old) => (old ? {...old, licenses: p.licenses, packages: p.packages, builtins: p.builtins, specs: p.specs, versions: p.versions} : p)));
+              fetch('/api/rebuild')
+                .then((x) => x.json())
+                .then(setRb);
+            })
+          }
+        />
       </div>
     </div>
   );
@@ -1175,6 +1202,35 @@ const RunDot: React.FC<{frame: number; stops: number[]; total: number}> = ({fram
 };
 
 /** Bottom of the side panel, unobtrusive: which libraries the slides really use (built in and installed). */
+/** Earlier states of the presentation (one before every rebuild), folded away at the bottom of the panel. */
+const Versions: React.FC<{versions: NonNullable<Presentation['versions']>; busy: boolean; onRestore: (id: string) => void}> = ({versions, busy, onRestore}) => {
+  if (!versions.length) return null;
+  return (
+    <details className="libs vers">
+      <summary>{T.versionsSummary(versions.length)}</summary>
+      {versions.map((v) => {
+        const when = T.versionsWhen(new Date(v.time));
+        const what = v.kind === 'restore' ? v.instruction : T.versionsBefore(v.scene, v.instruction);
+        return (
+          <div key={v.id} className="vers-row" title={v.instruction}>
+            <span className="vers-when">{when}</span>
+            <span className="vers-what">{what}</span>
+            <button
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm(T.versionsConfirm(when))) onRestore(v.id);
+              }}
+            >
+              {T.versionsRestore}
+            </button>
+          </div>
+        );
+      })}
+      <div className="libs-hint">{T.versionsHint}</div>
+    </details>
+  );
+};
+
 const Libraries: React.FC<{builtins: string[]; packages: NonNullable<Presentation['packages']>; specs: NonNullable<Presentation['specs']>}> = ({builtins, packages, specs}) => {
   if (!builtins.length && !packages.length && !specs.length) return null;
   return (

@@ -59,6 +59,7 @@ const MSG = {
     specNotFound: (f: string) => `Vorgabe nicht gefunden: ${f}`,
     plantumlLabel: 'PlantUML zeichnen',
     undone: 'Rückgängig gemacht: der Inhalt ist wieder auf dem Stand vor diesem Umbau.',
+    beforeRestore: 'Stand vor dem Wiederherstellen',
     noPdf: 'Noch kein PDF erzeugt.',
     pdfFailed: (code: number | null) => `PDF-Export fehlgeschlagen (Code ${code}).`,
     saveLocked: 'Umbau läuft – Speichern ist so lange gesperrt.',
@@ -111,6 +112,7 @@ const MSG = {
     specNotFound: (f: string) => `Specification not found: ${f}`,
     plantumlLabel: 'Draw PlantUML',
     undone: 'Undone: the content is back to the state before this rebuild.',
+    beforeRestore: 'State before restoring',
     noPdf: 'No PDF created yet.',
     pdfFailed: (code: number | null) => `PDF export failed (code ${code}).`,
     saveLocked: 'Rebuild in progress – saving is locked until it finishes.',
@@ -311,6 +313,8 @@ const presentationInfo = () => ({
   builtins: hasInhalt() ? builtinsUsed(inhaltSrc()) : [],
   // specifications in vorgaben/: how things are to be drawn in this presentation
   specs: hasInhalt() ? specList(real(inhaltDir())).map(({file, title}) => ({file, title})) : [],
+  // earlier states (before each rebuild), newest first
+  versions: hasInhalt() ? listVersions(real(inhaltDir())) : [],
   list: listPresentations(),
 });
 
@@ -564,6 +568,96 @@ const finishJob = () => {
 };
 
 /**
+ * Earlier states of a presentation: before every rebuild (and before restoring one) its src/ is copied to
+ * <presentation>/.umbau/<timestamp>/src, with the task in meta.json. They live in the presentation, so they stay
+ * with it; the presenter lists them ("Earlier states") and can restore any of them. The last 10 are kept.
+ */
+const KEEP_VERSIONS = 10;
+const versionsDir = (presDir: string) => path.join(presDir, '.umbau');
+const VERSION_ID = /^\d{4}-\d\d-\d\dT[\d-]+Z$/;
+function saveVersion(presDir: string, meta: {kind: 'rebuild' | 'restore'; instruction: string; scene?: string}): string {
+  const dir = versionsDir(presDir);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const target = path.join(dir, stamp);
+  fs.cpSync(path.join(presDir, 'src'), path.join(target, 'src'), {recursive: true});
+  fs.writeFileSync(path.join(target, 'meta.json'), JSON.stringify({...meta, time: Date.now()}, null, 2));
+  // keep the states out of a git repository of the presentation
+  try {
+    const gi = path.join(presDir, '.gitignore');
+    const text = fs.existsSync(gi) ? fs.readFileSync(gi, 'utf8') : '';
+    if (!/^\/?\.umbau\/?$/m.test(text)) fs.writeFileSync(gi, text + (text && !text.endsWith('\n') ? '\n' : '') + '.umbau\n');
+  } catch {
+    // not essential
+  }
+  const all = fs.readdirSync(dir).filter((d) => VERSION_ID.test(d)).sort();
+  all.slice(0, Math.max(0, all.length - KEEP_VERSIONS)).forEach((d) => fs.rmSync(path.join(dir, d), {recursive: true, force: true}));
+  return target;
+}
+function listVersions(presDir: string): {id: string; time: number; kind: string; instruction: string; scene: string}[] {
+  let ids: string[] = [];
+  try {
+    ids = fs.readdirSync(versionsDir(presDir)).filter((d) => VERSION_ID.test(d) && fs.existsSync(path.join(versionsDir(presDir), d, 'src', 'content.json')));
+  } catch {
+    return [];
+  }
+  return ids
+    .sort()
+    .reverse()
+    .map((id) => {
+      let meta: {time?: number; kind?: string; instruction?: string; scene?: string} = {};
+      try {
+        meta = JSON.parse(fs.readFileSync(path.join(versionsDir(presDir), id, 'meta.json'), 'utf8'));
+      } catch {
+        // older backup without a note
+      }
+      // the folder name is the UTC time: 2026-11-22T14-04-07-545Z
+      const fromId = Date.parse(id.replace(/T(\d\d)-(\d\d)-(\d\d)-(\d+)Z$/, 'T$1:$2:$3.$4Z'));
+      return {id, time: meta.time ?? (Number.isFinite(fromId) ? fromId : 0), kind: meta.kind ?? 'rebuild', instruction: String(meta.instruction ?? '').slice(0, 300), scene: meta.scene ?? ''};
+    });
+}
+/** Puts an earlier state back; the current one is saved first, so nothing is lost. */
+function restoreVersion(id: string, lang: Lang): boolean {
+  if (!hasInhalt() || !VERSION_ID.test(id)) return false;
+  const presDir = real(inhaltDir());
+  const from = path.join(versionsDir(presDir), id, 'src');
+  if (!fs.existsSync(path.join(from, 'content.json'))) return false;
+  saveVersion(presDir, {kind: 'restore', instruction: MSG[lang].beforeRestore});
+  if (!fs.existsSync(from)) return false; // it was the oldest one and has just been dropped
+  const target = path.join(presDir, 'src');
+  fs.rmSync(target, {recursive: true, force: true});
+  fs.cpSync(from, target, {recursive: true});
+  if (job.presentation === presDir) job.backup = ''; // "Undo" of the last rebuild no longer fits
+  return true;
+}
+// Backups from before this (in <ShowPoint>/.umbau, all presentations mixed): move each to its presentation, found by
+// the title in its content.json. What cannot be assigned stays where it is.
+function adoptOldBackups() {
+  let ids: string[] = [];
+  try {
+    ids = fs.readdirSync(backupDir).filter((d) => VERSION_ID.test(d));
+  } catch {
+    return;
+  }
+  if (!ids.length) return;
+  const known = listPresentations();
+  for (const id of ids) {
+    try {
+      const title = JSON.parse(fs.readFileSync(path.join(backupDir, id, 'src', 'content.json'), 'utf8')).title;
+      const match = known.filter((k) => k.title === title);
+      if (!title || match.length !== 1) continue;
+      const dest = path.join(versionsDir(match[0].path), id);
+      if (fs.existsSync(dest)) continue;
+      fs.mkdirSync(versionsDir(match[0].path), {recursive: true});
+      fs.cpSync(path.join(backupDir, id), dest, {recursive: true});
+      fs.rmSync(path.join(backupDir, id), {recursive: true, force: true});
+    } catch {
+      // unreadable backup: leave it
+    }
+  }
+}
+adoptOldBackups();
+
+/**
  * Web access for creating and rebuilding: only the sites whose links the user wrote into the task (WebFetch limited
  * to those hosts, no web search). For GitHub links the raw files are allowed too, so Claude can read the files a
  * README or skill refers to.
@@ -591,7 +685,7 @@ const rebuildSystem = (lang: Lang) => {
   return `You are rebuilding slides of a ShowPoint presentation (React components animated per frame), triggered from the presenter. Nobody can answer follow-up questions: make sensible assumptions and state them at the end.
 Rules:
 - First read ${path.join(root, 'ANLEITUNG.md')} (structure, interface between presenter and content), then the affected files in ${src}/.
-- Only change files in ${src}/. Texts, durations and stops are in ${src}/content.json (valid JSON, keep the same structure).
+- Only change files in ${src}/. Texts, durations and stops are in ${src}/content.json (valid JSON, keep the same structure). Ignore the folder .umbau/ (earlier states of the slides, not the current ones).
 - Nothing may overlap or stick out of the frame; check widths and positions by calculation.
 - Change only what the task asks for. Spoken texts (captions), titles and other slides stay as they are unless stated otherwise.
 - Keep the language of the existing slide texts unless the task says otherwise.
@@ -875,7 +969,6 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang, frame: n
   if (!hasInhalt()) throw new Error(MSG[lang].noPresentation);
   const content = JSON.parse(fs.readFileSync(contentFile(), 'utf8'));
   const nr = content.order.indexOf(sceneId) + 1;
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   job.running = true;
   job.kind = 'rebuild';
   job.lang = lang;
@@ -885,13 +978,9 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang, frame: n
   job.instruction = instruction;
   job.log = [];
   job.startedAt = Date.now();
-  job.backup = path.join(backupDir, stamp);
   job.target = inhaltSrc();
   job.presentation = real(inhaltDir());
-  fs.cpSync(job.target, path.join(job.backup, 'src'), {recursive: true});
-  // keep only the last 10 backups
-  const old = fs.readdirSync(backupDir).sort();
-  old.slice(0, Math.max(0, old.length - 10)).forEach((d) => fs.rmSync(path.join(backupDir, d), {recursive: true, force: true}));
+  job.backup = saveVersion(job.presentation, {kind: 'rebuild', instruction, scene: String(content.scenes[sceneId]?.name ?? sceneId)});
 
   // If the content lives outside the project (linked), Claude needs the real path.
   const realDir = real(inhaltDir());
@@ -1166,6 +1255,27 @@ export default defineConfig({
               res.statusCode = 500;
               finishJob();
               job.log.push({kind: 'error', text: String((e as Error).message)});
+            }
+            send();
+          });
+        });
+
+        // Earlier states of the presentation: POST {restore: id} puts one back (the current state is saved first)
+        server.middlewares.use('/api/versions', (req, res) => {
+          const lang = langOf(req);
+          const send = () => {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({versions: hasInhalt() ? listVersions(real(inhaltDir())) : []}));
+          };
+          if (req.method !== 'POST') return send();
+          let body = '';
+          req.on('data', (c) => (body += c));
+          req.on('end', () => {
+            try {
+              const b = JSON.parse(body || '{}');
+              if (job.running || !restoreVersion(String(b.restore ?? ''), lang)) res.statusCode = 409;
+            } catch {
+              res.statusCode = 500;
             }
             send();
           });

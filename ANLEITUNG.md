@@ -337,8 +337,10 @@ Ordner, hängt ihn unter `inhalte/` ein und startet Claude Code (Modell aus `.en
 
 Knopf „✎ Folie umbauen“ oder Taste `U`: Auftrag eintippen, ⌘/Strg + Enter. Der Server startet dafür Claude Code
 (Befehl `claude`, Modell aus `.env`, `CLAUDE_MODEL`; Denkaufwand `CLAUDE_EFFORT_UMBAU`: `low` … `max`, leer = Standard) im Projektordner. Es darf lesen und nur Dateien im `src/` des Inhaltsordners ändern,
-aber nichts ausführen – außer dem Vorschau-Werkzeug. Vorher wird `src/` nach `.umbau/<Zeitstempel>/` gesichert (die letzten 10 bleiben); „Rückgängig“
-stellt den Stand vor dem letzten Umbau wieder her. Danach prüft der Server `content.json` und die Typen
+aber nichts ausführen – außer dem Vorschau-Werkzeug. Vorher wird `src/` nach `.umbau/<Zeitstempel>/` **in der Präsentation** gesichert, zusammen mit dem Auftragstext (die letzten 10 bleiben); „Rückgängig“
+stellt den Stand vor dem letzten Umbau wieder her. Ältere Stände stehen im Präsentator rechts unten unter **„Frühere Stände“**
+(Datum, Auftrag, „Wiederherstellen“); vor dem Wiederherstellen wird der jetzige Stand selbst gesichert, man kann also auch wieder vor.
+Der Ordner `.umbau` wird in die `.gitignore` der Präsentation eingetragen. Danach prüft der Server `content.json` und die Typen
 (`tsc --noEmit`) und zeigt das Ergebnis im Dialog. Während ein Umbau läuft, ist das Speichern im Editor gesperrt.
 Die allgemeinen Regeln für Claude stehen in `vite.config.mts` (`rebuildSystem`), die Besonderheiten des Inhalts in `src/umbau-regeln.md`.
 

@@ -334,8 +334,10 @@ folder, mounts it under `inhalte/` and starts Claude Code (model from `.env`, `C
 
 Button "✎ Rebuild slide" or key `U`: type the request, ⌘/Ctrl + Enter. For this the server starts Claude Code
 (command `claude`, model from `.env`, `CLAUDE_MODEL`; reasoning effort `CLAUDE_EFFORT_UMBAU`: `low` … `max`, empty = default) in the project folder. It may read, and may change only files in the content folder's `src/`,
-but may not run anything – except the preview tool. Beforehand `src/` is backed up to `.umbau/<timestamp>/` ("umbau" = rebuild; the last 10 are kept); "Undo"
-restores the state before the last rebuild. Afterwards the server checks `content.json` and the types
+but may not run anything – except the preview tool. Beforehand `src/` is backed up to `.umbau/<timestamp>/` **inside the presentation** ("umbau" = rebuild), together with the task text (the last 10 are kept); "Undo"
+restores the state before the last rebuild. Older states are listed in the presenter at the bottom right under **"Earlier states"**
+(date, task, "Restore"); before restoring, the current state is saved itself, so you can go forward again.
+The folder `.umbau` is added to the presentation's `.gitignore`. Afterwards the server checks `content.json` and the types
 (`tsc --noEmit`) and shows the result in the dialog. While a rebuild is running, saving in the editor is locked.
 The general rules for Claude are in `vite.config.mts` (`rebuildSystem`), the specifics of the content in `src/umbau-regeln.md`.
 
