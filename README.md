@@ -47,8 +47,12 @@ The presenter opens in your browser at <http://localhost:5173>; choose or create
 
 ## License
 
-No license has been chosen yet: the code is public to read, but all rights are reserved for now. If you would like
-to use or adapt ShowPoint, please open an issue.
+ShowPoint is licensed under the MIT License with the [Commons Clause](https://commonsclause.com/) condition – see
+[LICENSE](LICENSE). In short: you may use, change and pass on ShowPoint freely, also at work and in teaching, but you
+may not sell it – that is, offer a product or service for a fee whose value comes mainly from ShowPoint itself
+(including paid hosting or support). Because of this condition ShowPoint is source-available, not open source in
+the strict sense. Presentations you create with ShowPoint are yours.
 
-ShowPoint has its own small animation runtime (`runtime/`) and depends only on React, Vite and Playwright
-(for PDF and video), all under permissive licenses.
+ShowPoint has its own small animation runtime (`runtime/`); its dependencies (React, Vite, Playwright, KaTeX, Mermaid,
+Three.js, pdf-lib) are all under permissive licenses. PlantUML is not part of ShowPoint: `npm run plantuml` downloads
+it separately, under its own licence.

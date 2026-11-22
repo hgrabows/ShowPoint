@@ -2,7 +2,7 @@
   "name": "showpoint",
   "version": "1.0.0",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "edit": "vite",
     "render": "node scripts/render.mjs",
