@@ -48,13 +48,15 @@ const store = (key: string, value: string) => {
  * The job keeps running even if this window is closed or the page reloads.
  */
 export const Create: React.FC<{
+  /** name of the agent chosen in the presenter */
+  agentName: string;
   state: RebuildState | null;
   seen: string;
   onSeen: () => void;
   onStarted: (st: RebuildState) => void;
   onOpen: (dir: string) => void;
   onClose: () => void;
-}> = ({state, seen, onSeen, onStarted, onOpen, onClose}) => {
+}> = ({agentName, state, seen, onSeen, onStarted, onOpen, onClose}) => {
   const log = useFollowLog(state);
   const [template, setTemplate] = useState('');
   const [dir, setDir] = useState('');
@@ -123,7 +125,7 @@ export const Create: React.FC<{
     <div className="cr-back" onClick={(e) => e.stopPropagation()}>
       <div className="cr">
         <div className="cr-head">
-          {T.createHead} <span>Claude Code</span>
+          {T.createHead} <span>{agentName}</span>
           <button title={T.createClose} onClick={onClose}>
             ✕
           </button>

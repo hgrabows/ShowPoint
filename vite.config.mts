@@ -246,11 +246,27 @@ const listPresentations = () => {
     });
 };
 
-const saveChoice = () => {
+const saveEnv = (key: string, value: string) => {
   const p = path.resolve(root, '.env');
   const text = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
-  const line = `INHALT=${inhaltRel}`;
-  fs.writeFileSync(p, /^INHALT=.*$/m.test(text) ? text.replace(/^INHALT=.*$/m, line) : `${text.replace(/\n*$/, '\n')}${line}\n`);
+  const line = `${key}=${value}`;
+  const re = new RegExp(`^${key}=.*$`, 'm');
+  fs.writeFileSync(p, re.test(text) ? text.replace(re, () => line) : `${text.replace(/\n*$/, '\n')}${line}\n`);
+};
+const saveChoice = () => saveEnv('INHALT', inhaltRel);
+
+// ── Which coding agent does the work (questions, rebuilds, new presentations): Claude Code or OpenAI Codex ──
+// Chosen in the presenter and stored as KI in .env. Without a choice: Claude Code, or Codex if only that is installed.
+// "custom" is the Codex CLI as well, but talking to the provider from .env (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL).
+type Agent = 'claude' | 'codex' | 'custom';
+const AGENTS: Agent[] = ['claude', 'codex', 'custom'];
+const hasCmd = (cmd: string) =>
+  (process.env.PATH ?? '').split(path.delimiter).some((d) => d && ['', '.cmd', '.exe'].some((e) => fs.existsSync(path.join(d, cmd + e))));
+const currentAgent = (): Agent => {
+  // .env decides (the presenter writes it there); KI=… in front of the start command only fills in when .env says nothing
+  const v = String(readEnv().KI || process.env.KI || '').trim().toLowerCase();
+  if ((AGENTS as string[]).includes(v)) return v as Agent;
+  return !hasCmd('claude') && hasCmd('codex') ? 'codex' : 'claude';
 };
 
 const expandHome = (p: string) => p.replace(/^~(?=\/|$)/, process.env.HOME ?? '~');
@@ -356,6 +372,9 @@ const presentationInfo = () => ({
   versions: hasInhalt() ? listVersions(real(inhaltDir())) : [],
   // the look of the slides: name of the design in src/design.json (has = false: an older presentation without one)
   design: currentDesign(),
+  // who does the work, and which of the two commands are installed here
+  agent: currentAgent(),
+  agents: {claude: hasCmd('claude'), codex: hasCmd('codex'), custom: hasCmd('codex') && !!readEnv().LLM_BASE_URL && !!readEnv().LLM_API_KEY},
   list: listPresentations(),
 });
 
@@ -508,6 +527,24 @@ function askClaude(
  * configuration (model, hooks, extra providers) is left out, so only .env decides.
  */
 const CODEX_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'];
+/**
+ * Model, effort and account for a Codex run. Normally the ChatGPT login of the Codex CLI and CODEX_MODEL / CODEX_EFFORT_…;
+ * with KI=custom the provider from .env instead (it must offer the OpenAI "Responses" interface – Codex speaks no other).
+ */
+function codexAccount(kind: 'FRAGEN' | 'UMBAU') {
+  const fileEnv = readEnv();
+  const custom = currentAgent() === 'custom';
+  // the login of the Codex CLI counts, not an API key that happens to be in the environment
+  const env: Record<string, string | undefined> = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^OPENAI_(API_KEY|BASE_URL|ORG)/.test(k)));
+  const effort = String((custom ? fileEnv.LLM_REASONING_EFFORT : fileEnv[`CODEX_EFFORT_${kind}`]) ?? '').trim().toLowerCase();
+  const model = custom ? fileEnv.LLM_MODEL : fileEnv.CODEX_MODEL;
+  const args = [...(model ? ['-m', model] : []), ...(CODEX_EFFORTS.includes(effort) ? ['-c', `model_reasoning_effort="${effort}"`] : [])];
+  if (custom) {
+    env.LLM_API_KEY = fileEnv.LLM_API_KEY;
+    args.push('-c', 'model_provider="custom"', '-c', `model_providers.custom={name="Custom",base_url=${JSON.stringify(String(fileEnv.LLM_BASE_URL ?? '').replace(/\/+$/, ''))},env_key="LLM_API_KEY"}`);
+  }
+  return {env, args, custom};
+}
 function askCodex(
   system: string,
   history: {role: string; content: string}[],
@@ -516,10 +553,7 @@ function askCodex(
   lang: Lang,
 ) {
   const t = MSG[lang];
-  const fileEnv = readEnv();
-  // the login of the Codex CLI counts, not an API key that happens to be in the environment
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^OPENAI_(API_KEY|BASE_URL|ORG)/.test(k)));
-  const effort = String(fileEnv.CODEX_EFFORT_FRAGEN ?? '').trim().toLowerCase();
+  const {env, args: account} = codexAccount('FRAGEN');
   const prompt = [
     system,
     askWebNote.replace('(WebSearch) and read web pages (WebFetch)', 'and read web pages'),
@@ -532,8 +566,7 @@ function askCodex(
     [
       'exec', '--json', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules',
       '-s', 'read-only', '--disable', 'shell_tool', '--disable', 'unified_exec', '-c', 'web_search="live"',
-      ...(fileEnv.CODEX_MODEL ? ['-m', fileEnv.CODEX_MODEL] : []),
-      ...(CODEX_EFFORTS.includes(effort) ? ['-c', `model_reasoning_effort="${effort}"`] : []),
+      ...account,
       '-',
     ],
     {cwd: os.tmpdir(), env},
@@ -628,8 +661,9 @@ async function ask(body: AskBody, res: import('node:http').ServerResponse, lang:
   const question =
     (quote ? `Highlighted passage the question refers to:\n"${quote}"\n\n` : '') +
     String(body.question).slice(0, 2000);
-  if (body.provider === 'claude') return askClaude(system, history, question, res, lang);
-  if (body.provider === 'codex') return askCodex(system, history, question, res, lang);
+  // the chosen agent answers; "custom" (and the choice "LLM from .env") asks the provider from .env directly
+  const agent = currentAgent();
+  if (body.provider !== 'llm' && agent !== 'custom') return (agent === 'codex' ? askCodex : askClaude)(system, history, question, res, lang);
   if (!env.LLM_BASE_URL || !env.LLM_API_KEY || !env.LLM_MODEL) {
     res.statusCode = 500;
     return res.end(t.llmEnvMissing);
@@ -1013,8 +1047,108 @@ const push = (kind: LogLine['kind'], text: string) => {
   else job.log.push({kind, text});
 };
 
+type Run = {
+  prompt: string;
+  system: string;
+  tools: string;
+  allowed: string[];
+  extra?: string[];
+  cwd: string;
+  /** the same limits for Codex: folders it may write, further paths it may read, whether it may use the web, folder for the tools */
+  codex: {write: string[]; read: string[]; web: boolean; dir: string};
+  done: (ok: boolean) => void;
+};
+const runAgent = (o: Run) => (currentAgent() === 'claude' ? runClaude : runCodex)(o);
+
+/**
+ * The same job with OpenAI's Codex CLI (login with the ChatGPT account, no API key). Codex works through a shell, so
+ * the limits come from its sandbox instead of tool rules: an own permission profile lets it read the ShowPoint folder
+ * (without .env) and the presentation, write only the folders of the job, and reach no network. The web tool is on only
+ * when the task contains links. The preview, package and PlantUML tools are the same MCP server as for Claude.
+ */
+function runCodex(o: Run) {
+  const t = MSG[job.lang];
+  const {env, args: account, custom} = codexAccount('UMBAU');
+  const web = o.codex.web && !custom; // the web tool belongs to OpenAI's service
+  const rules: Record<string, string> = {':minimal': 'read', [root]: 'read'};
+  for (const r of o.codex.read) rules[r] = 'read';
+  for (const w of o.codex.write) rules[w] = 'write';
+  // settings with keys stay closed, here and in the presentation
+  for (const d of [root, o.codex.dir]) {
+    for (const n of fs.existsSync(d) ? fs.readdirSync(d) : []) if (/^\.env(\.|$)/.test(n)) rules[path.join(d, n)] = 'deny';
+    rules[path.join(d, '.env')] = 'deny';
+  }
+  const toml = (v: unknown) => JSON.stringify(v);
+  const note = `Notes for this run with Codex: where the instructions name the tools Read, Edit, Write, Glob or Grep, use your shell and apply_patch instead; "WebFetch" means your web tool${web ? ' – open only the links given in the task, search for nothing else' : ' (not available in this run)'}. "vorschau", "paket" and "plantuml" are tools of the MCP server "showpoint"; look at the images "vorschau" returns. Your sandbox lets you write only in ${o.codex.write.join(' and ')} and has no network: do not try to write elsewhere, install anything, start servers or use git. Images and PDFs you cannot open with the shell: say so in your final answer instead of guessing their content.`;
+  const child = spawn(
+    'codex',
+    [
+      'exec', '--json', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules', '-C', o.cwd,
+      '-c', 'default_permissions="showpoint"',
+      '-c', `permissions.showpoint.filesystem={${Object.entries(rules).map(([k, v]) => `${toml(k)}=${toml(v)}`).join(',')}}`,
+      '-c', `mcp_servers.showpoint.command=${toml(process.execPath)}`,
+      '-c', `mcp_servers.showpoint.args=${toml([path.join(root, 'scripts', 'vorschau-mcp.mjs'), o.codex.dir])}`,
+      '-c', 'mcp_servers.showpoint.default_tools_approval_mode="approve"',
+      '-c', 'mcp_servers.showpoint.tool_timeout_sec=600',
+      '-c', `web_search="${web ? 'live' : 'disabled'}"`,
+      ...account,
+      '-',
+    ],
+    {cwd: o.cwd, env},
+  );
+  child.stdin.end(`${o.system}\n\n${note}\n\n${o.prompt}`);
+  const short = (s: unknown) => String(s ?? '').replace(o.codex.dir + '/', '').replace(o.cwd + '/', '').replace(root + '/', '');
+  let buf = '';
+  let err = '';
+  let failed = false;
+  child.stdout.on('data', (d) => {
+    buf += d;
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const ev = JSON.parse(line);
+        const item = ev.item ?? {};
+        if (ev.type === 'error' || ev.type === 'turn.failed') {
+          failed = true;
+          const msg = String(ev.message ?? ev.error?.message ?? t.unknownError);
+          push('error', `Codex: ${msg.slice(0, 400)}${/not logged in|log ?in|unauthorized|401|auth/i.test(msg) ? t.codexNotLoggedIn : ''}`);
+        } else if (ev.type === 'item.started' && item.type === 'mcp_tool_call') {
+          const label = item.tool === 'vorschau' ? t.previewLabel : item.tool === 'paket' ? t.packageLabel : item.tool === 'plantuml' ? t.plantumlLabel : String(item.tool);
+          const target = item.tool === 'vorschau' ? (item.arguments?.scenes ?? []).join(', ') || t.allScenes : String(item.arguments?.name ?? '');
+          push('tool', `${label} ${target}`.trim());
+        } else if (ev.type !== 'item.completed') {
+          // other progress events are not shown
+        } else if (item.type === 'agent_message' && item.text) push('text', `${item.text}\n\n`);
+        else if (item.type === 'command_execution') push('tool', `Shell ${short(String(item.command ?? '').replace(/^\S*sh -lc /, '').split('\n')[0]).slice(0, 140)}`);
+        else if (item.type === 'file_change') for (const c of item.changes ?? []) push('tool', `Edit ${short(c.path)}`);
+        else if (item.type === 'web_search') push('tool', `Web ${String(item.query || item.action?.query || item.action?.url || '').slice(0, 140)}`);
+        else if (item.type === 'mcp_tool_call' && item.error) push('error', String(item.error.message ?? item.error).slice(0, 400));
+      } catch {
+        // not a JSON line
+      }
+    }
+  });
+  child.stderr.on('data', (d) => (err += d));
+  let ended = false;
+  const end = (ok: boolean) => {
+    if (ended) return;
+    ended = true;
+    o.done(ok);
+  };
+  child.on('error', (e) => {
+    push('error', (e as NodeJS.ErrnoException).code === 'ENOENT' ? t.codexNotFound : e.message);
+    end(false);
+  });
+  child.on('close', (code) => {
+    if (code !== 0 && !failed) push('error', err.trim().split('\n').slice(-3).join(' ').slice(0, 400) || `Codex: ${t.exited(code)}`);
+    end(code === 0 && !failed);
+  });
+}
+
 /** Starts Claude Code for the current job; its output goes to the log. Nothing is allowed without a permission rule. */
-function runClaude(o: {prompt: string; system: string; tools: string; allowed: string[]; extra?: string[]; cwd: string; done: (ok: boolean) => void}) {
+function runClaude(o: Run) {
   const t = MSG[job.lang];
   const fileEnv = readEnv();
   // Do not pass on variables of a surrounding Claude session, otherwise its login would not apply.
@@ -1342,12 +1476,13 @@ function startRebuild(instruction: string, sceneId: string, lang: Lang, frame: n
   const images = takeImages(instruction, real(inhaltSrc()), lang, design.taken); // after the backup, so "Undo" removes them
   const hosts = linkHosts(instruction); // links in the task may be read, nothing else from the web
   const specs = takeSpecs(instruction, realDir, lang); // into vorgaben/ – they stay, also after "Undo"
-  runClaude({
+  runAgent({
     prompt: `Slide currently shown: no. ${nr} (scene ID "${sceneId}", title "${content.scenes[sceneId]?.title ?? ''}").${positionNote(content.scenes[sceneId], frame)}\n\nTask:\n${instruction}${design.note}${images}${specs}`,
     system: rebuildSystem(lang),
     tools: `Read,Edit,Write,Glob,Grep${hosts.size ? ',WebFetch' : ''}`,
     allowed: ['Read', 'Glob', 'Grep', `Edit(${editRule})`, `Write(${editRule})`, vorschauRule, paketToolRule, plantumlToolRule, ...[...hosts].map((h) => `WebFetch(domain:${h})`)],
     extra: [...(outside ? ['--add-dir', realDir] : []), ...vorschauMcp(realDir)],
+    codex: {write: [path.join(realDir, 'src')], read: [realDir], web: hosts.size > 0, dir: realDir},
     cwd: root,
     done: () => {
       // check: valid JSON and error-free types
@@ -1455,9 +1590,13 @@ function startCreate(dirInput: string, prompt: string, lang: Lang, designChoice 
   for (const m of prompt.matchAll(/["„“']((?:~|\/)[^"“”'\n]+\.(?:pdf|md|txt))["“”']/gi)) files.add(m[1]);
   for (const m of prompt.matchAll(/(?:^|[\s(])((?:~|\/)[^\s"'“”<>()]*\.(?:pdf|md|txt))/gim)) files.add(m[1]);
   const readRules: string[] = [];
+  const sourcePaths: string[] = [];
   for (const f of files) {
     const p = path.resolve(expandHome(f));
-    if (fs.existsSync(p) && fs.statSync(p).isFile()) readRules.push(`Read(/${real(p)})`);
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+      readRules.push(`Read(/${real(p)})`);
+      sourcePaths.push(real(p));
+    }
     else if (![...files].some((g) => g !== f && g.includes(f))) push('error', t.sourceNotFound(f));
   }
   const hosts = linkHosts(prompt);
@@ -1467,11 +1606,12 @@ function startCreate(dirInput: string, prompt: string, lang: Lang, designChoice 
     ...[...hosts].map((h) => `WebFetch(domain:${h})`),
   ];
   const run = (text: string, round: number) =>
-    runClaude({
+    runAgent({
       prompt: text,
       system: createSystem(dir, lang),
       tools: `Read,Edit,Write,Glob,Grep${hosts.size ? ',WebFetch' : ''}`,
       extra: vorschauMcp(dir),
+      codex: {write: [dir], read: sourcePaths, web: hosts.size > 0, dir},
       allowed,
       cwd: dir,
       done: (ok) => {
@@ -1700,8 +1840,12 @@ export default defineConfig({
           req.on('data', (c) => (body += c));
           req.on('end', async () => {
             try {
-              if (job.running && job.kind === 'rebuild') throw new Error(MSG[lang].switchLocked);
               const b = JSON.parse(body || '{}');
+              if ((AGENTS as string[]).includes(b.agent)) {
+                saveEnv('KI', b.agent); // applies from the next question or job
+                return send();
+              }
+              if (job.running && job.kind === 'rebuild') throw new Error(MSG[lang].switchLocked);
               if (b.remove !== undefined) removePresentation(String(b.remove), lang);
               else if (b.pick) {
                 const picked = await pickFolder(MSG[lang].pickPresentation, lang);

@@ -11,10 +11,10 @@ Alle Pfade wie `src/…` und `quellen/…` in dieser Anleitung meinen den **Ordn
 
 ## Starten
 
-Voraussetzungen: Node.js (ab 20) und – für „Frage zur Folie“ mit Claude, „Folie umbauen“ und „Neue Präsentation“ –
-die Claude-Code-CLI (`claude`), angemeldet mit deinem Abo. Für das LLM aus `.env` `.env.example` nach `.env` kopieren
-und ausfüllen. Wer bei „Frage zur Folie“ lieber OpenAI nutzt: die Codex-CLI (`codex`), angemeldet mit dem
-ChatGPT-Konto (`codex login`) – ebenfalls ohne API-Schlüssel.
+Voraussetzungen: Node.js (ab 20) und – für „Frage zur Folie“, „Folie umbauen“ und „Neue Präsentation“ – eine KI:
+die Claude-Code-CLI (`claude`, angemeldet mit deinem Abo) **oder** die Codex-CLI (`codex`, angemeldet mit dem
+ChatGPT-Konto über `codex login`), beide ohne API-Schlüssel; oder ein eigener Anbieter mit URL und Schlüssel
+(siehe „KI wählen“). Dafür `.env.example` nach `.env` kopieren und ausfüllen.
 
 ```bash
 git clone https://github.com/hgrabows/ShowPoint.git
@@ -46,6 +46,32 @@ verschiebt die Folie (ein gelber Strich zeigt, wo sie landet), ein Klick springt
 Präsentation, Texte und Code bleiben aber erhalten: Unter der Liste steht „Entfernte Folien (n)“, dort fügt
 „↩ wieder einfügen“ sie an ihrer alten Stelle wieder ein. Endgültig löschen (auch den Code) geht über „Folie umbauen“.
 In `content.json` stehen entfernte Folien weiter unter `scenes`, aber nicht in `order`; `removed` merkt sich ihre Stelle.
+
+## KI wählen: Claude Code, OpenAI Codex oder Custom
+
+Wer Fragen beantwortet, Folien umbaut und neue Präsentationen erzeugt, legst du einmal fest: im Präsentator links oben
+unter **„KI“** oder in der `.env` mit `KI=`. Die Wahl gilt für alles, bis du sie änderst.
+
+| `KI=` | Was läuft | Zugang | Modell und Effort in `.env` |
+|---|---|---|---|
+| `claude` | Claude-Code-CLI (`claude`) | dein Claude-Abo, kein Schlüssel | `CLAUDE_MODEL`, `CLAUDE_EFFORT_FRAGEN`, `CLAUDE_EFFORT_UMBAU` |
+| `codex` | Codex-CLI (`codex`) | dein ChatGPT-Konto (`codex login`), kein Schlüssel | `CODEX_MODEL`, `CODEX_EFFORT_FRAGEN`, `CODEX_EFFORT_UMBAU` |
+| `custom` | Codex-CLI, umgestellt auf einen eigenen Anbieter | `LLM_BASE_URL` und `LLM_API_KEY` | `LLM_MODEL`, `LLM_REASONING_EFFORT` |
+
+Leer = automatisch: Claude Code, oder Codex, wenn nur das installiert ist. Man braucht also nur eines der beiden Programme.
+
+- **Custom** braucht die Codex-CLI als Werkzeug und einen Anbieter, der die
+  „Responses“-Schnittstelle von OpenAI anbietet – eine andere spricht Codex nicht. Fragen zur Folie gehen bei Custom
+  direkt an den Anbieter (Chat-Schnittstelle), ohne Websuche.
+- **Rechte:** Claude Code bekommt nur einzelne Werkzeuge (lesen, in `src/` schreiben, Vorschau). Codex arbeitet über eine
+  Shell; dort setzt seine Sandbox die Grenzen: schreiben nur im `src/` der Präsentation (bei „Neue Präsentation“ im neuen
+  Ordner), lesen nur ShowPoint, die Präsentation und die im Auftrag genannten Quellen, `.env` gesperrt, kein Netz für
+  Befehle. Temporäre Ordner des Systems bleiben beschreibbar. Die eigene Codex-Konfiguration (`~/.codex/config.toml`)
+  wird nicht benutzt.
+- **Links im Auftrag:** Claude darf genau die genannten Adressen lesen. Bei Codex lässt sich das Web-Werkzeug nicht auf
+  Adressen begrenzen; es ist nur an, wenn der Auftrag Links enthält. Bei Custom gibt es kein Web-Werkzeug.
+- **PDF-Quellen** liest Claude direkt; Codex hat dafür nur die Shell und kommt mit PDFs schlechter zurecht – Text- oder
+  Markdown-Dateien sind dort die bessere Quelle.
 
 ## Sprache (Deutsch / Englisch)
 
@@ -175,7 +201,7 @@ Der Editor überschreibt `content.json` beim Bearbeiten; eine Versionsverwaltung
 
 - `?`-Taste: Thema, Zielgruppe und Ton stehen in `src/begleittext.md`, das Nachschlagematerial im Ordner `quellen/`. Beides auf das neue Thema umstellen, sonst antwortet das Modell mit falschem Hintergrund. Im Dialog wählt man zwischen „Claude Code“ (Befehl `claude`, Modell in `.env` als `CLAUDE_MODEL`, Denkaufwand als `CLAUDE_EFFORT_FRAGEN`) und „LLM aus .env“. Der Zugang steht in `.env` (Vorlage: `.env.example`).
   Mit „Claude Code“ darf das Modell bei Fragen **im Internet suchen und Webseiten lesen** (WebSearch, WebFetch) – etwa für aktuelle Fakten – und nennt dann die genutzten Seiten; im Dialog erscheint, wonach es sucht (🔎) und was es liest (🌐). Dateien lesen oder Befehle ausführen kann es dabei nicht. „LLM aus .env“ hat keinen Internetzugang.
-  Die Auswahl **„OpenAI Codex“** arbeitet genauso über den `codex`-Befehl und dein ChatGPT-Konto (`codex login`, kein API-Schlüssel): Sie darf im Internet suchen, hat aber keine Shell und keinen Zugriff auf Dateien; deine eigene Codex-Konfiguration (`~/.codex/config.toml`) wird dabei nicht benutzt. Modell und Denkaufwand stehen in `.env` (`CODEX_MODEL`, `CODEX_EFFORT_FRAGEN`; leer = Standard von Codex). Die Antwort erscheint in ganzen Absätzen statt Wort für Wort. „Folie umbauen“ und „Neue Präsentation“ laufen weiterhin über Claude Code.
+  Es antwortet die im Präsentator gewählte KI (siehe „KI wählen“); im Fragen-Fenster kann man stattdessen auf das LLM aus `.env` umstellen. Claude Code und Codex dürfen für eine Frage im Internet suchen, bekommen dabei aber keine Shell und keinen Zugriff auf Dateien.
 - „Folie umbauen“: Besonderheiten der Folien (Bausteine, Maße, Fakten) in `src/umbau-regeln.md` beschreiben.
 
 ## Weg B: eine fertige fremde Animation unverändert einladen

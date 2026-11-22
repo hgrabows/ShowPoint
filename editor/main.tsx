@@ -67,6 +67,9 @@ textarea:focus,input:focus{outline:none;border-color:#8b6cff}
 .pres label{margin-top:0}
 .pres-rm{margin-top:8px;margin-right:6px;padding:5px 10px;font-size:12px}
 select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;border-radius:8px;padding:8px;font:inherit}
+.pres-ai{display:flex;align-items:center;gap:8px;margin-top:10px}
+.pres-ai label{margin:0;white-space:nowrap}
+.pres-ai select{flex:1;min-width:0}
 .pres-err{color:#f87171;font-size:12px;margin-top:6px;line-height:1.4}
 .libs{margin-top:22px;padding-top:10px;border-top:1px solid #2e3a63;font-size:12px;color:#7d89ad}
 .libs summary{cursor:pointer}
@@ -90,6 +93,7 @@ select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;bord
 kbd{background:#1b2442;border:1px solid #2e3a63;border-radius:4px;padding:1px 5px;font:inherit;font-size:11px}
 `;
 
+const AGENTS = {claude: 'Claude Code', codex: 'OpenAI Codex', custom: 'Custom (.env)'} as const;
 type Presentation = {
   current: string;
   title: string;
@@ -101,6 +105,8 @@ type Presentation = {
   specs?: {file: string; title: string}[];
   versions?: {id: string; time: number; kind: string; instruction: string; scene: string}[];
   design?: DesignCurrent;
+  agent?: 'claude' | 'codex' | 'custom';
+  agents?: {claude: boolean; codex: boolean; custom: boolean};
   list: {dir: string; title: string; path: string; linked: boolean}[];
   error?: string;
 };
@@ -684,6 +690,18 @@ const App: React.FC = () => {
       >
         {rb?.running && rb.kind === 'create' ? T.createRunning : T.createNew}
       </button>
+      <div className="pres-ai" title={T.agentTitle}>
+        <label>{T.agentLabel}</label>
+        <select value={pres.agent ?? 'claude'} onChange={(e) => switchTo({agent: e.target.value})}>
+          {(['claude', 'codex', 'custom'] as const).map((a) => (
+            <option key={a} value={a}>
+              {AGENTS[a]}
+              {pres.agents && !pres.agents[a] ? ` – ${a === 'custom' ? T.agentCustomMissing : T.agentMissing}` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+      {pres.agents && !pres.agents[pres.agent ?? 'claude'] ? <div className="pres-err">{pres.agent === 'custom' ? T.agentCustomHint : T.agentMissingHint(AGENTS[pres.agent ?? 'claude'])}</div> : null}
       {presError ? <div className="pres-err">{presError}</div> : null}
     </div>
   ) : null;
@@ -716,6 +734,7 @@ const App: React.FC = () => {
 
   const createBox = creating ? (
     <Create
+      agentName={AGENTS[pres?.agent ?? 'claude']}
       state={rb}
       seen={seen}
       onSeen={markSeen}
@@ -798,6 +817,8 @@ const App: React.FC = () => {
               quote={quote}
               onClearQuote={() => setQuote('')}
               onClose={() => setAsking(false)}
+              agentName={AGENTS[pres?.agent ?? 'claude']}
+              onlyAgent={pres?.agent === 'custom'}
               onHandover={(text) => {
                 setRbDraft((d) => ({text, n: (d?.n ?? 0) + 1}));
                 setRebuilding(true);
@@ -806,6 +827,7 @@ const App: React.FC = () => {
           ) : null}
           {rebuilding ? (
             <Rebuild
+      agentName={AGENTS[pres?.agent ?? 'claude']}
               sceneId={id}
               sceneName={`${idx + 1} · ${nameOf(id)}`}
               state={rb?.kind === 'create' || rb?.presentation !== pres?.path ? null : rb}

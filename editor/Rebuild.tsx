@@ -18,6 +18,8 @@ export const rebuildCss = `
 
 /** Instruction for Claude Code to rebuild slides. The job keeps running on the server even if the page reloads. */
 export const Rebuild: React.FC<{
+  /** name of the agent chosen in the presenter */
+  agentName: string;
   sceneId: string;
   sceneName: string;
   state: RebuildState | null;
@@ -26,7 +28,7 @@ export const Rebuild: React.FC<{
   onClose: () => void;
   /** Prefilled instruction, e.g. from “Ask about slide”; n changes with every new handover. */
   draft?: {text: string; n: number} | null;
-}> = ({sceneName, state, onStart, onUndo, onClose, draft}) => {
+}> = ({agentName, sceneName, state, onStart, onUndo, onClose, draft}) => {
   const log = useFollowLog(state);
   const fl = useFloat('rebuild-box', {l: 0.025, t: 0.06, w: 0.46});
   const [text, setText] = useState('');
@@ -52,7 +54,7 @@ export const Rebuild: React.FC<{
   return (
     <div className="ask rb" ref={fl.ref} style={fl.style} onClick={(e) => e.stopPropagation()}>
       <div {...fl.head}>
-        {T.rebuildHead} <span>{sceneName} · Claude Code</span>
+        {T.rebuildHead} <span>{sceneName} · {agentName}</span>
         <button title={T.rebuildClose} onClick={onClose}>
           ✕
         </button>
