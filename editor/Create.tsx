@@ -119,7 +119,8 @@ export const Create: React.FC<{
     onSeen();
   };
 
-  const quellen = (base: string) => `${base.replace(/\/$/, '')}/quellen`;
+  const sub = (base: string, name: string) => `${base.replace(/\/$/, '')}/${name}`;
+  const quellen = (base: string) => sub(base, 'quellen');
 
   return (
     <div className="cr-back" onClick={(e) => e.stopPropagation()}>
@@ -181,11 +182,12 @@ export const Create: React.FC<{
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) start();
               }} />
               <div className="cr-note">
-                {T.papersNote1} (<code>~/Downloads/paper.pdf</code>) {T.papersNote2}
-                <br />
-                {T.papersNote3a} <b>{T.papersNote3b}</b> {T.papersNote3c}{' '}
+                {T.papersNote1} {T.papersNote3a} <b>{T.papersNote3b}</b> {T.papersNote3c}{' '}
                 <code>{dir.trim() && !dir.trim().endsWith('/') ? quellen(dir.trim()) : T.papersFolderFallback}</code> (.pdf, .md, .txt).
                 {' '}{T.papersNote4}
+                <br />
+                {T.specsNote1} <code>{T.specsExample}</code> {T.specsNote2}{' '}
+                <code>{dir.trim() && !dir.trim().endsWith('/') ? sub(dir.trim(), 'vorgaben') : T.specsFolderFallback}</code>.
               </div>
               {error ? <div className="pres-err">{error}</div> : null}
             </div>
