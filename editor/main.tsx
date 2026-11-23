@@ -71,6 +71,14 @@ select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;bord
 .pres-ai label{margin:0;white-space:nowrap}
 .pres-ai select{flex:1;min-width:0}
 .pres-err{color:#f87171;font-size:12px;margin-top:6px;line-height:1.4}
+.start h2{margin:0}
+.start-lead{color:#c9d1ec;line-height:1.5;margin:10px 0 22px}
+.start section{border:1px solid #2e3a63;border-radius:12px;padding:14px 16px 16px;margin-bottom:14px;background:#0d1224}
+.start h3{display:flex;align-items:center;gap:10px;margin:0 0 4px;font-size:15px}
+.start h3 b{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:11px;background:#8b6cff;color:#0b1020;font-size:12px}
+.start .hint{margin:0 0 10px}
+.start-or{color:#7d89ad;font-size:12px;text-align:center;margin:10px 0}
+.start-create{width:100%;padding:9px 12px}
 .libs{margin-top:22px;padding-top:10px;border-top:1px solid #2e3a63;font-size:12px;color:#7d89ad}
 .libs summary{cursor:pointer}
 .libs-row{display:flex;gap:8px;margin-top:6px;line-height:1.45}
@@ -641,12 +649,7 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [advance, back, toggleStop, toggleSkip, fullscreen, openAsk, selectedText, askAbout]);
 
-  const chooser = pres ? (
-    <div className="pres">
-      <div className="pres-top">
-        <label>{T.presentation}</label>
-        <LangSwitch />
-      </div>
+  const presSelect = pres ? (
       <select
         value={pres.current}
         onChange={(e) => {
@@ -668,6 +671,37 @@ const App: React.FC = () => {
         <option value="#pick">{T.pickFolder}</option>
         <option value="#path">{T.typePath}</option>
       </select>
+  ) : null;
+  const createButton = (cls: string) => (
+      <button
+        className={cls}
+        title={T.createTitle}
+        onClick={() => {
+          player.current?.pause();
+          setCreating(true);
+        }}
+      >
+        {rb?.running && rb.kind === 'create' ? T.createRunning : T.createNew}
+      </button>
+  );
+  const agentSelect = pres ? (
+        <select value={pres.agent ?? 'claude'} onChange={(e) => switchTo({agent: e.target.value})}>
+          {(['claude', 'codex', 'gemini', 'custom'] as const).map((a) => (
+            <option key={a} value={a}>
+              {AGENTS[a]}
+              {pres.agents && !pres.agents[a] ? ` – ${a === 'custom' ? T.agentCustomMissing : T.agentMissing}` : ''}
+            </option>
+          ))}
+        </select>
+  ) : null;
+  const agentHint = pres?.agents && !pres.agents[pres.agent ?? 'claude'] ? <div className="pres-err">{pres.agent === 'custom' ? T.agentCustomHint : T.agentMissingHint(AGENTS[pres.agent ?? 'claude'])}</div> : null;
+  const chooser = pres ? (
+    <div className="pres">
+      <div className="pres-top">
+        <label>{T.presentation}</label>
+        <LangSwitch />
+      </div>
+      {presSelect}
       {pres.list.find((q) => q.dir === pres.current)?.linked ? (
         <button
           className="pres-rm"
@@ -680,28 +714,12 @@ const App: React.FC = () => {
           {T.removeFromList}
         </button>
       ) : null}
-      <button
-        className="pres-rm"
-        title={T.createTitle}
-        onClick={() => {
-          player.current?.pause();
-          setCreating(true);
-        }}
-      >
-        {rb?.running && rb.kind === 'create' ? T.createRunning : T.createNew}
-      </button>
+      {createButton('pres-rm')}
       <div className="pres-ai" title={T.agentTitle}>
         <label>{T.agentLabel}</label>
-        <select value={pres.agent ?? 'claude'} onChange={(e) => switchTo({agent: e.target.value})}>
-          {(['claude', 'codex', 'gemini', 'custom'] as const).map((a) => (
-            <option key={a} value={a}>
-              {AGENTS[a]}
-              {pres.agents && !pres.agents[a] ? ` – ${a === 'custom' ? T.agentCustomMissing : T.agentMissing}` : ''}
-            </option>
-          ))}
-        </select>
+        {agentSelect}
       </div>
-      {pres.agents && !pres.agents[pres.agent ?? 'claude'] ? <div className="pres-err">{pres.agent === 'custom' ? T.agentCustomHint : T.agentMissingHint(AGENTS[pres.agent ?? 'claude'])}</div> : null}
+      {agentHint}
       {presError ? <div className="pres-err">{presError}</div> : null}
     </div>
   ) : null;
@@ -758,16 +776,38 @@ const App: React.FC = () => {
         {createBox}
         {jobBadge}
         {pres && !pres.videoUrl ? (
-          <>
-            <h2>ShowPoint</h2>
-            <p className="hint">{T.noPresentation}</p>
-          </>
+          <div className="start">
+            <div className="pres-top">
+              <h2>ShowPoint</h2>
+              <LangSwitch />
+            </div>
+            <p className="start-lead">{T.startLead}</p>
+            <section>
+              <h3><b>1</b>{T.startAiHead}</h3>
+              <p className="hint">{T.startAiText}</p>
+              {agentSelect}
+              {agentHint}
+            </section>
+            <section>
+              <h3><b>2</b>{T.startOpenHead}</h3>
+              <p className="hint">{pres.list.length ? T.startOpenText : T.startOpenEmpty}</p>
+              {presSelect}
+              <div className="start-or">{T.startOr}</div>
+              {createButton('primary start-create')}
+            </section>
+            {presError ? <div className="pres-err">{presError}</div> : null}
+          </div>
         ) : presError ? (
-          <p className="pres-err">{T.loadFailed(presError)}</p>
+          <>
+            <p className="pres-err">{T.loadFailed(presError)}</p>
+            {chooser}
+          </>
         ) : (
-          T.loading
+          <>
+            {T.loading}
+            {chooser}
+          </>
         )}
-        {chooser}
       </div>
     );
 

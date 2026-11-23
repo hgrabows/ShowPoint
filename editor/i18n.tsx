@@ -100,12 +100,13 @@ const de = {
   badgeDone: '✓ Neue Präsentation fertig',
   badgeView: 'ansehen',
   hide: 'Ausblenden',
-  noPresentation: (
-    <>
-      Noch keine Präsentation gewählt. Wähle unten den Ordner einer Präsentation – er enthält <code>src/Video.tsx</code> und{' '}
-      <code>src/content.json</code> – oder lass eine neue erzeugen.
-    </>
-  ),
+  startLead: 'Folien, die man fragen kann: Präsentationen mit animierten Folien, die eine KI erstellt, umbaut und während des Vortrags zu Fragen erklärt.',
+  startAiHead: 'KI wählen',
+  startAiText: 'Sie beantwortet Fragen zu den Folien, baut Folien um und erzeugt neue Präsentationen. Sie muss auf diesem Rechner installiert und angemeldet sein.',
+  startOpenHead: 'Präsentation öffnen oder erzeugen',
+  startOpenText: 'Wähle eine deiner Präsentationen oder einen Ordner mit einer Präsentation …',
+  startOpenEmpty: 'Noch keine Präsentation in der Liste. Wähle den Ordner einer vorhandenen Präsentation …',
+  startOr: '… oder',
   loadFailed: (e: string) => `Die Präsentation ließ sich nicht laden: ${e}`,
   loading: 'Lädt …',
   createBusy: 'Gerade entsteht eine neue Präsentation. Ein Umbau geht erst, wenn sie fertig ist.',
@@ -300,12 +301,13 @@ const en: typeof de = {
   badgeDone: '✓ New presentation ready',
   badgeView: 'view',
   hide: 'Hide',
-  noPresentation: (
-    <>
-      No presentation chosen yet. Choose the folder of a presentation below – it contains <code>src/Video.tsx</code> and{' '}
-      <code>src/content.json</code> – or have a new one created.
-    </>
-  ),
+  startLead: 'Slides you can ask: presentations with animated slides that an AI creates, rebuilds and explains when asked during the talk.',
+  startAiHead: 'Choose the AI',
+  startAiText: 'It answers questions about the slides, rebuilds slides and creates new presentations. It must be installed and signed in on this computer.',
+  startOpenHead: 'Open or create a presentation',
+  startOpenText: 'Choose one of your presentations or a folder with a presentation …',
+  startOpenEmpty: 'No presentation in the list yet. Choose the folder of an existing presentation …',
+  startOr: '… or',
   loadFailed: (e) => `The presentation could not be loaded: ${e}`,
   loading: 'Loading …',
   createBusy: 'A new presentation is being created right now. Rebuilding is possible once it is finished.',
