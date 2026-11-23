@@ -91,7 +91,15 @@ Leer = automatisch: Claude Code, oder Codex, wenn nur das installiert ist. Man b
 
 ## Präsentator und Inhalt sind getrennt
 
-**Inhalt** ist ein eigener Ordner mit `src/` (Folien und Texte) und `quellen/` (Nachschlagematerial für Fragen).
+**Inhalt** ist ein eigener Ordner mit drei Teilen:
+
+- `src/` – die Folien und Texte.
+- `quellen/` – **was** gesagt wird: Material zum Thema (Notizen, Artikel, PDFs). Daraus beantwortet „Frage zur Folie“
+  Fragen, und beim Erstellen und Umbauen schlägt die KI dort Fakten und Zahlen nach.
+- `vorgaben/` – **wie** etwas gezeichnet wird: Darstellungsregeln, z. B. die eigene ER-Schreibweise für PlantUML.
+  Die KI hält sich bei jedem Umbau daran (siehe „Vorgaben für die Darstellung“).
+
+Beide Ordner gehören zur Präsentation und kommen mit, wenn man sie kopiert oder weitergibt.
 **Präsentator** ist dieser Ordner: `editor/`, `vite.config.mts`, `scripts/`, `.env`, `node_modules`. Hier steht nichts Themenspezifisches.
 
 Der Inhalt muss nur diese Schnittstelle erfüllen (Typen dazu in `editor/types.ts`):
@@ -497,7 +505,7 @@ Welche Dateitypen ein Auftrag mitbringen kann, steht in `vite.config.mts` in der
 
 Soll etwas in einer Präsentation immer auf eine bestimmte Art gezeichnet werden – etwa ER-Diagramme in einer festen
 PlantUML-Schreibweise –, legt man dafür eine Beschreibung als Markdown- oder Textdatei in den Ordner `vorgaben/` der
-Präsentation (neben `src/`). Claude bekommt bei „Neue Präsentation“ und bei jedem „Folie umbauen“ die Liste dieser
+Präsentation (neben `src/`). Die gewählte KI bekommt bei „Neue Präsentation“ und bei jedem „Folie umbauen“ die Liste dieser
 Dateien (Dateiname, Überschrift, erster Absatz) und liest die passende, bevor es so etwas baut oder ändert. Die
 Vorgaben sind verbindlich für die Darstellung; die technischen Regeln (nur `src/` ändern, alles aus dem Bild berechnet)
 gelten weiter.
@@ -505,13 +513,18 @@ gelten weiter.
 - **Von Hand:** Datei in `vorgaben/` kopieren – sie gilt ab dem nächsten Umbau. Löschen oder bearbeiten genauso.
 - **Per Auftrag:** eine Zeile mit „Vorgabe“ (auch „Vorlage“, „Spezifikation“, „spec“, „template“) und dem Pfad einer
   `.md`- oder `.txt`-Datei, z. B. `Vorgabe für ER-Diagramme: /Users/ich/specs/plantuml_er.md`. Der Server kopiert die
-  Datei nach `vorgaben/` (gleicher Name ersetzt die alte Kopie); im Protokoll steht „Vorgabe übernommen“.
+  Datei nach `vorgaben/` (gleicher Name ersetzt die alte Kopie); im Protokoll steht „Vorgabe übernommen“. Ohne eines
+  dieser Wörter ist der Pfad bei „Neue Präsentation“ nur eine Quelle zum Thema (wird gelesen, aber nicht als Vorgabe
+  behalten), bei „Folie umbauen“ wird er gar nicht freigegeben.
 - Die Vorgaben gehören zur Präsentation und werden mit ihr weitergegeben. „Rückgängig“ entfernt sie nicht.
+- Eigene Stile für mehrere Präsentationen (z. B. die eigene ER-Schreibweise): entweder jeweils per Auftrag übernehmen
+  oder eine vorhandene Präsentation als Ausgangspunkt kopieren – `vorgaben/` kommt mit (ebenso `quellen/`, das man bei
+  einem neuen Thema austauscht).
 - Welche gelten, steht im Präsentator rechts unten bei „Benutzte Bibliotheken · Vorgaben“.
 
 ## PlantUML-Diagramme
 
-Für Diagramme, die Mermaid oder die Bausteine nicht richtig können (z. B. ER-Diagramme), kann Claude PlantUML benutzen:
+Für Diagramme, die Mermaid oder die Bausteine nicht richtig können (z. B. ER-Diagramme), kann die KI PlantUML benutzen:
 Es schreibt den Diagrammtext nach `src/diagramme/<name>.puml` und ruft das Werkzeug „plantuml“ auf; das erzeugt
 `<name>.svg` daneben, schon in den Farben des Designs (`src/design.json`; ohne die Datei im dunklen Standard-Schema),
 und die Folie bindet das SVG wie ein Bild ein. Nach einem Wechsel des Designs zeichnet der Präsentator die Diagramme neu.

@@ -89,8 +89,17 @@ Empty = automatic: Claude Code, or Codex if only that is installed. So you need 
 
 ## Presenter and content are separate
 
-**Content** is a separate folder with `src/` (slides and texts) and `quellen/` (sources: reference material for
-questions). **Presenter** is this folder: `editor/`, `vite.config.mts`, `scripts/`, `.env`, `node_modules`. Nothing
+**Content** is a separate folder with three parts:
+
+- `src/` – the slides and texts.
+- `quellen/` ("sources") – **what** is said: material on the topic (notes, articles, PDFs). "Ask about the slide"
+  answers from it, and when creating and rebuilding the AI looks up facts and numbers there.
+- `vorgaben/` ("specifications") – **how** things are drawn: rules for the look, e.g. your own ER notation for
+  PlantUML. The AI follows them in every rebuild (see "Specifications for how things are drawn").
+
+Both folders belong to the presentation and come along when you copy it or pass it on.
+
+**Presenter** is this folder: `editor/`, `vite.config.mts`, `scripts/`, `.env`, `node_modules`. Nothing
 topic-specific lives here.
 
 The content only has to satisfy this interface (types in `editor/types.ts`):
@@ -493,7 +502,7 @@ Which file types a task can bring along is listed in `vite.config.mts` in the ta
 
 If something in a presentation should always be drawn in a certain way – for example ER diagrams in a fixed PlantUML
 notation – put a description as a Markdown or text file into the presentation's `vorgaben/` folder ("vorgaben" =
-specifications; next to `src/`). With "New presentation" and every "Rebuild slide" Claude gets the list of these files
+specifications; next to `src/`). With "New presentation" and every "Rebuild slide" the chosen AI gets the list of these files
 (file name, heading, first paragraph) and reads the matching one before it builds or changes such a thing. The
 specifications are binding for the look; the technical rules (change only `src/`, everything computed from the frame)
 still apply.
@@ -501,13 +510,17 @@ still apply.
 - **By hand:** copy the file into `vorgaben/` – it applies from the next rebuild. Delete or edit it the same way.
 - **In a task:** a line with "specification" (also "spec", "template", "guideline", "Vorgabe", "Vorlage") and the path
   of a `.md` or `.txt` file, e.g. `Specification for ER diagrams: /Users/me/specs/plantuml_er.md`. The server copies
-  the file into `vorgaben/` (same name replaces the old copy); the log says "Specification added".
+  the file into `vorgaben/` (same name replaces the old copy); the log says "Specification added". Without one of these
+  words the path is only a source on the topic with "New presentation" (read, but not kept as a specification), and
+  with "Rebuild slide" it is not made readable at all.
 - The specifications belong to the presentation and are passed on with it. "Undo" does not remove them.
+- Own styles for several presentations (e.g. your own ER notation): either add them with each task or copy an existing
+  presentation as the starting point – `vorgaben/` comes along (so does `quellen/`, which you replace for a new topic).
 - Which ones apply is shown in the presenter at the bottom right under "Libraries used · specifications".
 
 ## PlantUML diagrams
 
-For diagrams that Mermaid or the building blocks cannot draw properly (e.g. ER diagrams), Claude can use PlantUML: it
+For diagrams that Mermaid or the building blocks cannot draw properly (e.g. ER diagrams), the AI can use PlantUML: it
 writes the diagram text to `src/diagramme/<name>.puml` and calls the tool "plantuml"; that creates `<name>.svg` next
 to it, already in the colours of the design (`src/design.json`; without that file in the dark standard scheme), and the
 slide shows the SVG like an image. After a change of design the presenter draws the diagrams again.
