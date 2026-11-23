@@ -19,7 +19,7 @@ const musterDir = path.join(shippedDir, 'muster');
 
 /** All design files: shipped first (in a fixed order), then own ones by name. */
 export function designFiles() {
-  const order = ['nacht', 'hell', 'papier', 'kontrast'];
+  const order = ['nacht', 'hell', 'papier', 'kontrast', 'bunt'];
   const list = (dir) => {
     try {
       return fs.readdirSync(dir).filter((n) => /\.json$/i.test(n) && !n.startsWith('.')).sort();

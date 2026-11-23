@@ -1,0 +1,13 @@
+{
+  "name": "Bunt",
+  "dark": true,
+  "surface": {"bg": "#2A0B52", "background": "linear-gradient(135deg, #2A0B52 0%, #4A0E63 45%, #6A1050 100%)", "panel": "#3B1170", "panel2": "#4C1478", "border": "#FF5FA2", "inset": "#22093F", "stage": "#14052A"},
+  "text": {"normal": "#FFFFFF", "muted": "#F1D7FF", "heading": "#FFFFFF", "kicker": "#FFD23F", "onAccent": "#1A0633"},
+  "accent": ["#FF5FA2", "#FFD23F", "#3DDCFF", "#7CFF6B", "#FF8A3D", "#B98CFF", "#FF6B6B", "#2EF2C2"],
+  "status": {"good": "#7CFF6B", "bad": "#FF6B6B", "note": "#FFD23F"},
+  "font": {"family": "\"Avenir Next\", \"Nunito\", \"Segoe UI\", \"Helvetica Neue\", Arial, sans-serif", "weights": {"normal": 500, "strong": 700, "kicker": 800, "heading": 800}, "files": []},
+  "shape": {"radius": 28, "borderWidth": 3},
+  "caption": {"bg": "rgba(26,6,51,0.88)", "border": "#FF5FA2", "text": "#FFFFFF"},
+  "diagram": {"node": "#3B1170", "nodeBorder": "#3DDCFF", "line": "#F1D7FF", "group": "#33105F", "noteBg": "#4A3A0A", "noteBorder": "#FFD23F", "errorBg": "#5A1030"},
+  "model": {"ground": "#4A1E7A", "fill": "#FF8FC0"}
+}

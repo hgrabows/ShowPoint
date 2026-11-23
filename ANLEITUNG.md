@@ -432,7 +432,7 @@ Das Aussehen einer Präsentation – Farben, Schrift, Hintergrund, Formen – st
 `src/design.json`. Folien, Diagramme, Mermaid, PlantUML und das Licht der 3D-Modelle lesen daraus. Gemeint ist nur
 das Aussehen, nicht die Anordnung auf der Folie.
 
-**Wählen.** Bei „Neue Präsentation erzeugen …“ klickt man eines der Vorschaubilder an. Mitgeliefert sind vier Designs
+**Wählen.** Bei „Neue Präsentation erzeugen …“ klickt man eines der Vorschaubilder an. Mitgeliefert sind fünf Designs
 (`vorlage/designs/`):
 
 | Design | gedacht für |
@@ -441,6 +441,7 @@ das Aussehen, nicht die Anordnung auf der Folie.
 | Hell | heller Hintergrund, dunkle Schrift |
 | Papier | warmes Papierweiß ohne Verlauf, gedeckte Farben – für gedruckte PDFs |
 | Kontrast | Weiß und Schwarz, kräftige Farben, dicke Rahmen – für Beamer in hellen Räumen |
+| Bunt | Verlauf von Violett nach Pink, acht leuchtende Akzentfarben, runde Formen – für Produktvorstellungen, Werbung, Schulklassen |
 
 **Wechseln.** Im Präsentator rechts unten steht eingeklappt „Design: <Name>“. Aufgeklappt zeigt die Zeile alle Designs;
 ein Klick wechselt. Dabei wird nur `src/design.json` getauscht, der Stand davor steht unter „Frühere Stände“, und

@@ -250,7 +250,7 @@ const en: typeof de = {
   libsSummary: (n, specs) => `Libraries used (${n})${specs ? ` · specifications (${specs})` : ''}`,
   libsBuiltin: 'built in',
   designSummary: (name) => `Design: ${name}`,
-  designName: (id, name) => ({nacht: 'Night', hell: 'Light', papier: 'Paper', kontrast: 'Contrast'} as Record<string, string>)[id] ?? name,
+  designName: (id, name) => ({nacht: 'Night', hell: 'Light', papier: 'Paper', kontrast: 'Contrast', bunt: 'Colourful'} as Record<string, string>)[id] ?? name,
   designUnnamed: 'unnamed',
   designAdapted: 'adapted',
   designFixed: 'fixed in the slides',

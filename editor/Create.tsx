@@ -15,7 +15,7 @@ export const createCss = `
 .cr-body label{margin:6px 0 2px}
 .cr-row{display:flex;gap:8px}
 .cr-row button{white-space:nowrap}
-.cr-prompt{min-height:340px;font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5}
+.cr-prompt{flex:none;height:340px;min-height:120px;resize:vertical;font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5}
 .cr-note{border-left:3px solid #ffb020;background:#151c33;padding:8px 12px;border-radius:0 8px 8px 0;color:#c9d1ec;margin-top:6px}
 .cr-note code{color:#ffb020;word-break:break-all}
 .cr-foot{display:flex;gap:8px;align-items:center;padding:12px 16px;border-top:1px solid #2e3a63}

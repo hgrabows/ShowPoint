@@ -429,7 +429,7 @@ The look of a presentation – colours, font, background, shapes – lives in a 
 charts, Mermaid, PlantUML and the light of 3D models read from it. "Design" means the look only, not the layout of a
 slide.
 
-**Choosing.** In "New presentation …" click one of the preview pictures. Four designs are shipped (`vorlage/designs/`):
+**Choosing.** In "New presentation …" click one of the preview pictures. Five designs are shipped (`vorlage/designs/`):
 
 | Design | meant for |
 |---|---|
@@ -437,6 +437,7 @@ slide.
 | Hell (Light) | light background, dark text |
 | Papier (Paper) | warm paper white without a gradient, muted colours – for printed PDFs |
 | Kontrast (Contrast) | white and black, strong colours, thick frames – for projectors in bright rooms |
+| Bunt (Colourful) | violet-to-pink gradient, eight bright accent colours, round shapes – for product talks, advertising, school classes |
 
 **Switching.** At the bottom right of the presenter there is a folded line "Design: <name>". Opened, it shows all
 designs; a click switches. Only `src/design.json` is replaced, the state before is listed under "Earlier states", and

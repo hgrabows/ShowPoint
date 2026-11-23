@@ -24,7 +24,7 @@ export const designCss = `
 .dz-tile:hover .dz-x{display:block}
 .dz-row{display:flex;gap:8px;margin-top:8px;align-items:center}
 .dz-row button{font-size:12px;padding:3px 9px}
-.cr .dz{margin-top:2px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+.cr .dz{margin-top:2px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;flex-shrink:0}
 .cr .dz-tile{width:150px}
 `;
 
