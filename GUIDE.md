@@ -51,6 +51,14 @@ In `content.json`, removed slides stay in `scenes` but not in `order`; `removed`
 Who answers questions, rebuilds slides and creates new presentations is set once: in the presenter at the top left
 under **"AI"**, or in `.env` with `KI=`. The choice applies to everything until you change it.
 
+Right below you choose the **model** and the **reasoning effort** – separately for "Ask about slide" and for "Rebuild
+slide"/"New presentation". The presenter asks the program itself for the model list (`codex debug models`,
+`agy models`; for Claude Code the families Opus, Sonnet, Haiku), so it matches your account and version. "Default"
+lets the program decide. More effort is more thorough, but slower and uses more of your quota – for asking "low" is
+usually enough, for rebuilding "medium" to "high". The choice is stored in `.env` (keys in the table) and applies from
+the next question. ShowPoint does not use the settings of the Codex CLI itself (`/model`, `~/.codex/config.toml`).
+With Custom the model is fixed in `.env`.
+
 | `KI=` | What runs | Access | Model and effort in `.env` |
 |---|---|---|---|
 | `claude` | Claude Code CLI (`claude`) | your Claude subscription, no key | `CLAUDE_MODEL`, `CLAUDE_EFFORT_FRAGEN`, `CLAUDE_EFFORT_UMBAU` |
@@ -63,15 +71,15 @@ Empty = automatic: Claude Code, or Codex if only that is installed. So you need 
 **The settings file `.env`.** It lies in the ShowPoint folder and holds your own settings: which AI, model and effort,
 the Custom provider and the chosen presentation. It is optional – without it everything runs with the defaults, and
 the presenter creates it by itself as soon as you choose an AI or a presentation (then only with `KI=` and `INHALT=`).
-To set model, effort or Custom, copy the template once before the first start and fill it in:
+Model and effort are easiest chosen in the presenter (see above). For Custom, copy the template once before the
+first start and fill it in:
 
 ```bash
 cp .env.example .env
 ```
 
 If `.env` already exists, add the lines you need from `.env.example` instead – copying over it would reset your
-choices. Changes apply from the next question or task; the presenter briefly restarts when `.env` changes, so do not
-edit it while a task is running. `.env` is in `.gitignore` and stays on your computer.
+choices. Changes apply from the next question or task, without a restart. `.env` is in `.gitignore` and stays on your computer.
 
 - **Custom** needs the Codex CLI as the tool and a provider that offers OpenAI's "Responses"
   interface – Codex speaks no other. Questions about a slide go straight to the provider (chat interface) with Custom,

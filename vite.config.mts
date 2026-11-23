@@ -396,6 +396,85 @@ const presentationInfo = () => ({
   list: listPresentations(),
 });
 
+// ── Model and reasoning effort of the chosen AI, chosen in the presenter and stored in .env ─────────────────────────
+// The lists come from the programs themselves (codex debug models, agy models), so they match the user's account and
+// version; Claude Code takes aliases that always mean the newest model of the family. Kept for ten minutes.
+type ModelInfo = {id: string; name: string; note?: string; efforts?: string[]};
+const SETTING_KEYS: Record<Agent, {model: string; fragen: string; umbau: string}> = {
+  claude: {model: 'CLAUDE_MODEL', fragen: 'CLAUDE_EFFORT_FRAGEN', umbau: 'CLAUDE_EFFORT_UMBAU'},
+  codex: {model: 'CODEX_MODEL', fragen: 'CODEX_EFFORT_FRAGEN', umbau: 'CODEX_EFFORT_UMBAU'},
+  gemini: {model: 'GEMINI_MODEL', fragen: 'GEMINI_EFFORT_FRAGEN', umbau: 'GEMINI_EFFORT_UMBAU'},
+  custom: {model: 'LLM_MODEL', fragen: 'LLM_REASONING_EFFORT', umbau: 'LLM_REASONING_EFFORT'},
+};
+const modelCache: Partial<Record<Agent, {at: number; list: ModelInfo[]}>> = {};
+const runText = (cmd: string, args: string[]) =>
+  new Promise<string>((resolve) => execFile(cmd, args, {cwd: os.tmpdir(), timeout: 30000, maxBuffer: 8 << 20}, (_e, out) => resolve(String(out ?? ''))));
+async function modelList(agent: Agent): Promise<ModelInfo[]> {
+  const hit = modelCache[agent];
+  if (hit && Date.now() - hit.at < 600000) return hit.list;
+  let list: ModelInfo[] = [];
+  if (agent === 'claude') {
+    list = [
+      {id: 'opus', name: 'Opus', note: 'most capable, slower'},
+      {id: 'sonnet', name: 'Sonnet', note: 'balanced'},
+      {id: 'haiku', name: 'Haiku', note: 'fast, simpler tasks'},
+    ];
+  } else if (agent === 'codex' && hasCmd('codex')) {
+    try {
+      const data = JSON.parse(await runText('codex', ['debug', 'models']));
+      list = (data.models ?? [])
+        .filter((m: {visibility?: string}) => (m.visibility ?? 'list') === 'list')
+        .map((m: {slug: string; display_name?: string; description?: string; supported_reasoning_levels?: {effort: string}[]}) => ({
+          id: m.slug,
+          name: m.display_name || m.slug,
+          note: m.description,
+          efforts: (m.supported_reasoning_levels ?? []).map((l) => l.effort).filter((e) => CODEX_EFFORTS.includes(e)),
+        }));
+    } catch {
+      list = [];
+    }
+  } else if (agent === 'gemini' && hasAgy()) {
+    list = (await runText(agyCmd(), ['models']))
+      .split('\n')
+      .map((l) => l.split('\t'))
+      .filter((c) => c.length >= 2 && /^[\w.-]+$/.test(c[0].trim()))
+      .map((c) => ({id: c[0].trim(), name: c[1].trim()}));
+  }
+  if (list.length) modelCache[agent] = {at: Date.now(), list};
+  return list;
+}
+const effortsOf = (agent: Agent) => (agent === 'codex' ? CODEX_EFFORTS : agent === 'gemini' ? AGY_EFFORTS : agent === 'custom' ? ['low', 'medium', 'high'] : EFFORTS);
+async function agentSettings() {
+  const agent = currentAgent();
+  const keys = SETTING_KEYS[agent];
+  const env = readEnv();
+  return {
+    agent,
+    models: await modelList(agent),
+    efforts: effortsOf(agent),
+    model: env[keys.model] ?? '',
+    fragen: env[keys.fragen] ?? '',
+    umbau: env[keys.umbau] ?? '',
+    // Custom: one effort for everything, and the model is whatever the provider calls it (typed into .env)
+    shared: keys.fragen === keys.umbau,
+    fixedModel: agent === 'custom',
+    defaultModel: agent === 'claude' ? 'sonnet' : '',
+  };
+}
+async function saveSetting(which: string, value: string) {
+  const agent = currentAgent();
+  const keys = SETTING_KEYS[agent];
+  const v = String(value ?? '').trim();
+  if (which === 'model') {
+    if (agent === 'custom') throw new Error('The model of “Custom” is set in .env (LLM_MODEL).');
+    if (v && !(await modelList(agent)).some((m) => m.id === v)) throw new Error(`Unknown model: ${v}`);
+    saveEnv(keys.model, v);
+  } else if (which === 'fragen' || which === 'umbau') {
+    if (v && !effortsOf(agent).includes(v)) throw new Error(`Unknown effort: ${v}`);
+    saveEnv(keys[which], v);
+  } else throw new Error(`Unknown setting: ${which}`);
+}
+
 const readOptional = (name: string) => {
   const p = path.join(inhaltSrc(), name);
   return fs.existsSync(p) ? fs.readFileSync(p, 'utf8').trim() : '';
@@ -2037,6 +2116,27 @@ export default defineConfig({
             } catch (e) {
               res.statusCode = 400;
               send(String((e as Error).message));
+            }
+          });
+        });
+
+        // Model and reasoning effort of the chosen AI: GET the lists and the current values, POST {which, value} to store
+        server.middlewares.use('/api/agent-settings', (req, res) => {
+          const send = async (status = 200, error = '') => {
+            res.statusCode = status;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({...(await agentSettings()), error}));
+          };
+          if (req.method !== 'POST') return void send();
+          let body = '';
+          req.on('data', (c) => (body += c));
+          req.on('end', async () => {
+            try {
+              const b = JSON.parse(body || '{}');
+              await saveSetting(String(b.which), String(b.value ?? ''));
+              await send();
+            } catch (e) {
+              await send(400, String((e as Error).message));
             }
           });
         });

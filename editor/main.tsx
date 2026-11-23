@@ -10,6 +10,7 @@ import {Create, createCss} from './Create';
 import {DesignPanel, designCss} from './Design';
 import type {DesignCurrent} from './Design';
 import {Slides, slidesCss} from './Slides';
+import {AgentSettings, agentSettingsCss} from './AgentSettings';
 
 const css = `
 *{box-sizing:border-box}
@@ -67,9 +68,8 @@ textarea:focus,input:focus{outline:none;border-color:#8b6cff}
 .pres label{margin-top:0}
 .pres-rm{margin-top:8px;margin-right:6px;padding:5px 10px;font-size:12px}
 select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;border-radius:8px;padding:8px;font:inherit}
-.pres-ai{display:flex;align-items:center;gap:8px;margin-top:10px}
-.pres-ai label{margin:0;white-space:nowrap}
-.pres-ai select{flex:1;min-width:0}
+.pres-rm.on{border-color:#8b6cff;color:#fff}
+.pres-aibox{margin-top:8px;padding:10px 12px;border:1px solid #2e3a63;border-radius:10px;background:#0d1224}
 .pres-err{color:#f87171;font-size:12px;margin-top:6px;line-height:1.4}
 .start h2{margin:0}
 .start-lead{color:#c9d1ec;line-height:1.5;margin:10px 0 22px}
@@ -137,6 +137,7 @@ const App: React.FC = () => {
   const [pres, setPres] = useState<Presentation | null>(null);
   const [Video, setVideo] = useState<React.FC<{content: Content}> | null>(null);
   const [presError, setPresError] = useState('');
+  const [aiOpen, setAiOpen] = useState(false);
   useEffect(() => {
     fetch('/api/presentation')
       .then((r) => r.json())
@@ -695,6 +696,7 @@ const App: React.FC = () => {
         </select>
   ) : null;
   const agentHint = pres?.agents && !pres.agents[pres.agent ?? 'claude'] ? <div className="pres-err">{pres.agent === 'custom' ? T.agentCustomHint : T.agentMissingHint(AGENTS[pres.agent ?? 'claude'])}</div> : null;
+  const agentDetails = pres ? <AgentSettings agent={pres.agent ?? 'claude'} available={!!pres.agents?.[pres.agent ?? 'claude']} /> : null;
   const chooser = pres ? (
     <div className="pres">
       <div className="pres-top">
@@ -715,10 +717,15 @@ const App: React.FC = () => {
         </button>
       ) : null}
       {createButton('pres-rm')}
-      <div className="pres-ai" title={T.agentTitle}>
-        <label>{T.agentLabel}</label>
-        {agentSelect}
-      </div>
+      <button className={`pres-rm${aiOpen ? ' on' : ''}`} title={T.agentTitle} onClick={() => setAiOpen(!aiOpen)}>
+        {T.agentLabel}: {AGENTS[pres.agent ?? 'claude']} {aiOpen ? '▴' : '▾'}
+      </button>
+      {aiOpen ? (
+        <div className="pres-aibox">
+          {agentSelect}
+          {agentDetails}
+        </div>
+      ) : null}
       {agentHint}
       {presError ? <div className="pres-err">{presError}</div> : null}
     </div>
@@ -772,7 +779,7 @@ const App: React.FC = () => {
   if (!content || !Video)
     return (
       <div style={{padding: 30, maxWidth: 640}}>
-        <style>{css + askCss + rebuildCss + createCss + designCss + langCss}</style>
+        <style>{css + askCss + rebuildCss + createCss + designCss + langCss + agentSettingsCss}</style>
         {createBox}
         {jobBadge}
         {pres && !pres.videoUrl ? (
@@ -787,6 +794,7 @@ const App: React.FC = () => {
               <p className="hint">{T.startAiText}</p>
               {agentSelect}
               {agentHint}
+              {agentDetails}
             </section>
             <section>
               <h3><b>2</b>{T.startOpenHead}</h3>
@@ -821,7 +829,7 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
-      <style>{css + askCss + rebuildCss + floatCss + createCss + designCss + langCss + slidesCss}</style>
+      <style>{css + askCss + rebuildCss + floatCss + createCss + designCss + langCss + slidesCss + agentSettingsCss}</style>
       {createBox}
       {jobBadge}
       <div className="stage">

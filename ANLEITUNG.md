@@ -52,6 +52,14 @@ In `content.json` stehen entfernte Folien weiter unter `scenes`, aber nicht in `
 Wer Fragen beantwortet, Folien umbaut und neue Präsentationen erzeugt, legst du einmal fest: im Präsentator links oben
 unter **„KI“** oder in der `.env` mit `KI=`. Die Wahl gilt für alles, bis du sie änderst.
 
+Direkt darunter wählst du **Modell** und **Denkaufwand** (Reasoning Effort) – getrennt für „Frage zur Folie“ und für
+„Folie umbauen“/„Neue Präsentation“. Die Modellliste fragt der Präsentator beim Programm selbst ab (`codex debug
+models`, `agy models`; bei Claude Code die Familien Opus, Sonnet, Haiku), sie passt also zu deinem Konto und deiner
+Version. „Standard“ lässt das Programm entscheiden. Mehr Denkaufwand ist gründlicher, aber langsamer und verbraucht
+mehr vom Kontingent – für Fragen reicht meist „niedrig“, für Umbauen „mittel“ bis „hoch“. Die Auswahl landet in der
+`.env` (Schlüssel in der Tabelle) und gilt ab der nächsten Frage. Die Einstellungen in der Codex-CLI selbst
+(`/model`, `~/.codex/config.toml`) nutzt ShowPoint nicht. Bei Custom steht das Modell fest in der `.env`.
+
 | `KI=` | Was läuft | Zugang | Modell und Effort in `.env` |
 |---|---|---|---|
 | `claude` | Claude-Code-CLI (`claude`) | dein Claude-Abo, kein Schlüssel | `CLAUDE_MODEL`, `CLAUDE_EFFORT_FRAGEN`, `CLAUDE_EFFORT_UMBAU` |
@@ -64,16 +72,15 @@ Leer = automatisch: Claude Code, oder Codex, wenn nur das installiert ist. Man b
 **Die Einstellungsdatei `.env`.** Sie liegt im ShowPoint-Ordner und enthält deine eigenen Einstellungen: welche KI,
 Modell und Effort, den Custom-Anbieter und die gewählte Präsentation. Sie ist freiwillig – ohne sie läuft alles mit den
 Standardwerten, und der Präsentator legt sie selbst an, sobald man eine KI oder Präsentation wählt (dann nur mit `KI=`
-und `INHALT=`). Wer Modell, Effort oder Custom einstellen will, kopiert vor dem ersten Start einmal die Vorlage und
-füllt sie aus:
+und `INHALT=`). Modell und Effort wählt man am einfachsten im Präsentator (siehe oben). Für Custom kopiert man vor dem
+ersten Start einmal die Vorlage und füllt sie aus:
 
 ```bash
 cp .env.example .env
 ```
 
 Gibt es `.env` schon, übernimmt man stattdessen die benötigten Zeilen aus `.env.example` – Überkopieren würde die
-eigene Auswahl zurücksetzen. Änderungen gelten ab der nächsten Frage bzw. dem nächsten Auftrag; der Präsentator startet
-bei einer Änderung an `.env` kurz neu, darum nicht ändern, während ein Auftrag läuft. `.env` steht in `.gitignore` und
+eigene Auswahl zurücksetzen. Änderungen gelten ab der nächsten Frage bzw. dem nächsten Auftrag, ohne Neustart. `.env` steht in `.gitignore` und
 bleibt auf deinem Rechner.
 
 - **Custom** braucht die Codex-CLI als Werkzeug und einen Anbieter, der die
