@@ -13,7 +13,7 @@ All paths such as `src/…` and `quellen/…` in this guide refer to the **prese
 Requirements: Node.js (20 or later) and – for "Ask about slide", "Rebuild slide" and "New presentation" – an AI:
 the Claude Code CLI (`claude`, signed in with your subscription), the Codex CLI (`codex`, signed in with your
 ChatGPT account via `codex login`) **or** Google's Antigravity CLI (`agy`), all without an API key; or your own provider with URL and key (see "Choosing
-the AI"). For that, copy `.env.example` to `.env` and fill it in.
+the AI"). Settings such as model and effort go into the optional file `.env` (see "The settings file `.env`" there).
 
 ```bash
 git clone https://github.com/hgrabows/ShowPoint.git
@@ -59,6 +59,19 @@ under **"AI"**, or in `.env` with `KI=`. The choice applies to everything until 
 | `custom` | Codex CLI, pointed at your own provider | `LLM_BASE_URL` and `LLM_API_KEY` | `LLM_MODEL`, `LLM_REASONING_EFFORT` |
 
 Empty = automatic: Claude Code, or Codex if only that is installed. So you need only one of the programs.
+
+**The settings file `.env`.** It lies in the ShowPoint folder and holds your own settings: which AI, model and effort,
+the Custom provider and the chosen presentation. It is optional – without it everything runs with the defaults, and
+the presenter creates it by itself as soon as you choose an AI or a presentation (then only with `KI=` and `INHALT=`).
+To set model, effort or Custom, copy the template once before the first start and fill it in:
+
+```bash
+cp .env.example .env
+```
+
+If `.env` already exists, add the lines you need from `.env.example` instead – copying over it would reset your
+choices. Changes apply from the next question or task; the presenter briefly restarts when `.env` changes, so do not
+edit it while a task is running. `.env` is in `.gitignore` and stays on your computer.
 
 - **Custom** needs the Codex CLI as the tool and a provider that offers OpenAI's "Responses"
   interface – Codex speaks no other. Questions about a slide go straight to the provider (chat interface) with Custom,
@@ -214,8 +227,8 @@ The editor overwrites `content.json` when you edit; version control in the prese
 
 ### 4. Small adjustments
 
-- `?` key: topic, audience and tone are in `src/begleittext.md`, the reference material in the `quellen/` folder. Switch both to the new topic, otherwise the model answers with the wrong background. In the dialog you choose between "Claude Code" (command `claude`, model in `.env` as `CLAUDE_MODEL`, reasoning effort as `CLAUDE_EFFORT_FRAGEN`) and "LLM from .env". The credentials are in `.env` (template: `.env.example`).
-  With "Claude Code" the model may **search the internet and read web pages** when answering (WebSearch, WebFetch) – e.g. for current facts – and then names the pages it used; the dialog shows what it searches for (🔎) and reads (🌐). It cannot read files or run commands. "LLM from .env" has no internet access.
+- `?` key: topic, audience and tone are in `src/begleittext.md`, the reference material in the `quellen/` folder. Switch both to the new topic, otherwise the model answers with the wrong background. The answer comes from the AI chosen in the presenter under "AI"; model and reasoning effort are in `.env` (template: `.env.example`, see "Choosing the AI").
+  With "Claude Code" the model may **search the internet and read web pages** when answering (WebSearch, WebFetch) – e.g. for current facts – and then names the pages it used; the dialog shows what it searches for (🔎) and reads (🌐). It cannot read files or run commands. With Custom the answer comes straight from the provider, without internet access.
   Who answers is the AI chosen in the presenter (see "Choosing the AI"); the question window has no choice of its own. Claude Code, Codex and Gemini may search the internet for a question but get no shell and no access to files.
 - "Rebuild slide": describe the specifics of the slides (building blocks, dimensions, facts) in `src/umbau-regeln.md`.
 

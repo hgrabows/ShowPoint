@@ -14,7 +14,7 @@ Alle Pfade wie `src/…` und `quellen/…` in dieser Anleitung meinen den **Ordn
 Voraussetzungen: Node.js (ab 20) und – für „Frage zur Folie“, „Folie umbauen“ und „Neue Präsentation“ – eine KI:
 die Claude-Code-CLI (`claude`, angemeldet mit deinem Abo), die Codex-CLI (`codex`, angemeldet mit dem
 ChatGPT-Konto über `codex login`) **oder** die Antigravity-CLI von Google (`agy`), alle ohne API-Schlüssel; oder ein eigener Anbieter mit URL und Schlüssel
-(siehe „KI wählen“). Dafür `.env.example` nach `.env` kopieren und ausfüllen.
+(siehe „KI wählen“). Einstellungen wie Modell und Effort kommen in die freiwillige Datei `.env` (siehe dort „Die Einstellungsdatei `.env`“).
 
 ```bash
 git clone https://github.com/hgrabows/ShowPoint.git
@@ -60,6 +60,21 @@ unter **„KI“** oder in der `.env` mit `KI=`. Die Wahl gilt für alles, bis d
 | `custom` | Codex-CLI, umgestellt auf einen eigenen Anbieter | `LLM_BASE_URL` und `LLM_API_KEY` | `LLM_MODEL`, `LLM_REASONING_EFFORT` |
 
 Leer = automatisch: Claude Code, oder Codex, wenn nur das installiert ist. Man braucht also nur eines der Programme.
+
+**Die Einstellungsdatei `.env`.** Sie liegt im ShowPoint-Ordner und enthält deine eigenen Einstellungen: welche KI,
+Modell und Effort, den Custom-Anbieter und die gewählte Präsentation. Sie ist freiwillig – ohne sie läuft alles mit den
+Standardwerten, und der Präsentator legt sie selbst an, sobald man eine KI oder Präsentation wählt (dann nur mit `KI=`
+und `INHALT=`). Wer Modell, Effort oder Custom einstellen will, kopiert vor dem ersten Start einmal die Vorlage und
+füllt sie aus:
+
+```bash
+cp .env.example .env
+```
+
+Gibt es `.env` schon, übernimmt man stattdessen die benötigten Zeilen aus `.env.example` – Überkopieren würde die
+eigene Auswahl zurücksetzen. Änderungen gelten ab der nächsten Frage bzw. dem nächsten Auftrag; der Präsentator startet
+bei einer Änderung an `.env` kurz neu, darum nicht ändern, während ein Auftrag läuft. `.env` steht in `.gitignore` und
+bleibt auf deinem Rechner.
 
 - **Custom** braucht die Codex-CLI als Werkzeug und einen Anbieter, der die
   „Responses“-Schnittstelle von OpenAI anbietet – eine andere spricht Codex nicht. Fragen zur Folie gehen bei Custom
@@ -214,8 +229,8 @@ Der Editor überschreibt `content.json` beim Bearbeiten; eine Versionsverwaltung
 
 ### 4. Kleinigkeiten anpassen
 
-- `?`-Taste: Thema, Zielgruppe und Ton stehen in `src/begleittext.md`, das Nachschlagematerial im Ordner `quellen/`. Beides auf das neue Thema umstellen, sonst antwortet das Modell mit falschem Hintergrund. Im Dialog wählt man zwischen „Claude Code“ (Befehl `claude`, Modell in `.env` als `CLAUDE_MODEL`, Denkaufwand als `CLAUDE_EFFORT_FRAGEN`) und „LLM aus .env“. Der Zugang steht in `.env` (Vorlage: `.env.example`).
-  Mit „Claude Code“ darf das Modell bei Fragen **im Internet suchen und Webseiten lesen** (WebSearch, WebFetch) – etwa für aktuelle Fakten – und nennt dann die genutzten Seiten; im Dialog erscheint, wonach es sucht (🔎) und was es liest (🌐). Dateien lesen oder Befehle ausführen kann es dabei nicht. „LLM aus .env“ hat keinen Internetzugang.
+- `?`-Taste: Thema, Zielgruppe und Ton stehen in `src/begleittext.md`, das Nachschlagematerial im Ordner `quellen/`. Beides auf das neue Thema umstellen, sonst antwortet das Modell mit falschem Hintergrund. Geantwortet wird von der KI, die im Präsentator unter „KI“ gewählt ist; Modell und Denkaufwand stehen in `.env` (Vorlage: `.env.example`, siehe „KI wählen“).
+  Mit „Claude Code“ darf das Modell bei Fragen **im Internet suchen und Webseiten lesen** (WebSearch, WebFetch) – etwa für aktuelle Fakten – und nennt dann die genutzten Seiten; im Dialog erscheint, wonach es sucht (🔎) und was es liest (🌐). Dateien lesen oder Befehle ausführen kann es dabei nicht. Bei Custom antwortet der Anbieter direkt, ohne Internetzugang.
   Es antwortet die im Präsentator gewählte KI (siehe „KI wählen“); eine eigene Auswahl gibt es im Fragen-Fenster nicht. Claude Code, Codex und Gemini dürfen für eine Frage im Internet suchen, bekommen dabei aber keine Shell und keinen Zugriff auf Dateien.
 - „Folie umbauen“: Besonderheiten der Folien (Bausteine, Maße, Fakten) in `src/umbau-regeln.md` beschreiben.
 

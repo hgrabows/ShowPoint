@@ -51,8 +51,10 @@ Install these **before** the quick start – ShowPoint does not install them for
    provider with URL and key (runs through the Codex CLI, so `codex` must be installed too).
 3. **Google Chrome** (PDF, video and the preview) and **`ffmpeg`** (video only).
 
-Choose the AI in the presenter under "AI"; settings are in `.env` (copy `.env.example`), see
-[GUIDE.md](GUIDE.md#choosing-the-ai-claude-code-openai-codex-gemini-or-custom).
+Choose the AI in the presenter under "AI". Optional: to set model, effort or your own provider, run
+`cp .env.example .env` in the ShowPoint folder before the first start and fill in `.env` – see
+[GUIDE.md](GUIDE.md#choosing-the-ai-claude-code-openai-codex-gemini-or-custom). Without `.env` everything runs with the
+defaults.
 
 ```bash
 git clone https://github.com/hgrabows/ShowPoint.git
