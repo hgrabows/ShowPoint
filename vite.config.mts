@@ -265,11 +265,21 @@ const saveChoice = () => saveEnv('INHALT', inhaltRel);
 // "gemini" is Google's Antigravity CLI (command agy, signed in with the Google account of the Antigravity app).
 type Agent = 'claude' | 'codex' | 'custom' | 'gemini';
 const AGENTS: Agent[] = ['claude', 'codex', 'custom', 'gemini'];
+// a program counts only as an executable file (a folder or a stray file of the same name in PATH does not)
+const isProgram = (p: string) => {
+  try {
+    if (!fs.statSync(p).isFile()) return false;
+    if (process.platform !== 'win32') fs.accessSync(p, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+};
 const hasCmd = (cmd: string) =>
-  (process.env.PATH ?? '').split(path.delimiter).some((d) => d && ['', '.cmd', '.exe'].some((e) => fs.existsSync(path.join(d, cmd + e))));
+  (process.env.PATH ?? '').split(path.delimiter).some((d) => d && (process.platform === 'win32' ? ['.cmd', '.exe', ''] : ['']).some((e) => isProgram(path.join(d, cmd + e))));
 // agy installs itself into ~/.local/bin, which a server started from an older shell does not have in PATH yet
 const agyCmd = () => (hasCmd('agy') ? 'agy' : path.join(os.homedir(), '.local', 'bin', 'agy'));
-const hasAgy = () => hasCmd('agy') || fs.existsSync(agyCmd());
+const hasAgy = () => hasCmd('agy') || isProgram(agyCmd());
 const currentAgent = (): Agent => {
   // .env decides (the presenter writes it there); KI=… in front of the start command only fills in when .env says nothing
   const v = String(readEnv().KI || process.env.KI || '').trim().toLowerCase();
