@@ -128,7 +128,7 @@ const de = {
   keys: (
     <>
       Weiter: <kbd>Leertaste</kbd> <kbd>→</kbd> <kbd>Enter</kbd> oder Klick ins Bild · Zurück: <kbd>←</kbd> · Haltepunkt ein/aus: <kbd>S</kbd> · Abschnitt überspringen ein/aus: <kbd>J</kbd> ·
-      Vollbild: <kbd>F</kbd> · Frage ans LLM: <kbd>?</kbd> (Text vorher markieren = gezielt dazu fragen) · Folie umbauen lassen: <kbd>U</kbd> ·
+      Vollbild: <kbd>F</kbd> · Frage an die KI: <kbd>?</kbd> (Text vorher markieren = gezielt dazu fragen) · Folie umbauen lassen: <kbd>U</kbd> · Zeichnen: <kbd>P</kbd> ·
       gelbe Striche = Haltepunkte · schraffiert = wird übersprungen · Klick in die Leiste springt dorthin
     </>
   ),
@@ -177,6 +177,8 @@ const de = {
   agentCustomMissing: 'nicht eingerichtet',
   agentCustomHint: '„Custom“ braucht den Befehl codex sowie LLM_BASE_URL, LLM_API_KEY und LLM_MODEL in der .env. Der Anbieter muss die „Responses“-Schnittstelle von OpenAI anbieten.',
   agentMissingHint: (n: string) => `Der Befehl für ${n} wurde auf diesem Rechner nicht gefunden. Bitte installieren und anmelden oder die andere KI wählen.`,
+  inkActive: 'Stift',
+  inkKeys: '1–4 Farbe · Z zurück · C löschen · P Ende',
   modelLabel: 'Modell',
   modelDefault: (d: string) => (d ? `Standard (${d})` : 'Standard des Programms'),
   modelFromEnv: 'aus .env',
@@ -342,7 +344,7 @@ const en: typeof de = {
   keys: (
     <>
       Next: <kbd>Space</kbd> <kbd>→</kbd> <kbd>Enter</kbd> or click the slide · Back: <kbd>←</kbd> · Stop on/off: <kbd>S</kbd> · Skip section on/off: <kbd>J</kbd> · Fullscreen:{' '}
-      <kbd>F</kbd> · Ask the LLM: <kbd>?</kbd> (mark text first = ask about exactly that) · Rebuild slide: <kbd>U</kbd> · yellow ticks = stops · hatched = skipped ·
+      <kbd>F</kbd> · Ask the AI: <kbd>?</kbd> (mark text first = ask about exactly that) · Rebuild slide: <kbd>U</kbd> · Draw: <kbd>P</kbd> · yellow ticks = stops · hatched = skipped ·
       click the bar to jump there
     </>
   ),
@@ -387,6 +389,8 @@ const en: typeof de = {
   agentCustomMissing: 'not set up',
   agentCustomHint: '“Custom” needs the codex command plus LLM_BASE_URL, LLM_API_KEY and LLM_MODEL in .env. The provider must offer OpenAI’s “Responses” interface.',
   agentMissingHint: (n: string) => `The command for ${n} was not found on this computer. Please install it and sign in, or choose the other AI.`,
+  inkActive: 'Pen',
+  inkKeys: '1–4 colour · Z undo · C clear · P stop',
   modelLabel: 'Model',
   modelDefault: (d) => (d ? `Default (${d})` : 'Program default'),
   modelFromEnv: 'from .env',

@@ -11,6 +11,7 @@ import {DesignPanel, designCss} from './Design';
 import type {DesignCurrent} from './Design';
 import {Slides, slidesCss} from './Slides';
 import {AgentSettings, agentSettingsCss} from './AgentSettings';
+import {Ink, inkCss} from './Ink';
 
 const css = `
 *{box-sizing:border-box}
@@ -138,6 +139,8 @@ const App: React.FC = () => {
   const [Video, setVideo] = useState<React.FC<{content: Content}> | null>(null);
   const [presError, setPresError] = useState('');
   const [aiOpen, setAiOpen] = useState(false);
+  const [inking, setInking] = useState(false);
+  const stopInk = useCallback(() => setInking(false), []);
   useEffect(() => {
     fetch('/api/presentation')
       .then((r) => r.json())
@@ -644,6 +647,9 @@ const App: React.FC = () => {
         toggleSkip();
       } else if (e.key === 'f' || e.key === 'F') {
         fullscreen();
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        setInking((v) => !v);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -829,7 +835,7 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
-      <style>{css + askCss + rebuildCss + floatCss + createCss + designCss + langCss + slidesCss + agentSettingsCss}</style>
+      <style>{css + askCss + rebuildCss + floatCss + createCss + designCss + langCss + slidesCss + agentSettingsCss + inkCss}</style>
       {createBox}
       {jobBadge}
       <div className="stage">
@@ -856,6 +862,7 @@ const App: React.FC = () => {
             style={{width: '100%', height: '100%'}}
           />
           {playing ? <RunDot frame={frame} stops={stops} total={total} /> : null}
+          {inking ? <Ink clearKey={id} onExit={stopInk} /> : null}
           {asking ? (
             <Ask
               key={id}

@@ -35,7 +35,14 @@ The presenter then opens by itself in the default browser at <http://localhost:5
 `BROWSER=none npm run edit`). The port is fixed; if another editor is already running there, startup aborts –
 stop the other one first. If no presentation has been chosen yet, the page only shows the selection.
 
-Keys: space / → / Enter / click = next · ← = back · `S` = stop on/off · `F` = fullscreen · `?` = ask the LLM.
+Keys: space / → / Enter / click = next · ← = back · `S` = stop on/off · `F` = fullscreen · `?` = ask the AI ·
+`U` = rebuild slide · `P` = draw.
+
+**Drawing on the slide:** `P` turns the pen on. Then you draw freely on the slide with mouse, trackpad, graphics
+tablet or finger, also in fullscreen; a stroke does not advance. `1`–`4` choose the colour (red, yellow, green, blue),
+`Z` undoes the last stroke, `C` clears everything, `P` or `Esc` puts the pen away (in fullscreen `Esc` also leaves
+fullscreen). Advancing works as usual with the pen on. The drawing is not saved: it disappears when you move to the
+next slide and when you put the pen away.
 
 **Reordering slides:** at the top right under “Slides” all slides are listed in order. Drag a row to move the slide
 (a yellow line shows where it will land); click a row to jump to it. The new order is saved right away in

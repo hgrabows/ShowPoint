@@ -8,7 +8,7 @@ pause at stops, answer questions about what is on screen – and can be rebuilt 
 
 ## What it does
 
-- **Present** – animated slides with stops; advance with space, arrow keys or a click; fullscreen with `F`.
+- **Present** – animated slides with stops; advance with space, arrow keys or a click; fullscreen with `F`; draw on the slide with `P`.
 - **Ask about a slide** (`?`) – ask about what is currently shown, or mark text and ask about exactly that.
   Answers come from Claude Code, OpenAI Codex, Gemini via Google's Antigravity CLI (all through your account login, no API key) or your own provider (URL and key) and draw on the slide texts and your own sources
   (`quellen/`: Markdown, text, PDF).

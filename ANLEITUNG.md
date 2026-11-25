@@ -36,7 +36,14 @@ Der Präsenter öffnet sich dann selbst im Standardbrowser unter <http://localho
 `BROWSER=none npm run edit`). Der Port ist fest; läuft dort schon ein anderer Editor, bricht der Start ab –
 den anderen zuerst beenden. Ist noch keine Präsentation gewählt, zeigt die Seite nur die Auswahl.
 
-Tasten: Leertaste / → / Enter / Klick = weiter · ← = zurück · `S` = Haltepunkt ein/aus · `F` = Vollbild · `?` = Frage ans LLM.
+Tasten: Leertaste / → / Enter / Klick = weiter · ← = zurück · `S` = Haltepunkt ein/aus · `F` = Vollbild · `?` = Frage an die KI
+· `U` = Folie umbauen · `P` = zeichnen.
+
+**In die Folie zeichnen:** `P` schaltet den Stift ein. Dann malt man mit Maus, Trackpad, Grafiktablett oder Finger
+frei auf die Folie, auch im Vollbild; ein Strich blättert nicht weiter. `1`–`4` wählen die Farbe (Rot, Gelb, Grün,
+Blau), `Z` nimmt den letzten Strich zurück, `C` löscht alles, `P` oder `Esc` legt den Stift weg (`Esc` verlässt im
+Vollbild auch das Vollbild). Weiterblättern geht mit Stift wie sonst. Die Zeichnung wird nicht gespeichert: Sie
+verschwindet beim Wechsel zur nächsten Folie und wenn man den Stift weglegt.
 
 **Folien umsortieren:** Rechts oben unter „Folien“ stehen alle Folien in ihrer Reihenfolge. Eine Zeile ziehen
 verschiebt die Folie (ein gelber Strich zeigt, wo sie landet), ein Klick springt zu ihr. Gespeichert wird sofort in
