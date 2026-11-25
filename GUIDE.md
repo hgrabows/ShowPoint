@@ -397,7 +397,9 @@ rebuilt from single objects that can be moved and changed in PowerPoint:
 | caption | notes of the slide (with the scene's name) |
 
 As the caption at the bottom is gone, everything below the heading moves to the middle of the free space; kicker and
-title stay at the top.
+title stay at the top. The shift is the same for all slides of a scene, so nothing jumps from slide to slide. The texts
+of a card stacked one below the other (such as "Triceps / Agonist / contracts") become a single text box lying exactly
+on the card; it keeps its place on every slide, even when the card holds two lines on one and three on the next.
 
 **Animated slides (GIF).** Where the movement matters – an arm that bends, a signal that travels –, tick
 **"Animated in PowerPoint (GIF)"** at the slide in the presenter's side panel (stored as `pptxGif` in `content.json`).

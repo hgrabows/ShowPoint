@@ -65,6 +65,8 @@ function collect() {
   const origin = root.getBoundingClientRect();
   const items = [];
   let rasterId = 0;
+  // marks of an earlier frame would show up again in pictures of this one
+  for (const el of root.querySelectorAll('[data-sp-r]')) el.removeAttribute('data-sp-r');
   // any CSS colour → [r, g, b, a] (the canvas normalises named colours, color-mix, oklab …)
   const ctx = document.createElement('canvas').getContext('2d');
   const rgba = (c) => {
@@ -401,12 +403,6 @@ function headerEnd(items) {
 }
 // centre a block (top … bottom) between the heading and the lower edge; never move it up, never below the edge
 const centre = (headBottom, bTop, bBottom) => Math.max(0, Math.min(Math.round((headBottom + 24 + BOTTOM - bTop - bBottom) / 2), BOTTOM - bBottom));
-function bodyShift(items) {
-  const head = headerEnd(items);
-  const body = items.filter((it) => !it.header);
-  if (!body.length) return 0;
-  return centre(head, Math.min(...body.map((it) => spanOf(it)[0])), Math.max(...body.map((it) => spanOf(it)[1])));
-}
 
 /* ── animated slides ─────────────────────────────────────────────────────────────────────────────────────────────── */
 // runs in the page: the box around everything painted below minY (texts, boxes, SVG shapes, pictures)
@@ -431,9 +427,12 @@ function paintedBox(minY) {
         parseFloat(s.borderTopWidth) > 0 || [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
     if (!paints) continue;
     const q = el.getBoundingClientRect();
-    if (q.width < 1 || q.height < 1 || (q.width >= o.width - 2 && q.height >= o.height - 2) || q.bottom - o.top <= minY) continue;
+    // the browser measures an SVG shape without its stroke: a thick line (an arm drawn as a 136 px stroke with round
+    // ends) reaches half the stroke width beyond its box
+    const sw = el instanceof SVGElement && s.stroke !== 'none' ? (parseFloat(s.strokeWidth) || 0) * Math.abs(el.getScreenCTM?.()?.a ?? 1) / 2 : 0;
+    if (q.width + 2 * sw < 1 || q.height + 2 * sw < 1 || (q.width >= o.width - 2 && q.height >= o.height - 2) || q.bottom + sw - o.top <= minY) continue;
     if (!shown(el)) continue;
-    l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom);
+    l = Math.min(l, q.left - sw); t = Math.min(t, q.top - sw); r = Math.max(r, q.right + sw); b = Math.max(b, q.bottom + sw);
   }
   return l === Infinity ? null : {x: l - o.left, y: t - o.top, w: r - l, h: b - t};
 }
@@ -510,6 +509,33 @@ const inCard = (it, cards) => {
   const [l, r] = xspanOf(it);
   return cards.some((c) => l >= c.x - 3 && r <= c.r + 3 && t >= c.y - 3 && b <= c.b + 3);
 };
+
+// The texts of a card stacked one below the other ("Biceps", "Agonist", "contracts") become one text box lying on the
+// card, vertically centred if the card centres them. So the box keeps its place from slide to slide even when the
+// card holds two lines on one slide and three on the next (the browser centres them anew), and it is edited as one.
+// Texts side by side (a heading with a note to its right, an icon before a word) stay single boxes.
+function mergeCardTexts(items, cards) {
+  for (const c of cards) {
+    const texts = items.filter((it) => it.kind === 'text' && !it.header && inCard(it, [c])).sort((a, b) => a.y - b.y);
+    if (texts.length < 2) continue;
+    if (texts.some((t, i) => i && t.y < texts[i - 1].y + texts[i - 1].h - 2)) continue;
+    if (new Set(texts.map((t) => t.align)).size > 1) continue;
+    const align = texts[0].align;
+    const top = texts[0].y;
+    const bottom = Math.max(...texts.map((t) => t.y + t.h));
+    const left = Math.min(...texts.map((t) => t.x));
+    const middle = Math.abs(top - c.y - (c.b - bottom)) < 8;
+    const inset = left - c.x;
+    const merged = {
+      kind: 'text', merged: true, align, valign: middle ? 'middle' : 'top', lines: 2,
+      x: align === 'left' ? left : c.x + inset, w: align === 'left' ? c.r - left - 4 : c.r - c.x - 2 * inset,
+      y: middle ? c.y : top, h: middle ? c.b - c.y : bottom - top,
+      paras: texts.map((t, i) => ({runs: t.runs, lines: t.lines, lineHeight: t.lineHeight, before: i ? t.y - (texts[i - 1].y + texts[i - 1].h) : 0})),
+    };
+    for (const t of texts) items.splice(items.indexOf(t), 1);
+    items.push(merged);
+  }
+}
 
 const GIF_SCALE = 0.6; // the GIF is drawn at 60 % of the slide's pixels: sharp enough, a fraction of the size
 const GIF_STEP = 2; // every second frame: 15 pictures per second
@@ -607,16 +633,51 @@ async function animation(s, headBottom) {
 const stage = await openStage(dir, gifScenes.size ? {extra: {pages: GIF_TABS, scale: GIF_SCALE}} : {});
 const counts = {text: 0, box: 0, line: 0, poly: 0, ellipse: 0, raster: 0};
 try {
+  // Without the caption the lower part of a slide stays empty: the body (everything below the heading) moves down to
+  // the middle of the free space; kicker and title keep their place. The shift is one for all slides of a scene,
+  // taken from the body of all its stops (and, for animated ones, the moments in between), so that a box keeps its
+  // place from slide to slide.
+  const spans = new Map();
+  for (const s of slides) {
+    const page = await stage.show(s.frame);
+    if (s.caption) await page.evaluate(hideTexts, [s.caption]);
+    const {items} = await page.evaluate(collect);
+    const head = headerEnd(items);
+    const q = spans.get(s.id) ?? {head: 0, top: Infinity, bottom: -Infinity};
+    q.head = Math.max(q.head, head);
+    for (const it of items.filter((x) => !x.header)) {
+      const [t, b] = spanOf(it);
+      q.top = Math.min(q.top, t);
+      q.bottom = Math.max(q.bottom, b);
+    }
+    if (s.gif) {
+      for (let k = 0; k <= 6; k++) {
+        const pg = await stage.show(Math.round(s.gif.from + ((s.gif.to - s.gif.from) * k) / 6));
+        await pg.evaluate(hideTexts, s.gif.captions);
+        const r = await pg.evaluate(paintedBox, head + 4);
+        if (r) {
+          q.top = Math.min(q.top, r.y);
+          q.bottom = Math.max(q.bottom, r.y + r.h);
+        }
+      }
+    }
+    spans.set(s.id, q);
+  }
+  const shiftOf = (id) => {
+    const q = spans.get(id);
+    return q && q.top < Infinity ? centre(q.head, q.top, q.bottom) : 0;
+  };
+
   for (const [i, s] of slides.entries()) {
     const page = await stage.show(s.frame);
     // the caption becomes the notes of the slide, not part of the picture
     if (s.caption) await page.evaluate(hideTexts, [s.caption]);
+    let cards = await page.evaluate(markCards, HEADER);
     const {items, hasBg} = await page.evaluate(collect);
     const slide = pptx.addSlide();
     slide.background = hasBg ? {data: await pictureOf(page, '[data-sp-bg]', null, {transparent: false, withContent: false})} : {color: bgColor};
-    // without the caption the lower part of the slide stays empty: the body (everything below the heading) moves down
-    // to the middle of the free space; kicker and title keep their place
-    let dy = bodyShift(items);
+    headerEnd(items);
+    const dy = shiftOf(s.id);
     // an animated slide: kicker, title and the cards (boxes with text) as editable objects in the state of this stop,
     // the drawing below the heading as one animated GIF
     if (s.gif) {
@@ -627,20 +688,16 @@ try {
         // pictures find their elements, and keep the heading and what lies in the cards
         await stage.show(s.frame);
         if (s.caption) await page.evaluate(hideTexts, [s.caption]);
-        const cards = await page.evaluate(markCards, head + 4);
+        cards = await page.evaluate(markCards, head + 4);
         const again = (await page.evaluate(collect)).items;
         headerEnd(again);
         items.length = 0;
         items.push(...again.filter((it) => it.header || inCard(it, cards)));
-        // GIF and cards move down together
-        const body = items.filter((it) => !it.header);
-        const top = Math.min(anim.y, ...body.map((it) => spanOf(it)[0]));
-        const bottom = Math.max(anim.y + anim.h, ...body.map((it) => spanOf(it)[1]));
-        dy = centre(head, top, bottom);
         slide.addImage({data: anim.data, x: IN(anim.x), y: IN(anim.y + dy), w: IN(anim.w), h: IN(anim.h)});
         counts.gif = (counts.gif ?? 0) + 1;
       }
     }
+    mergeCardTexts(items, cards);
     for (const it of items) {
       counts[it.kind] = (counts[it.kind] ?? 0) + 1;
       if (!it.header && dy) {
@@ -683,38 +740,47 @@ try {
         ]);
         slide.addShape('custGeom', {x: IN(x0), y: IN(y0), w: IN(w), h: IN(h), points, fill: fillOf(it), line: lineOf(it)});
       } else if (it.kind === 'text') {
+        // one paragraph, or several for the merged texts of a card (see mergeCardTexts)
+        const paras = it.paras ?? [{runs: it.runs, lines: it.lines, lineHeight: it.lineHeight, before: 0}];
         const runs = [];
-        for (const r of it.runs) {
-          if (r.br) {
-            if (runs.length) runs[runs.length - 1].options.breakLine = true;
-            continue;
-          }
-          const parts = r.text.split('\n');
-          parts.forEach((t, k) => {
-            runs.push({
-              text: t,
-              options: {
-                fontSize: Math.max(1, Math.round(PT(r.size) * 10) / 10),
-                color: r.color,
-                bold: r.bold,
-                italic: r.italic,
-                fontFace: r.mono ? 'Menlo' : r.font,
-                transparency: tr(r.alpha),
-                ...(r.spacing ? {charSpacing: Math.round(PT(r.spacing) * 10) / 10} : {}),
-                ...(k < parts.length - 1 ? {breakLine: true} : {}),
-              },
+        for (const [pi, para] of paras.entries()) {
+          const first = runs.length;
+          for (const r of para.runs) {
+            if (r.br) {
+              if (runs.length > first) runs[runs.length - 1].options.breakLine = true;
+              continue;
+            }
+            const parts = r.text.split('\n');
+            parts.forEach((t, k) => {
+              runs.push({
+                text: t,
+                options: {
+                  fontSize: Math.max(1, Math.round(PT(r.size) * 10) / 10),
+                  color: r.color,
+                  bold: r.bold,
+                  italic: r.italic,
+                  fontFace: r.mono ? 'Menlo' : r.font,
+                  transparency: tr(r.alpha),
+                  ...(r.spacing ? {charSpacing: Math.round(PT(r.spacing) * 10) / 10} : {}),
+                  ...(k < parts.length - 1 ? {breakLine: true} : {}),
+                },
+              });
             });
-          });
+          }
+          if (runs.length === first) continue;
+          // the space above goes with the first run; the line spacing with all (a <br> starts a paragraph of its own)
+          if (para.before > 0.5) runs[first].options.paraSpaceBefore = Math.round(PT(para.before) * 10) / 10;
+          if (para.lineHeight && para.lines > 1) for (const r of runs.slice(first)) r.options.lineSpacing = PT(para.lineHeight);
+          if (pi < paras.length - 1) runs[runs.length - 1].options.breakLine = true;
         }
         if (!runs.length) continue;
         // fonts in PowerPoint run a little wider than in the browser: give the box some room, so that it does not
-        // break lines the slide did not break
-        const extra = it.lines > 1 ? it.w * 0.08 : it.w * 0.12 + 8;
+        // break lines the slide did not break (a merged box already spans its card)
+        const extra = it.merged ? 0 : it.lines > 1 ? it.w * 0.08 : it.w * 0.12 + 8;
         const x = it.align === 'center' ? it.x - extra / 2 : it.align === 'right' ? it.x - extra : it.x;
         slide.addText(runs, {
           x: IN(x), y: IN(it.y), w: IN(it.w + extra), h: IN(it.h),
-          align: it.align, valign: 'top', margin: 0, fit: 'none', wrap: true, isTextBox: true,
-          ...(it.lineHeight && it.lines > 1 ? {lineSpacing: PT(it.lineHeight)} : {}),
+          align: it.align, valign: it.valign ?? 'top', margin: 0, fit: 'none', wrap: true, isTextBox: true,
         });
       }
     }

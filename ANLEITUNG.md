@@ -401,7 +401,10 @@ Bildschirmfotos, sondern aus einzelnen Objekten nachgebaut, die sich in PowerPoi
 | Untertitel | Notizen der Folie (dazu der Name der Szene) |
 
 Weil der Untertitel unten wegfällt, rückt alles unter der Überschrift in die Mitte des freien Raums; Dachzeile und
-Titel bleiben oben.
+Titel bleiben oben. Die Verschiebung ist für alle Folien einer Szene gleich, damit nichts von Folie zu Folie springt.
+Die untereinanderstehenden Texte einer Karte (etwa „Trizeps / Agonist / zieht sich zusammen“) werden ein einziges
+Textfeld, das genau auf der Karte liegt; es steht auf jeder Folie an derselben Stelle, auch wenn die Karte mal zwei,
+mal drei Zeilen hat.
 
 **Animierte Folien (GIF).** Wo die Bewegung wichtig ist – ein Arm, der sich beugt, ein Signal, das läuft –, setzt man
 im Präsentator rechts bei der Folie das Häkchen **„In PowerPoint animiert (GIF)“** (gespeichert als `pptxGif` in
