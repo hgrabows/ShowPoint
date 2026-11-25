@@ -73,8 +73,8 @@ const MSG = {
     plantumlLabel: 'PlantUML zeichnen',
     undone: 'Rückgängig gemacht: der Inhalt ist wieder auf dem Stand vor diesem Umbau.',
     beforeRestore: 'Stand vor dem Wiederherstellen',
-    noPdf: 'Noch kein PDF erzeugt.',
-    pdfFailed: (code: number | null) => `PDF-Export fehlgeschlagen (Code ${code}).`,
+    noExport: 'Noch nichts exportiert.',
+    exportFailed: (what: string, code: number | null) => `${what}-Export fehlgeschlagen (Code ${code}).`,
     saveLocked: 'Umbau läuft – Speichern ist so lange gesperrt.',
     badContent: 'Ungültiger Inhalt.',
     switchLocked: 'Umbau läuft – erst danach lässt sich die Präsentation wechseln.',
@@ -146,8 +146,8 @@ const MSG = {
     plantumlLabel: 'Draw PlantUML',
     undone: 'Undone: the content is back to the state before this rebuild.',
     beforeRestore: 'State before restoring',
-    noPdf: 'No PDF created yet.',
-    pdfFailed: (code: number | null) => `PDF export failed (code ${code}).`,
+    noExport: 'Nothing exported yet.',
+    exportFailed: (what: string, code: number | null) => `${what} export failed (code ${code}).`,
     saveLocked: 'Rebuild in progress – saving is locked until it finishes.',
     badContent: 'Invalid content.',
     switchLocked: 'Rebuild in progress – the presentation can be switched once it has finished.',
@@ -1904,12 +1904,18 @@ function undoRebuild(lang: Lang) {
   return true;
 }
 
-// PDF export: starts scripts/pdf.mjs (one page per stop) and remembers progress and result.
-const pdfJob = {running: false, progress: 0, file: '', error: '', startedAt: 0, lang: 'de' as Lang};
-function startPdf(lang: Lang) {
-  if (pdfJob.running) return;
-  Object.assign(pdfJob, {running: true, progress: 0, file: '', error: '', startedAt: Date.now(), lang});
-  const child = spawn(process.execPath, ['scripts/pdf.mjs'], {cwd: process.cwd(), env: {...process.env, INHALT: inhaltRel}});
+// Export as PDF (scripts/pdf.mjs, one page per stop) or PowerPoint (scripts/pptx.mjs, the slides rebuilt from single
+// objects): runs the script and remembers progress and result.
+type ExportKind = 'pdf' | 'pptx';
+const exportJobs: Record<ExportKind, {running: boolean; progress: number; file: string; error: string; startedAt: number; lang: Lang}> = {
+  pdf: {running: false, progress: 0, file: '', error: '', startedAt: 0, lang: 'de'},
+  pptx: {running: false, progress: 0, file: '', error: '', startedAt: 0, lang: 'de'},
+};
+function startExport(kind: ExportKind, lang: Lang) {
+  const job = exportJobs[kind];
+  if (job.running) return;
+  Object.assign(job, {running: true, progress: 0, file: '', error: '', startedAt: Date.now(), lang});
+  const child = spawn(process.execPath, [`scripts/${kind}.mjs`], {cwd: process.cwd(), env: {...process.env, INHALT: inhaltRel}});
   let err = '';
   let buf = '';
   child.stdout.on('data', (c) => {
@@ -1918,14 +1924,14 @@ function startPdf(lang: Lang) {
     buf = lines.pop() ?? '';
     for (const l of lines) {
       const m = l.match(/^PROGRESS (\d+)/);
-      if (m) pdfJob.progress = Number(m[1]);
-      if (l.startsWith('DONE ')) pdfJob.file = l.slice(5).trim();
+      if (m) job.progress = Number(m[1]);
+      if (l.startsWith('DONE ')) job.file = l.slice(5).trim();
     }
   });
   child.stderr.on('data', (c) => (err = (err + c).slice(-4000)));
   child.on('close', (code) => {
-    pdfJob.running = false;
-    if (code !== 0 || !pdfJob.file) pdfJob.error = err.trim().split('\n').slice(-6).join('\n') || MSG[pdfJob.lang].pdfFailed(code);
+    job.running = false;
+    if (code !== 0 || !job.file) job.error = err.trim().split('\n').slice(-6).join('\n') || MSG[job.lang].exportFailed(kind === 'pdf' ? 'PDF' : 'PowerPoint', code);
   });
 }
 
@@ -1944,28 +1950,34 @@ export default defineConfig({
     {
       name: 'content-api',
       configureServer(server) {
-        server.middlewares.use('/api/pdf', (req, res) => {
-          const t = MSG[langOf(req)];
-          if (req.url?.startsWith('/file')) {
-            if (!pdfJob.file || !fs.existsSync(pdfJob.file)) {
-              res.statusCode = 404;
-              return res.end(t.noPdf);
+        // /api/pdf and /api/pptx: POST starts the export, GET reports progress, /file delivers the result
+        for (const kind of ['pdf', 'pptx'] as const) {
+          server.middlewares.use(`/api/${kind}`, (req, res) => {
+            const t = MSG[langOf(req)];
+            const job = exportJobs[kind];
+            if (req.url?.startsWith('/file')) {
+              if (!job.file || !fs.existsSync(job.file)) {
+                res.statusCode = 404;
+                return res.end(t.noExport);
+              }
+              const name = encodeURIComponent(path.basename(job.file));
+              res.setHeader('Content-Type', kind === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+              // the PDF opens in the browser, the PowerPoint file is downloaded
+              res.setHeader('Content-Disposition', `${kind === 'pdf' ? 'inline' : 'attachment'}; filename*=UTF-8''${name}`);
+              return fs.createReadStream(job.file).pipe(res);
             }
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(path.basename(pdfJob.file))}`);
-            return fs.createReadStream(pdfJob.file).pipe(res);
-          }
-          if (req.method === 'POST') {
-            if (!hasInhalt()) {
-              res.statusCode = 404;
-              return res.end(t.noPresentation);
+            if (req.method === 'POST') {
+              if (!hasInhalt()) {
+                res.statusCode = 404;
+                return res.end(t.noPresentation);
+              }
+              startExport(kind, langOf(req));
             }
-            startPdf(langOf(req));
-          }
-          res.setHeader('Content-Type', 'application/json');
-          const {lang: _lang, ...status} = pdfJob;
-          res.end(JSON.stringify(status));
-        });
+            res.setHeader('Content-Type', 'application/json');
+            const {lang: _lang, ...status} = job;
+            res.end(JSON.stringify(status));
+          });
+        }
 
         server.middlewares.use('/api/content', (req, res) => {
           const t = MSG[langOf(req)];

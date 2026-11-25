@@ -18,6 +18,8 @@ export type SceneContent = {
   stops: number[];
   /** Sections skipped when advancing ("jump"), given by their first frame: 0 or one of the stops. */
   skip?: number[];
+  /** PowerPoint export: the part below the heading becomes an animated GIF (one per stop) instead of single objects. */
+  pptxGif?: boolean;
   t: Record<string, string>;
   lists: Record<string, string[]>;
 };

@@ -65,6 +65,8 @@ textarea:focus,input:focus{outline:none;border-color:#8b6cff}
 .cap{display:flex;gap:8px;margin-bottom:8px}
 .cap input{width:74px;flex-shrink:0;height:36px}
 .hint{color:#9aa6c7;font-size:12px;line-height:1.5}
+label.chk{display:flex;align-items:center;gap:8px;cursor:pointer;color:#c9d1ec;font-size:13px;margin-top:10px}
+label.chk input{width:auto;margin:0;accent-color:#8b6cff}
 .pres{margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #2e3a63}
 .pres label{margin-top:0}
 .pres-rm{margin-top:8px;margin-right:6px;padding:5px 10px;font-size:12px}
@@ -167,19 +169,22 @@ const App: React.FC = () => {
   const [asking, setAsking] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [rbDraft, setRbDraft] = useState<{text: string; n: number} | null>(null);
-  const [pdf, setPdf] = useState<{running: boolean; progress: number; file: string; error: string} | null>(null);
-  const pdfExport = useCallback(async () => {
-    if (pdf?.running) return;
-    let st = await fetch('/api/pdf', {method: 'POST'}).then((r) => (r.ok ? r.json() : r.text().then((t) => ({running: false, progress: 0, file: '', error: t}))));
-    setPdf(st);
+  type ExportState = {running: boolean; progress: number; file: string; error: string};
+  const [exports, setExports] = useState<{pdf?: ExportState; pptx?: ExportState}>({});
+  const exportAs = useCallback(async (kind: 'pdf' | 'pptx') => {
+    if (exports[kind]?.running) return;
+    const set = (st: ExportState) => setExports((e) => ({...e, [kind]: st}));
+    let st: ExportState = await fetch(`/api/${kind}`, {method: 'POST'}).then((r) => (r.ok ? r.json() : r.text().then((t) => ({running: false, progress: 0, file: '', error: t}))));
+    set(st);
     while (st.running) {
       await new Promise((r) => setTimeout(r, 1000));
-      st = await fetch('/api/pdf').then((r) => r.json());
-      setPdf(st);
+      st = await fetch(`/api/${kind}`).then((r) => r.json());
+      set(st);
     }
-    if (st.error) window.alert(T.pdfFailed(st.error));
-    else if (st.file) window.open('/api/pdf/file', '_blank');
-  }, [pdf?.running]);
+    if (st.error) window.alert(T.exportFailed(kind === 'pdf' ? 'PDF' : 'PowerPoint', st.error));
+    else if (st.file && kind === 'pdf') window.open('/api/pdf/file', '_blank');
+    else if (st.file) window.location.href = '/api/pptx/file'; // a download, the page stays
+  }, [exports]);
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
   creatingRef.current = creating;
@@ -989,12 +994,11 @@ const App: React.FC = () => {
             {onStop ? T.stopRemove : T.stopAdd}
           </button>
           <button onClick={fullscreen}>{T.fullscreen}</button>
-          <button
-            onClick={pdfExport}
-            disabled={pdf?.running}
-            title={T.pdfTitle}
-          >
-            {pdf?.running ? `PDF … ${pdf.progress} %` : '⤓ PDF'}
+          <button onClick={() => exportAs('pdf')} disabled={exports.pdf?.running} title={T.pdfTitle}>
+            {exports.pdf?.running ? `PDF … ${exports.pdf.progress} %` : '⤓ PDF'}
+          </button>
+          <button onClick={() => exportAs('pptx')} disabled={exports.pptx?.running} title={T.pptxTitle}>
+            {exports.pptx?.running ? `PowerPoint … ${exports.pptx.progress} %` : '⤓ PowerPoint'}
           </button>
           <button onClick={openAsk}>{T.askSlide}</button>
           <button
@@ -1070,6 +1074,17 @@ const App: React.FC = () => {
 
         <label>{T.shortName}</label>
         <input value={sc.name ?? ''} onChange={(e) => scene((s) => (s.name = e.target.value))} />
+        <label className="chk" title={T.pptxGifHint}>
+          <input
+            type="checkbox"
+            checked={!!sc.pptxGif}
+            onChange={(e) => scene((s) => {
+              if (e.target.checked) s.pptxGif = true;
+              else delete s.pptxGif;
+            })}
+          />
+          {T.pptxGif}
+        </label>
 
         {sc.title !== undefined ? (
           <>

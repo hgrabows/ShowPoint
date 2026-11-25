@@ -30,10 +30,30 @@ async function launchBrowser() {
 }
 
 /**
- * @param {string} dir  presentation folder (contains src/Video.tsx and src/content.json)
- * @param {{scale?: number, pages?: number}} [opts]  scale of the 1920×1080 stage; pages = parallel browser tabs
+ * Runs in the page: hides the elements that show exactly one of the given texts. A caption hides with its box (the
+ * parent that has a background), a title or kicker only itself. Texts are compared without surrounding white space.
  */
-export async function openStage(dir, {scale = 1, pages = 1} = {}) {
+export function hideTexts(texts) {
+  const wanted = new Set(texts.map((t) => String(t).replace(/\s+/g, ' ').trim()).filter(Boolean));
+  const norm = (el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+  for (const el of document.querySelectorAll('#root *')) {
+    if (!wanted.has(norm(el))) continue;
+    // the innermost element with this text: none of its children carries the same text
+    if ([...el.children].some((c) => norm(c) === norm(el))) continue;
+    let target = el;
+    const parent = el.parentElement;
+    if (parent && norm(parent) === norm(el) && getComputedStyle(parent).backgroundColor !== 'rgba(0, 0, 0, 0)') target = parent;
+    target.style.visibility = 'hidden';
+  }
+}
+
+/**
+ * @param {string} dir  presentation folder (contains src/Video.tsx and src/content.json)
+ * @param {{scale?: number, pages?: number, extra?: {pages: number, scale: number}}} [opts]  scale of the 1920×1080
+ *   stage; pages = parallel browser tabs; extra = more tabs at another scale in the same browser (they come after the
+ *   others, so their numbers start at `pages`) – one renderer instead of two, which get in each other's way
+ */
+export async function openStage(dir, {scale = 1, pages = 1, extra = null} = {}) {
   const src = path.join(dir, 'src');
   for (const f of ['Video.tsx', 'content.json']) {
     if (!fs.existsSync(path.join(src, f))) throw new Error(`${path.join(src, f)} is missing – is ${dir} a presentation folder?`);
@@ -66,16 +86,16 @@ export async function openStage(dir, {scale = 1, pages = 1} = {}) {
     ],
   });
   await server.listen();
-  const url = `${server.resolvedUrls.local[0]}?scale=${scale}`;
+  const urlAt = (sc) => `${server.resolvedUrls.local[0]}?scale=${sc}`;
 
   let browser;
   try {
     browser = await launchBrowser();
-    const width = Math.round(1920 * scale);
-    const height = Math.round(1080 * scale);
+    const scales = [...Array(Math.max(1, pages)).fill(scale), ...Array(extra?.pages ?? 0).fill(extra?.scale ?? scale)];
     const tabs = await Promise.all(
-      Array.from({length: Math.max(1, pages)}, async () => {
-        const page = await browser.newPage({viewport: {width, height}, deviceScaleFactor: 1});
+      scales.map(async (sc) => {
+        const url = urlAt(sc);
+        const page = await browser.newPage({viewport: {width: Math.round(1920 * sc), height: Math.round(1080 * sc)}, deviceScaleFactor: 1});
         const problems = [];
         page.on('pageerror', (e) => problems.push(String(e.message)));
         page.on('console', (m) => m.type() === 'error' && problems.push(m.text()));
@@ -91,9 +111,13 @@ export async function openStage(dir, {scale = 1, pages = 1} = {}) {
 
     return {
       durationInFrames,
-      /** Picture of one frame as JPEG; `tab` picks one of the parallel pages. */
-      async shot(frame, file, {quality = 90, tab} = {}) {
-        const t = tabs[tab ?? next++ % tabs.length];
+      /**
+       * Picture of one frame (JPEG, or PNG with type 'png'); `tab` picks one of the parallel pages. `hide`: texts
+       * whose elements are made invisible before the picture (for the PowerPoint export: title and caption become
+       * text of their own there).
+       */
+      async shot(frame, file, {quality = 90, tab, type = 'jpeg', hide = []} = {}) {
+        const t = tabs[tab ?? next++ % Math.max(1, pages)];
         t.problems.length = 0;
         try {
           await t.page.evaluate((f) => window.showFrame(f), frame);
@@ -101,9 +125,22 @@ export async function openStage(dir, {scale = 1, pages = 1} = {}) {
           const msg = String(e.message).replace(/^page\.evaluate: (Error: )?/, '').split('\n')[0];
           throw new Error(msg + (t.problems.length ? `\n${t.problems.join('\n')}` : ''));
         }
-        await t.page.screenshot({path: file, type: 'jpeg', quality});
+        if (hide.length) await t.page.evaluate(hideTexts, hide);
+        await t.page.screenshot({path: file, type, ...(type === 'jpeg' ? {quality} : {})});
       },
-      pages: tabs.length,
+      /** Shows one frame and returns the page itself (for the PowerPoint export, which reads the elements). */
+      async show(frame, {tab = 0} = {}) {
+        const t = tabs[tab];
+        t.problems.length = 0;
+        try {
+          await t.page.evaluate((f) => window.showFrame(f), frame);
+        } catch (e) {
+          const msg = String(e.message).replace(/^page\.evaluate: (Error: )?/, '').split('\n')[0];
+          throw new Error(msg + (t.problems.length ? `\n${t.problems.join('\n')}` : ''));
+        }
+        return t.page;
+      },
+      pages: Math.max(1, pages),
       async close() {
         await browser.close().catch(() => {});
         await server.close();

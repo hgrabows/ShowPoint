@@ -27,6 +27,9 @@ pause at stops, answer questions about what is on screen – and can be rebuilt 
 - **Edit texts and timing** – captions, titles, lists, durations and stops are edited live in the side panel.
 - **Export to PDF** – one page per stop, exactly as the presenter pauses there (button „⤓ PDF“ or `npm run pdf`);
   handy as a handout.
+- **Export to PowerPoint** – one slide per stop, rebuilt from single objects (text boxes, shapes, lines with arrow heads,
+  pictures for diagrams, formulas and 3D), captions in the notes (button „⤓ PowerPoint“ or `npm run pptx`); chosen
+  slides with their drawing as animated GIFs that play each step once (texts and cards stay editable).
 - **Render to video** – `npm run render` produces an MP4 of the chosen presentation.
 - **German or English** – switch the interface between DE and EN in the top bar; the AI answers in that
   language, and new presentations start from the matching template and prompt.
@@ -62,6 +65,9 @@ cd ShowPoint
 npm install
 npm run edit
 ```
+
+To update later, run `git pull` and then `npm install` again in the ShowPoint folder – new versions can bring new
+packages (for example for the PowerPoint export), and without `npm install` they are missing.
 
 The presenter opens in your browser at <http://localhost:5173>; choose or create a presentation at the top right. A starting skeleton lives in
 [`vorlage/`](vorlage/) (English texts in [`vorlage/en/`](vorlage/en/)). See [GUIDE.md](GUIDE.md) for details.

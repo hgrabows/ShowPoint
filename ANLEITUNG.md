@@ -32,6 +32,9 @@ npm install
 npm run edit
 ```
 
+**Aktualisieren:** im ShowPoint-Ordner `git pull` und danach wieder `npm install`. Neue Versionen können neue Pakete
+mitbringen (etwa für den PowerPoint-Export); ohne `npm install` fehlen sie und der Start oder Export bricht ab.
+
 Der Präsenter öffnet sich dann selbst im Standardbrowser unter <http://localhost:5173> (ohne Browser:
 `BROWSER=none npm run edit`). Der Port ist fest; läuft dort schon ein anderer Editor, bricht der Start ab –
 den anderen zuerst beenden. Ist noch keine Präsentation gewählt, zeigt die Seite nur die Auswahl.
@@ -375,6 +378,52 @@ npm run pdf
 Erzeugt `out/<titel>.pdf` im Ordner der Präsentation: **eine Seite je Haltepunkt**, genau das Bild, bei dem der
 Präsentator dort anhält (mit Untertitel), dazu das Schlussbild. Gut als Handout oder zum Nachlesen; dauert etwa
 eine halbe Minute.
+
+## Als PowerPoint ausgeben
+
+Knopf „⤓ PowerPoint“ im Präsentator, oder im Terminal:
+
+```bash
+npm run pptx
+```
+
+Erzeugt `out/<titel>.pptx` im Ordner der Präsentation, **eine Folie je Haltepunkt**. Die Folien sind keine
+Bildschirmfotos, sondern aus einzelnen Objekten nachgebaut, die sich in PowerPoint verschieben und ändern lassen:
+
+| auf der Folie | in PowerPoint |
+|---|---|
+| Titel, Beschriftungen, Text in Kästen | Textfelder (Größe, Farbe, fett, Großbuchstaben) |
+| Kästen | Formen mit Füllung, Rahmen und runden Ecken |
+| Pfeile und Linien | Linien mit Pfeilspitze |
+| Flächen, Kurven, Balken und Linien der Diagramme | Formen bzw. freie Formen |
+| Mermaid-Diagramme, Formeln, Bilder, 3D | je eine eigene, freigestellte Grafik |
+| Hintergrund (Verlauf) | Folienhintergrund |
+| Untertitel | Notizen der Folie (dazu der Name der Szene) |
+
+Weil der Untertitel unten wegfällt, rückt alles unter der Überschrift in die Mitte des freien Raums; Dachzeile und
+Titel bleiben oben.
+
+**Animierte Folien (GIF).** Wo die Bewegung wichtig ist – ein Arm, der sich beugt, ein Signal, das läuft –, setzt man
+im Präsentator rechts bei der Folie das Häkchen **„In PowerPoint animiert (GIF)“** (gespeichert als `pptxGif` in
+`content.json`). Dann wird bei dieser Folie die Zeichnung unter der Überschrift zu animierten GIFs: **je Haltepunkt eines**,
+das die Bewegung vom vorigen Haltepunkt bis hierher einmal abspielt und dann stehen bleibt – wie ein Klick im
+Präsentator. Dachzeile und Titel bleiben Textfelder, der Untertitel steht in den Notizen. **Karten** – Kästen mit Text
+wie „Bizeps / Agonist“ oder „Koordination“, samt dem, was darin gezeichnet ist – bleiben bearbeitbare Formen und
+Textfelder im Stand des jeweiligen Haltepunkts; ins GIF kommt nur die Zeichnung (Arm, Gehirn, Nervenbahn mit ihren
+Beschriftungen). Das GIF hat keinen eigenen
+Hintergrund (durchsichtig, Kanten gegen den Folienhintergrund geglättet), es fügt sich ohne Rand ein. PowerPoint
+spielt es in der Bildschirmpräsentation ab; im Bearbeitungsmodus und im PDF sieht man nur das erste Bild.
+Ohne Häkchen bleibt die ganze Folie aus einzelnen, bearbeitbaren Objekten – im GIF selbst lässt sich nichts ändern. Im
+Terminal geht es auch ohne Häkchen: `npm run pptx -- --gif agonist,nerven` (die Kennungen der Szenen aus `order`).
+Ein GIF kostet einige hundert KB bis knapp 2 MB, der Export dauert damit etwas länger (bei 12 GIFs etwa eine Minute).
+
+Weitere Optionen: `npm run pptx -- --szenen` macht nur eine Folie je Szene (ihr letzter Haltepunkt), `npm run pptx --
+--out <datei>` speichert anderswo. Dauert wenige Sekunden bis etwa eine Minute.
+
+Grenzen: Animationen und Übergänge werden nicht übernommen – jede Folie zeigt den Stand am Haltepunkt. PowerPoint
+setzt Schrift etwas anders als der Browser; Textfelder sind darum etwas breiter angelegt, ein Umbruch kann trotzdem
+anders fallen. Schatten und Leuchteffekte fehlen. Fehlt die Schrift der Präsentation auf dem Rechner, ersetzt
+PowerPoint sie (die Systemschrift des Macs wird als „Helvetica Neue“ eingetragen).
 
 ## Stolpersteine
 

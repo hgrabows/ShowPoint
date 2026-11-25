@@ -31,6 +31,9 @@ npm install
 npm run edit
 ```
 
+**Updating:** in the ShowPoint folder run `git pull` and then `npm install` again. New versions can bring new
+packages (for example for the PowerPoint export); without `npm install` they are missing and the start or export fails.
+
 The presenter then opens by itself in the default browser at <http://localhost:5173> (without browser:
 `BROWSER=none npm run edit`). The port is fixed; if another editor is already running there, startup aborts –
 stop the other one first. If no presentation has been chosen yet, the page only shows the selection.
@@ -371,6 +374,51 @@ npm run pdf
 Creates `out/<title>.pdf` in the presentation's folder: **one page per stop**, exactly the picture at which the
 presenter pauses there (with caption), plus the final picture. Good as a handout or for reading later; takes about
 half a minute.
+
+## Output as PowerPoint
+
+The "⤓ PowerPoint" button in the presenter, or in the terminal:
+
+```bash
+npm run pptx
+```
+
+Creates `out/<title>.pptx` in the presentation's folder, **one slide per stop**. The slides are not screenshots but
+rebuilt from single objects that can be moved and changed in PowerPoint:
+
+| on the slide | in PowerPoint |
+|---|---|
+| title, labels, text in boxes | text boxes (size, colour, bold, capitals) |
+| boxes | shapes with fill, frame and round corners |
+| arrows and lines | lines with arrow heads |
+| areas, curves, bars and lines of charts | shapes or freeform shapes |
+| Mermaid diagrams, formulas, pictures, 3D | one transparent picture each |
+| background (gradient) | slide background |
+| caption | notes of the slide (with the scene's name) |
+
+As the caption at the bottom is gone, everything below the heading moves to the middle of the free space; kicker and
+title stay at the top.
+
+**Animated slides (GIF).** Where the movement matters – an arm that bends, a signal that travels –, tick
+**"Animated in PowerPoint (GIF)"** at the slide in the presenter's side panel (stored as `pptxGif` in `content.json`).
+Then the drawing below this slide's heading becomes animated GIFs: **one per stop**, playing the movement from the stop
+before to this one once and then holding – like a click in the presenter. Kicker and title stay text boxes, the
+caption is in the notes. **Cards** – boxes with text such as "Biceps / Agonist" or "Coordination", together with what
+is drawn inside them – stay editable shapes and text boxes in the state of the stop; only the drawing (arm, brain,
+nerve path with their labels) goes into the GIF. The GIF has no background of its own (transparent, edges smoothed against the slide
+background), so it fits in without an edge. PowerPoint plays it in the slide show; in editing mode and in
+a PDF only the first picture is seen. Without the tick the whole slide stays built from single objects that can be edited –
+nothing inside a GIF can be changed. In the terminal it works without the tick too: `npm run pptx -- --gif agonist,nerven`
+(the scene ids from `order`). A GIF takes a few hundred KB up to about 2 MB, and the export takes a little longer
+(about a minute with 12 GIFs).
+
+More options: `npm run pptx -- --scenes` makes only one slide per scene (its last stop), `npm run pptx -- --out <file>`
+saves elsewhere. Takes a few seconds up to about a minute.
+
+Limits: animations and transitions are not taken over – each slide shows the state at its stop. PowerPoint sets type
+a little differently from the browser; text boxes are therefore a bit wider, a line may still break elsewhere.
+Shadows and glows are missing. If the presentation's font is not on the computer, PowerPoint replaces it (the Mac's
+system font is entered as "Helvetica Neue").
 
 ## Pitfalls
 
