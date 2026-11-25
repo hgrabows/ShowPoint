@@ -88,7 +88,9 @@ select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;bord
 .libs-k{flex:none;width:7.5em;color:#5d6a92}
 .libs-warn{color:#ffb020}
 .libs-hint{margin-top:6px;color:#5d6a92}
-.libs.vers,.libs.design{margin-top:10px}
+.libs.vers,.libs.design,.libs.export{margin-top:10px}
+.export-row{display:flex;align-items:center;gap:10px;margin-top:8px;line-height:1.35}
+.export-row button{flex:none;min-width:9.5em}
 .vers-row{display:flex;align-items:center;gap:8px;margin-top:5px}
 .vers-when{flex:none;width:7.5em;color:#5d6a92;font-variant-numeric:tabular-nums}
 .vers-what{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -994,12 +996,6 @@ const App: React.FC = () => {
             {onStop ? T.stopRemove : T.stopAdd}
           </button>
           <button onClick={fullscreen}>{T.fullscreen}</button>
-          <button onClick={() => exportAs('pdf')} disabled={exports.pdf?.running} title={T.pdfTitle}>
-            {exports.pdf?.running ? `PDF … ${exports.pdf.progress} %` : '⤓ PDF'}
-          </button>
-          <button onClick={() => exportAs('pptx')} disabled={exports.pptx?.running} title={T.pptxTitle}>
-            {exports.pptx?.running ? `PowerPoint … ${exports.pptx.progress} %` : '⤓ PowerPoint'}
-          </button>
           <button onClick={openAsk}>{T.askSlide}</button>
           <button
             className="fix-rb"
@@ -1212,6 +1208,23 @@ const App: React.FC = () => {
             })
           }
         />
+        {/* not needed during the talk: folded away at the bottom of the panel */}
+        <details className="libs export">
+          <summary>{exports.pdf?.running || exports.pptx?.running ? T.exportRunning : T.exportSummary}</summary>
+          <div className="export-row">
+            <button onClick={() => exportAs('pdf')} disabled={exports.pdf?.running} title={T.pdfTitle}>
+              {exports.pdf?.running ? `PDF … ${exports.pdf.progress} %` : '⤓ PDF'}
+            </button>
+            <span>{T.pdfShort}</span>
+          </div>
+          <div className="export-row">
+            <button onClick={() => exportAs('pptx')} disabled={exports.pptx?.running} title={T.pptxTitle}>
+              {exports.pptx?.running ? `PowerPoint … ${exports.pptx.progress} %` : '⤓ PowerPoint'}
+            </button>
+            <span>{T.pptxShort}</span>
+          </div>
+          <div className="libs-hint">{T.exportWhere}</div>
+        </details>
       </div>
     </div>
   );

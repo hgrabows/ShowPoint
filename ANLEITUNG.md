@@ -369,7 +369,7 @@ Braucht Google Chrome und `ffmpeg` (macOS: `brew install ffmpeg`). Gerendert wir
 
 ## Als PDF ausgeben
 
-Knopf „⤓ PDF“ im Präsentator, oder im Terminal:
+Knopf „⤓ PDF“ im Präsentator (rechts unten „Export“ aufklappen), oder im Terminal:
 
 ```bash
 npm run pdf
@@ -381,7 +381,7 @@ eine halbe Minute.
 
 ## Als PowerPoint ausgeben
 
-Knopf „⤓ PowerPoint“ im Präsentator, oder im Terminal:
+Knopf „⤓ PowerPoint“ im Präsentator (rechts unten „Export“ aufklappen), oder im Terminal:
 
 ```bash
 npm run pptx

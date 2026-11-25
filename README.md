@@ -25,10 +25,10 @@ pause at stops, answer questions about what is on screen – and can be rebuilt 
 - **Reorder and remove slides** – drag slides into a new order in the slide list, click to jump to one, remove a
   slide with 🗑 and restore it later.
 - **Edit texts and timing** – captions, titles, lists, durations and stops are edited live in the side panel.
-- **Export to PDF** – one page per stop, exactly as the presenter pauses there (button „⤓ PDF“ or `npm run pdf`);
+- **Export to PDF** – one page per stop, exactly as the presenter pauses there (button „⤓ PDF“ under „Export“ in the side panel, or `npm run pdf`);
   handy as a handout.
 - **Export to PowerPoint** – one slide per stop, rebuilt from single objects (text boxes, shapes, lines with arrow heads,
-  pictures for diagrams, formulas and 3D), captions in the notes (button „⤓ PowerPoint“ or `npm run pptx`); chosen
+  pictures for diagrams, formulas and 3D), captions in the notes (button „⤓ PowerPoint“ under „Export“, or `npm run pptx`); chosen
   slides with their drawing as animated GIFs that play each step once (texts and cards stay editable).
 - **Render to video** – `npm run render` produces an MP4 of the chosen presentation.
 - **German or English** – switch the interface between DE and EN in the top bar; the AI answers in that

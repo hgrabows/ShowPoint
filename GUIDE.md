@@ -365,7 +365,7 @@ Needs Google Chrome and `ffmpeg` (macOS: `brew install ffmpeg`). Frames are rend
 
 ## Output as PDF
 
-The "⤓ PDF" button in the presenter, or in the terminal:
+The "⤓ PDF" button in the presenter (side panel, bottom: fold out "Export"), or in the terminal:
 
 ```bash
 npm run pdf
@@ -377,7 +377,7 @@ half a minute.
 
 ## Output as PowerPoint
 
-The "⤓ PowerPoint" button in the presenter, or in the terminal:
+The "⤓ PowerPoint" button in the presenter (side panel, bottom: fold out "Export"), or in the terminal:
 
 ```bash
 npm run pptx
