@@ -223,6 +223,11 @@ const isLink = (p: string) => {
   }
 };
 
+// Link names removed while the presenter runs are not given out again until it restarts: the server keeps the files
+// it has loaded under their address (inhalte/<name>/src/…), so a new link with the old name would show the slides of
+// the removed folder (for example after copying a presentation, removing the old one and opening the copy).
+const retiredLinks = new Set<string>();
+
 /** Removes a linked presentation from the list: deletes only the symlink, never the files. */
 function removePresentation(dir: string, lang: Lang) {
   const target = path.resolve(root, dir);
@@ -231,6 +236,7 @@ function removePresentation(dir: string, lang: Lang) {
   }
   const wasCurrent = rel(target) === inhaltRel;
   fs.unlinkSync(target);
+  retiredLinks.add(path.basename(target));
   if (wasCurrent) {
     inhaltRel = fallback();
     saveChoice();
@@ -294,7 +300,7 @@ function linkFolder(r: string) {
   fs.mkdirSync(linksDir, {recursive: true});
   const base = path.basename(r).replace(/[^\w.-]+/g, '-') || 'praesentation';
   let name = base;
-  for (let n = 2; fs.existsSync(path.join(linksDir, name)) || isLink(path.join(linksDir, name)); n++) name = `${base}-${n}`;
+  for (let n = 2; fs.existsSync(path.join(linksDir, name)) || isLink(path.join(linksDir, name)) || retiredLinks.has(name); n++) name = `${base}-${n}`;
   fs.symlinkSync(r, path.join(linksDir, name), 'dir');
   return path.join(linksDir, name);
 }
