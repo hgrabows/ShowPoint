@@ -91,6 +91,9 @@ select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;bord
 .libs.vers,.libs.design,.libs.export{margin-top:10px}
 .export-row{display:flex;align-items:center;gap:10px;margin-top:8px;line-height:1.35}
 .export-row button{flex:none;min-width:9.5em}
+.export-gif{margin:2px 0 4px calc(9.5em + 10px)}
+.export-gif label.chk{margin-top:6px}
+.export-gif button.linkish{background:none;border:0;padding:0;margin:0;color:#a99bff;font-size:12px;cursor:pointer;text-decoration:underline;min-width:0}
 .vers-row{display:flex;align-items:center;gap:8px;margin-top:5px}
 .vers-when{flex:none;width:7.5em;color:#5d6a92;font-variant-numeric:tabular-nums}
 .vers-what{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1070,17 +1073,6 @@ const App: React.FC = () => {
 
         <label>{T.shortName}</label>
         <input value={sc.name ?? ''} onChange={(e) => scene((s) => (s.name = e.target.value))} />
-        <label className="chk" title={T.pptxGifHint}>
-          <input
-            type="checkbox"
-            checked={!!sc.pptxGif}
-            onChange={(e) => scene((s) => {
-              if (e.target.checked) s.pptxGif = true;
-              else delete s.pptxGif;
-            })}
-          />
-          {T.pptxGif}
-        </label>
 
         {sc.title !== undefined ? (
           <>
@@ -1222,6 +1214,34 @@ const App: React.FC = () => {
               {exports.pptx?.running ? `PowerPoint … ${exports.pptx.progress} %` : '⤓ PowerPoint'}
             </button>
             <span>{T.pptxShort}</span>
+          </div>
+          {/* which slides become animated GIFs: set on the slide shown, all chosen ones listed below (a click jumps there) */}
+          <div className="export-gif">
+            <label className="chk" title={T.pptxGifHint}>
+              <input
+                type="checkbox"
+                checked={!!sc.pptxGif}
+                onChange={(e) => scene((s) => {
+                  if (e.target.checked) s.pptxGif = true;
+                  else delete s.pptxGif;
+                })}
+              />
+              {T.pptxGif}
+            </label>
+            <div className="libs-hint">
+              {T.pptxGifChosen}{' '}
+              {content.order.some((k) => content.scenes[k]?.pptxGif)
+                ? content.order.map((k, i) =>
+                    content.scenes[k]?.pptxGif ? (
+                      <React.Fragment key={k}>
+                        <button className="linkish" onClick={() => goto(starts[i] ?? 0)}>
+                          {i + 1} · {nameOf(k)}
+                        </button>{' '}
+                      </React.Fragment>
+                    ) : null,
+                  )
+                : T.pptxGifNone}
+            </div>
           </div>
           <div className="libs-hint">{T.exportWhere}</div>
         </details>

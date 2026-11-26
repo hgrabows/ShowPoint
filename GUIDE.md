@@ -401,8 +401,10 @@ title stay at the top. The shift is the same for all slides of a scene, so nothi
 of a card stacked one below the other (such as "Triceps / Agonist / contracts") become a single text box lying exactly
 on the card; it keeps its place on every slide, even when the card holds two lines on one and three on the next.
 
-**Animated slides (GIF).** Where the movement matters – an arm that bends, a signal that travels –, tick
-**"Animated in PowerPoint (GIF)"** at the slide in the presenter's side panel (stored as `pptxGif` in `content.json`).
+**Animated slides (GIF).** Where the movement matters – an arm that bends, a signal that travels –, go to
+that slide in the presenter, fold out **"Export"** at the bottom of the side panel and tick **"This slide animated
+(GIF)"** below "⤓ PowerPoint" (stored as `pptxGif` in `content.json`). Below it all slides chosen this way are listed;
+a click on a name jumps there.
 Then the drawing below this slide's heading becomes animated GIFs: **one per stop**, playing the movement from the stop
 before to this one once and then holding – like a click in the presenter. Kicker and title stay text boxes, the
 caption is in the notes. **Cards** – boxes with text such as "Biceps / Agonist" or "Coordination", together with what

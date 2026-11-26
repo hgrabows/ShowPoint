@@ -406,9 +406,10 @@ Die untereinanderstehenden Texte einer Karte (etwa „Trizeps / Agonist / zieht 
 Textfeld, das genau auf der Karte liegt; es steht auf jeder Folie an derselben Stelle, auch wenn die Karte mal zwei,
 mal drei Zeilen hat.
 
-**Animierte Folien (GIF).** Wo die Bewegung wichtig ist – ein Arm, der sich beugt, ein Signal, das läuft –, setzt man
-im Präsentator rechts bei der Folie das Häkchen **„In PowerPoint animiert (GIF)“** (gespeichert als `pptxGif` in
-`content.json`). Dann wird bei dieser Folie die Zeichnung unter der Überschrift zu animierten GIFs: **je Haltepunkt eines**,
+**Animierte Folien (GIF).** Wo die Bewegung wichtig ist – ein Arm, der sich beugt, ein Signal, das läuft –, geht man
+im Präsentator zu dieser Folie, klappt rechts unten **„Export“** auf und setzt unter „⤓ PowerPoint“ das Häkchen
+**„Diese Folie animiert (GIF)“** (gespeichert als `pptxGif` in `content.json`). Darunter stehen alle so gewählten
+Folien; ein Klick auf einen Namen springt hin. Dann wird bei dieser Folie die Zeichnung unter der Überschrift zu animierten GIFs: **je Haltepunkt eines**,
 das die Bewegung vom vorigen Haltepunkt bis hierher einmal abspielt und dann stehen bleibt – wie ein Klick im
 Präsentator. Dachzeile und Titel bleiben Textfelder, der Untertitel steht in den Notizen. **Karten** – Kästen mit Text
 wie „Bizeps / Agonist“ oder „Koordination“, samt dem, was darin gezeichnet ist – bleiben bearbeitbare Formen und
