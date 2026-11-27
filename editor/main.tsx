@@ -89,7 +89,7 @@ select{width:100%;background:#0a0d18;color:#e8ecf8;border:1px solid #2e3a63;bord
 .libs-warn{color:#ffb020}
 .libs-hint{margin-top:6px;color:#5d6a92}
 .libs.vers,.libs.design,.libs.export{margin-top:10px}
-.export-row{display:flex;align-items:center;gap:10px;margin-top:8px;line-height:1.35}
+.export-per{display:flex;align-items:center;gap:14px;margin-top:8px}.export-per label{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}.export-row{display:flex;align-items:center;gap:10px;margin-top:8px;line-height:1.35}
 .export-row button{flex:none;min-width:9.5em}
 .export-gif{margin:2px 0 4px calc(9.5em + 10px)}
 .export-gif label.chk{margin-top:6px}
@@ -176,10 +176,24 @@ const App: React.FC = () => {
   const [rbDraft, setRbDraft] = useState<{text: string; n: number} | null>(null);
   type ExportState = {running: boolean; progress: number; file: string; error: string};
   const [exports, setExports] = useState<{pdf?: ExportState; pptx?: ExportState}>({});
+  // one page/slide per stop or only per scene (its final state); remembered in this browser
+  const [perScene, setPerScene] = useState(() => {
+    try {
+      return localStorage.getItem('export-per') === 'scene';
+    } catch {
+      return false;
+    }
+  });
+  const choosePer = (scene: boolean) => {
+    setPerScene(scene);
+    try {
+      localStorage.setItem('export-per', scene ? 'scene' : 'stop');
+    } catch {}
+  };
   const exportAs = useCallback(async (kind: 'pdf' | 'pptx') => {
     if (exports[kind]?.running) return;
     const set = (st: ExportState) => setExports((e) => ({...e, [kind]: st}));
-    let st: ExportState = await fetch(`/api/${kind}`, {method: 'POST'}).then((r) => (r.ok ? r.json() : r.text().then((t) => ({running: false, progress: 0, file: '', error: t}))));
+    let st: ExportState = await fetch(`/api/${kind}${perScene ? '?per=scene' : ''}`, {method: 'POST'}).then((r) => (r.ok ? r.json() : r.text().then((t) => ({running: false, progress: 0, file: '', error: t}))));
     set(st);
     while (st.running) {
       await new Promise((r) => setTimeout(r, 1000));
@@ -189,7 +203,7 @@ const App: React.FC = () => {
     if (st.error) window.alert(T.exportFailed(kind === 'pdf' ? 'PDF' : 'PowerPoint', st.error));
     else if (st.file && kind === 'pdf') window.open('/api/pdf/file', '_blank');
     else if (st.file) window.location.href = '/api/pptx/file'; // a download, the page stays
-  }, [exports]);
+  }, [exports, perScene]);
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
   creatingRef.current = creating;
@@ -1203,17 +1217,22 @@ const App: React.FC = () => {
         {/* not needed during the talk: folded away at the bottom of the panel */}
         <details className="libs export">
           <summary>{exports.pdf?.running || exports.pptx?.running ? T.exportRunning : T.exportSummary}</summary>
+          <div className="export-per" title={T.perTitle}>
+            <span>{T.exportPer}</span>
+            <label><input type="radio" name="export-per" checked={!perScene} onChange={() => choosePer(false)} />{T.perStop}</label>
+            <label><input type="radio" name="export-per" checked={perScene} onChange={() => choosePer(true)} />{T.perScene}</label>
+          </div>
           <div className="export-row">
             <button onClick={() => exportAs('pdf')} disabled={exports.pdf?.running} title={T.pdfTitle}>
               {exports.pdf?.running ? `PDF … ${exports.pdf.progress} %` : '⤓ PDF'}
             </button>
-            <span>{T.pdfShort}</span>
+            <span>{T.pdfShort(perScene)}</span>
           </div>
           <div className="export-row">
             <button onClick={() => exportAs('pptx')} disabled={exports.pptx?.running} title={T.pptxTitle}>
               {exports.pptx?.running ? `PowerPoint … ${exports.pptx.progress} %` : '⤓ PowerPoint'}
             </button>
-            <span>{T.pptxShort}</span>
+            <span>{T.pptxShort(perScene)}</span>
           </div>
           {/* which slides become animated GIFs: set on the slide shown, all chosen ones listed below (a click jumps there) */}
           <div className="export-gif">

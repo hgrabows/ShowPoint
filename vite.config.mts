@@ -1910,18 +1910,18 @@ function undoRebuild(lang: Lang) {
   return true;
 }
 
-// Export as PDF (scripts/pdf.mjs, one page per stop) or PowerPoint (scripts/pptx.mjs, the slides rebuilt from single
+// Export as PDF (scripts/pdf.mjs, one page per stop or per scene) or PowerPoint (scripts/pptx.mjs, the slides rebuilt from single
 // objects): runs the script and remembers progress and result.
 type ExportKind = 'pdf' | 'pptx';
 const exportJobs: Record<ExportKind, {running: boolean; progress: number; file: string; error: string; startedAt: number; lang: Lang}> = {
   pdf: {running: false, progress: 0, file: '', error: '', startedAt: 0, lang: 'de'},
   pptx: {running: false, progress: 0, file: '', error: '', startedAt: 0, lang: 'de'},
 };
-function startExport(kind: ExportKind, lang: Lang) {
+function startExport(kind: ExportKind, lang: Lang, perScene = false) {
   const job = exportJobs[kind];
   if (job.running) return;
   Object.assign(job, {running: true, progress: 0, file: '', error: '', startedAt: Date.now(), lang});
-  const child = spawn(process.execPath, [`scripts/${kind}.mjs`], {cwd: process.cwd(), env: {...process.env, INHALT: inhaltRel}});
+  const child = spawn(process.execPath, [`scripts/${kind}.mjs`, ...(perScene ? ['--scenes'] : [])], {cwd: process.cwd(), env: {...process.env, INHALT: inhaltRel}});
   let err = '';
   let buf = '';
   child.stdout.on('data', (c) => {
@@ -1977,7 +1977,8 @@ export default defineConfig({
                 res.statusCode = 404;
                 return res.end(t.noPresentation);
               }
-              startExport(kind, langOf(req));
+              // ?per=scene: one page or slide per scene instead of one per stop
+              startExport(kind, langOf(req), new URL(req.url ?? '', 'http://x').searchParams.get('per') === 'scene');
             }
             res.setHeader('Content-Type', 'application/json');
             const {lang: _lang, ...status} = job;

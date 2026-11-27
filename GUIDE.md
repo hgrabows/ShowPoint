@@ -375,6 +375,10 @@ Creates `out/<title>.pdf` in the presentation's folder: **one page per stop**, e
 presenter pauses there (with caption), plus the final picture. Good as a handout or for reading later; takes about
 half a minute.
 
+At the top of "Export" is the switch **Pages: per stop / per scene**. With "per scene" there is only one page per
+scene, its final state (the last stop) – a short version without the intermediate states. The switch applies to PDF
+and PowerPoint and is remembered in the browser. In the terminal: `npm run pdf -- --scenes`.
+
 ## Output as PowerPoint
 
 The "⤓ PowerPoint" button in the presenter (side panel, bottom: fold out "Export"), or in the terminal:
@@ -383,7 +387,7 @@ The "⤓ PowerPoint" button in the presenter (side panel, bottom: fold out "Expo
 npm run pptx
 ```
 
-Creates `out/<title>.pptx` in the presentation's folder, **one slide per stop**. The slides are not screenshots but
+Creates `out/<title>.pptx` in the presentation's folder, **one slide per stop** (or per scene, see "Pages" above). The slides are not screenshots but
 rebuilt from single objects that can be moved and changed in PowerPoint:
 
 | on the slide | in PowerPoint |
@@ -416,8 +420,9 @@ nothing inside a GIF can be changed. In the terminal it works without the tick t
 (the scene ids from `order`). A GIF takes a few hundred KB up to about 2 MB, and the export takes a little longer
 (about a minute with 12 GIFs).
 
-More options: `npm run pptx -- --scenes` makes only one slide per scene (its last stop), `npm run pptx -- --out <file>`
-saves elsewhere. Takes a few seconds up to about a minute.
+More options: `npm run pptx -- --scenes` makes only one slide per scene (its last stop; in the presenter the switch
+"Pages: per scene" – a GIF then plays the whole scene up to its final state), `npm run pptx -- --out <file>` saves
+elsewhere. Takes a few seconds up to about a minute.
 
 Limits: animations and transitions are not taken over – each slide shows the state at its stop. PowerPoint sets type
 a little differently from the browser; text boxes are therefore a bit wider, a line may still break elsewhere.

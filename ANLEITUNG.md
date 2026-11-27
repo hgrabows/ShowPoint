@@ -379,6 +379,10 @@ Erzeugt `out/<titel>.pdf` im Ordner der Präsentation: **eine Seite je Haltepunk
 Präsentator dort anhält (mit Untertitel), dazu das Schlussbild. Gut als Handout oder zum Nachlesen; dauert etwa
 eine halbe Minute.
 
+Unter „Export“ steht oben der Schalter **Umfang: je Haltepunkt / je Szene**. Mit „je Szene“ gibt es nur eine Seite je
+Szene, ihren Endstand (den letzten Haltepunkt) – eine kurze Fassung ohne die Zwischenstände. Der Schalter gilt für PDF
+und PowerPoint und wird im Browser gemerkt. Im Terminal: `npm run pdf -- --szenen`.
+
 ## Als PowerPoint ausgeben
 
 Knopf „⤓ PowerPoint“ im Präsentator (rechts unten „Export“ aufklappen), oder im Terminal:
@@ -387,7 +391,7 @@ Knopf „⤓ PowerPoint“ im Präsentator (rechts unten „Export“ aufklappen
 npm run pptx
 ```
 
-Erzeugt `out/<titel>.pptx` im Ordner der Präsentation, **eine Folie je Haltepunkt**. Die Folien sind keine
+Erzeugt `out/<titel>.pptx` im Ordner der Präsentation, **eine Folie je Haltepunkt** (oder je Szene, siehe „Umfang“ oben). Die Folien sind keine
 Bildschirmfotos, sondern aus einzelnen Objekten nachgebaut, die sich in PowerPoint verschieben und ändern lassen:
 
 | auf der Folie | in PowerPoint |
@@ -421,8 +425,9 @@ Ohne Häkchen bleibt die ganze Folie aus einzelnen, bearbeitbaren Objekten – i
 Terminal geht es auch ohne Häkchen: `npm run pptx -- --gif agonist,nerven` (die Kennungen der Szenen aus `order`).
 Ein GIF kostet einige hundert KB bis knapp 2 MB, der Export dauert damit etwas länger (bei 12 GIFs etwa eine Minute).
 
-Weitere Optionen: `npm run pptx -- --szenen` macht nur eine Folie je Szene (ihr letzter Haltepunkt), `npm run pptx --
---out <datei>` speichert anderswo. Dauert wenige Sekunden bis etwa eine Minute.
+Weitere Optionen: `npm run pptx -- --szenen` macht nur eine Folie je Szene (ihr letzter Haltepunkt; im Präsentator der
+Schalter „Umfang: je Szene“ – ein GIF spielt dann die ganze Szene bis zum Endstand), `npm run pptx -- --out <datei>`
+speichert anderswo. Dauert wenige Sekunden bis etwa eine Minute.
 
 Grenzen: Animationen und Übergänge werden nicht übernommen – jede Folie zeigt den Stand am Haltepunkt. PowerPoint
 setzt Schrift etwas anders als der Browser; Textfelder sind darum etwas breiter angelegt, ein Umbruch kann trotzdem
